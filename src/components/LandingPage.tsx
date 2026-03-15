@@ -128,7 +128,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
       <section className="max-w-[90rem] mx-auto px-4 pb-32 lg:flex lg:gap-12 items-start relative z-20">
         
         {/* Sticky Marketing Narrator */}
-        <div className="lg:w-1/4 lg:sticky lg:top-8 space-y-8 mb-12 lg:mb-0">
+        <div className="lg:w-1/4 lg:sticky lg:top-8 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto space-y-8 mb-12 lg:mb-0 scrollbar-hide">
           <div>
             <h3 className="text-xl font-bold text-slate-900 tracking-tight">Try it out</h3>
             <p className="text-slate-600 mt-3 leading-relaxed">
@@ -217,6 +217,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ${theme.features.shareButtons ? 'translate-x-6' : 'translate-x-1'}`} />
                   </div>
                 </label>
+                <label
+                  onClick={() => setTheme(prev => ({ ...prev, features: { ...prev.features, scrollReveal: !prev.features.scrollReveal } }))}
+                  className="flex items-center justify-between cursor-pointer group"
+                >
+                  <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">Scroll Reveal</span>
+                  <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 ${theme.features.scrollReveal ? 'bg-slate-900' : 'bg-slate-200'}`}>
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ${theme.features.scrollReveal ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </div>
+                </label>
               </div>
 
               <div className="pt-4 border-t border-slate-100">
@@ -273,6 +282,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
                   <li className="flex items-center gap-2">
                     <span>↔️</span>
                     <span><strong className="text-slate-800">Before/After Slider</strong> — draggable image compare</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span>✨</span>
+                    <span><strong className="text-slate-800">Scroll Reveal</strong> — fade-up, slide, or zoom per block</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span>〰️</span>
+                    <span><strong className="text-slate-800">Animated Dividers</strong> — gradient, pulse, rainbow</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span>🎉</span>
+                    <span><strong className="text-slate-800">Confetti Block</strong> — celebration burst on scroll</span>
                   </li>
                 </ul>
               </div>

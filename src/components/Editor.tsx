@@ -32,6 +32,8 @@ import { HeroBanner } from '../extensions/HeroBanner';
 import { StatRow } from '../extensions/StatRow';
 import { CodeDiff } from '../extensions/CodeDiff';
 import { BeforeAfter } from '../extensions/BeforeAfter';
+import { Confetti } from '../extensions/Confetti';
+import { ScrollReveal, REVEAL_TYPES } from '../extensions/ScrollReveal';
 import { compressImageToWebP } from '../utils/imageCompressor';
 import { useEffect, useState, useRef } from 'react';
 import {
@@ -39,7 +41,8 @@ import {
   Link as LinkIcon, Highlighter, AlignLeft, AlignCenter, AlignRight, Table as TableIcon,
   Info, AlertTriangle, CheckCircle, Minus, Undo, Redo, Bold, Italic, Strikethrough, Columns,
   ChevronsUpDown, Layers, GripHorizontal, Video, Milestone, LayoutGrid, Hash,
-  MessageSquareQuote, PanelTop, BarChart3, GitCompare, SplitSquareHorizontal
+  MessageSquareQuote, PanelTop, BarChart3, GitCompare, SplitSquareHorizontal,
+  PartyPopper, Sparkles
 } from 'lucide-react';
 
 const lowlight = createLowlight(common);
@@ -58,6 +61,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
   const [isMounted, setIsMounted] = useState(false);
   const [headings, setHeadings] = useState<{ text: string; level: number; id: string }[]>([]);
 
+  const [showRevealPop, setShowRevealPop] = useState(false);
   const [showGradientPop, setShowGradientPop] = useState(false);
   const [gradientFrom, setGradientFrom] = useState('#6366f1');
   const [gradientTo, setGradientTo] = useState('#ec4899');
@@ -151,6 +155,8 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       StatRow,
       CodeDiff,
       BeforeAfter,
+      Confetti,
+      ScrollReveal,
     ],
     content: initialContent || '',
     editorProps: {
@@ -265,6 +271,40 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
           <button onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} className="p-2 rounded hover:bg-slate-200 text-slate-600" title="Insert Table"><TableIcon size={16} /></button>
           <button onClick={() => editor.chain().focus().insertContent('<div data-type="grid"><div data-type="grid-column"><p></p></div><div data-type="grid-column"><p></p></div></div>').run()} className="p-2 rounded hover:bg-slate-200 text-slate-600" title="Insert 2-Column Grid"><Columns size={16} /></button>
           <button onClick={() => editor.chain().focus().setHorizontalRule().run()} className="p-2 rounded hover:bg-slate-200 text-slate-600" title="Horizontal Rule"><Minus size={16} /></button>
+
+          <div className="w-px h-5 bg-slate-300 mx-1" />
+
+          {/* Scroll Reveal */}
+          <div className="relative">
+            <button
+              onClick={() => setShowRevealPop(v => !v)}
+              className={`p-2 rounded hover:bg-slate-200 text-slate-600 flex items-center gap-1`}
+              title="Scroll Reveal Animation"
+            >
+              <Sparkles size={16} />
+            </button>
+            {showRevealPop && (
+              <div className="absolute top-full mt-2 right-0 bg-white rounded-lg shadow-xl border border-slate-200 p-2 z-50 flex flex-col gap-0.5" style={{ minWidth: '140px' }}>
+                <p className="text-xs text-slate-500 px-2 pt-1 pb-1.5 font-medium">Reveal on scroll</p>
+                {REVEAL_TYPES.map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => {
+                      if (type === 'none') {
+                        editor.chain().focus().setScrollReveal('none').run();
+                      } else {
+                        editor.chain().focus().setScrollReveal(type).run();
+                      }
+                      setShowRevealPop(false);
+                    }}
+                    className="text-xs text-left px-2 py-1.5 rounded hover:bg-slate-100 text-slate-700 capitalize"
+                  >
+                    {type === 'none' ? '✕ None' : type.replace(/-/g, ' ')}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -396,6 +436,13 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
             title="Insert Before/After Slider"
           >
             <SplitSquareHorizontal size={18} />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().insertContent({ type: 'confetti', attrs: { message: 'Congratulations!', emoji: '🎉', colors: '["#6366f1","#ec4899","#f59e0b","#10b981","#3b82f6"]' } }).run()}
+            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
+            title="Insert Confetti Block"
+          >
+            <PartyPopper size={18} />
           </button>
         </FloatingMenu>
       )}

@@ -362,6 +362,27 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     `;
   });
 
+  // Transform confetti blocks
+  doc.querySelectorAll('div[data-type="confetti"]').forEach((el) => {
+    const message = el.getAttribute('data-message') || 'Congratulations!';
+    const emoji = el.getAttribute('data-emoji') || '🎉';
+    let colors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'];
+    try { colors = JSON.parse(el.getAttribute('data-colors') || '[]'); } catch { /* use defaults */ }
+
+    el.className = 'confetti-block';
+    el.removeAttribute('data-type');
+    el.removeAttribute('data-message');
+    el.removeAttribute('data-emoji');
+    el.removeAttribute('data-colors');
+    el.innerHTML = `
+      <div class="confetti-canvas" data-colors='${JSON.stringify(colors)}'></div>
+      <div class="confetti-content">
+        <div class="confetti-emoji">${emoji}</div>
+        <div class="confetti-message">${escapeHtml(message)}</div>
+      </div>
+    `;
+  });
+
   // Transform before/after slider blocks
   doc.querySelectorAll('div[data-type="before-after"]').forEach((el) => {
     const beforeImage = el.getAttribute('data-before-image') || '';
@@ -679,6 +700,74 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
         document.addEventListener('mouseup', () => { dragging = false; });
         document.addEventListener('touchend', () => { dragging = false; });
       });
+
+      // --- PER-ELEMENT SCROLL REVEAL ---
+      // Apply per-element reveal classes from data-scroll-reveal attribute
+      document.querySelectorAll('[data-scroll-reveal]').forEach(el => {
+        const t = el.getAttribute('data-scroll-reveal');
+        if (t && t !== 'none') {
+          el.classList.add('reveal-' + t);
+        }
+      });
+      // Observe per-element reveals (global reveal observer is initialized in the scrollReveal block if enabled)
+      if (document.querySelector('[data-scroll-reveal]')) {
+        initRevealObserver();
+      }
+
+      // --- CONFETTI BLOCKS ---
+      const confettiBlocks = document.querySelectorAll('.confetti-block');
+      if (confettiBlocks.length > 0) {
+        function burstConfetti(block) {
+          const canvas = block.querySelector('.confetti-canvas');
+          if (!canvas) return;
+          let colors;
+          try { colors = JSON.parse(canvas.getAttribute('data-colors') || '[]'); } catch {}
+          if (!colors || !colors.length) colors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'];
+
+          const pieces = [];
+          for (let i = 0; i < 70; i++) {
+            const el = document.createElement('div');
+            const size = Math.random() * 9 + 4;
+            el.style.cssText = 'position:absolute;pointer-events:none;left:' + (Math.random() * 100) + '%;top:40%;width:' + size + 'px;height:' + (size * (Math.random() > 0.5 ? 1 : 0.5)) + 'px;background:' + colors[Math.floor(Math.random() * colors.length)] + ';border-radius:' + (Math.random() > 0.5 ? '50%' : '2px') + ';';
+            canvas.appendChild(el);
+            pieces.push({
+              el,
+              x: 0, y: 0,
+              vx: (Math.random() - 0.5) * 6,
+              vy: -(Math.random() * 9 + 3),
+              rot: Math.random() * 360,
+              rotV: (Math.random() - 0.5) * 12,
+            });
+          }
+
+          const startTime = performance.now();
+          function animatePieces(now) {
+            const elapsed = now - startTime;
+            if (elapsed > 3200) { pieces.forEach(p => p.el.remove()); return; }
+            const opacity = Math.max(0, 1 - elapsed / 2600);
+            pieces.forEach(p => {
+              p.vy += 0.22;
+              p.x += p.vx;
+              p.y += p.vy;
+              p.rot += p.rotV;
+              p.el.style.transform = 'translate(' + p.x + 'px,' + p.y + 'px) rotate(' + p.rot + 'deg)';
+              p.el.style.opacity = opacity;
+            });
+            requestAnimationFrame(animatePieces);
+          }
+          requestAnimationFrame(animatePieces);
+        }
+
+        const confettiObserver = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              burstConfetti(entry.target);
+              confettiObserver.unobserve(entry.target);
+            }
+          });
+        }, { threshold: 0.5 });
+        confettiBlocks.forEach(el => confettiObserver.observe(el));
+      }
 
       // --- ANNOTATION TOUCH SUPPORT ---
       document.querySelectorAll('.annotation-marker').forEach(marker => {
@@ -1731,6 +1820,85 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       }
     }
 
+    /* Animated Section Dividers */
+    @keyframes gradient-shift { to { background-position: 200% center; } }
+    @keyframes pulse-line { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+    @keyframes rainbow-cycle { to { filter: hue-rotate(360deg); } }
+
+    .section-divider[data-style="animated-gradient"] {
+      height: 3px;
+      border-radius: 9999px;
+      background: linear-gradient(90deg, #6366f1, #ec4899, #f59e0b, #6366f1);
+      background-size: 200% auto;
+      animation: gradient-shift 3s linear infinite;
+    }
+    .section-divider[data-style="pulse"] {
+      height: 2px;
+      background: var(--brand-primary);
+      animation: pulse-line 2s ease-in-out infinite;
+    }
+    .section-divider[data-style="rainbow"] {
+      height: 3px;
+      border-radius: 9999px;
+      background: linear-gradient(to right, #ef4444, #f97316, #eab308, #22c55e, #3b82f6, #8b5cf6, #ec4899);
+      animation: rainbow-cycle 4s linear infinite;
+    }
+
+    /* Confetti Block */
+    .confetti-block {
+      margin: 2rem 0;
+      border-radius: 1rem;
+      border: 1px solid #e2e8f0;
+      overflow: hidden;
+      background: linear-gradient(to bottom, #f8fafc, #ffffff);
+      position: relative;
+      min-height: 160px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .confetti-canvas {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .confetti-content {
+      position: relative;
+      text-align: center;
+      padding: 3rem 2rem;
+    }
+    .confetti-emoji {
+      font-size: 3rem;
+      margin-bottom: 0.75rem;
+      line-height: 1;
+    }
+    .confetti-message {
+      font-size: 1.375rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    /* Per-element Scroll Reveal */
+    .reveal-fade-up { opacity: 0; transform: translateY(24px); transition: opacity 0.65s ease-out, transform 0.65s ease-out; }
+    .reveal-slide-left { opacity: 0; transform: translateX(-36px); transition: opacity 0.65s ease-out, transform 0.65s ease-out; }
+    .reveal-slide-right { opacity: 0; transform: translateX(36px); transition: opacity 0.65s ease-out, transform 0.65s ease-out; }
+    .reveal-zoom-in { opacity: 0; transform: scale(0.92); transition: opacity 0.65s ease-out, transform 0.65s ease-out; }
+    .reveal-fade-up.active, .reveal-slide-left.active, .reveal-slide-right.active, .reveal-zoom-in.active {
+      opacity: 1;
+      transform: none;
+    }
+
+    /* Global reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      .section-divider[data-style="animated-gradient"],
+      .section-divider[data-style="pulse"],
+      .section-divider[data-style="rainbow"] { animation: none !important; }
+      .reveal-fade-up, .reveal-slide-left, .reveal-slide-right, .reveal-zoom-in {
+        opacity: 1 !important; transform: none !important; transition: none !important;
+      }
+    }
+
     /* Mobile Responsive Overrides */
     @media (max-width: 640px) {
       .export-layout {
@@ -1862,6 +2030,8 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       .diff-label-after { background: rgba(21,128,61,0.15); }
       .share-btn { background: rgba(15, 23, 42, 0.9); border-color: #334155; color: #94a3b8; }
       .share-btn:hover { background: rgba(30, 41, 59, 1); color: var(--brand-primary); }
+      .confetti-block { background: linear-gradient(to bottom, #1e293b, #0f172a); border-color: #334155; }
+      .confetti-message { color: #f1f5f9; }
     }
 
     html.dark body { background-color: #0f172a; color: #f1f5f9; }
@@ -1918,6 +2088,8 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     html.dark .diff-label-after { background: rgba(21,128,61,0.15); }
     html.dark .share-btn { background: rgba(15, 23, 42, 0.9); border-color: #334155; color: #94a3b8; }
     html.dark .share-btn:hover { background: rgba(30, 41, 59, 1); color: var(--brand-primary); }
+    html.dark .confetti-block { background: linear-gradient(to bottom, #1e293b, #0f172a); border-color: #334155; }
+    html.dark .confetti-message { color: #f1f5f9; }
     html.dark .site-footer { background-color: #0f172a; border-top-color: #1e293b; }
     html.dark .site-footer-links a { color: #94a3b8; }
     html.dark .site-footer-text { color: #94a3b8; }
@@ -1931,15 +2103,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     ` : ''}
 
     ${theme?.features?.scrollReveal ? `
-    .reveal {
-      opacity: 0;
-      transform: translateY(20px);
-      transition: opacity 0.6s ease-out, transform 0.6s ease-out;
-    }
-    .reveal.active {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    /* Global scroll reveal applies fade-up to all top-level blocks */
     ` : ''}
 
     ${theme?.features?.readingProgressBar ? `
@@ -2037,6 +2201,13 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       .before-after-container { display: flex; flex-direction: column; }
       .before-after-before-clip { position: static; clip-path: none; width: 100%; }
       .before-after-divider, .before-after-label { display: none; }
+      .section-divider[data-style="animated-gradient"],
+      .section-divider[data-style="pulse"],
+      .section-divider[data-style="rainbow"] { animation: none !important; }
+      .confetti-canvas { display: none !important; }
+      .reveal-fade-up, .reveal-slide-left, .reveal-slide-right, .reveal-zoom-in {
+        opacity: 1 !important; transform: none !important;
+      }
     }
     ` : ''}
   </style>
@@ -2094,26 +2265,27 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     </div>
   </footer>` : ''}
   <script>
-    ${theme?.features?.scrollReveal ? `
-    document.addEventListener('DOMContentLoaded', () => {
-      const elements = document.querySelectorAll('.guide-container > *');
-      elements.forEach(el => el.classList.add('reveal'));
-
-      const revealElements = document.querySelectorAll('.reveal');
-      const revealOnScroll = () => {
-        const windowHeight = window.innerHeight;
-        const elementVisible = 100;
-
-        revealElements.forEach(el => {
-          const elementTop = el.getBoundingClientRect().top;
-          if (elementTop < windowHeight - elementVisible) {
-            el.classList.add('active');
+    // Script-scope so both DOMContentLoaded blocks can call it
+    function initRevealObserver() {
+      var revealEls = document.querySelectorAll('.reveal-fade-up, .reveal-slide-left, .reveal-slide-right, .reveal-zoom-in');
+      if (revealEls.length === 0) return;
+      var observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('active');
+            observer.unobserve(entry.target);
           }
         });
-      };
-
-      window.addEventListener('scroll', revealOnScroll);
-      revealOnScroll(); // Trigger once on load
+      }, { threshold: 0.1 });
+      revealEls.forEach(function(el) { observer.observe(el); });
+    }
+    ${theme?.features?.scrollReveal ? `
+    document.addEventListener('DOMContentLoaded', () => {
+      // Apply fade-up to top-level blocks that don't have a per-element reveal
+      document.querySelectorAll('.guide-container > *:not([data-scroll-reveal])').forEach(el => {
+        el.classList.add('reveal-fade-up');
+      });
+      initRevealObserver();
     });
     ` : ''}
     ${inlineJS}

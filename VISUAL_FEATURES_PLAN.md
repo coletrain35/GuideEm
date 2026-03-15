@@ -221,7 +221,7 @@ These follow the React NodeView pattern (like `Counter.tsx`, `CardGrid.tsx`).
 
 ---
 
-## Phase 3: Motion & Animation
+## Phase 3: Motion & Animation ✅ COMPLETE
 
 ### F9 — Scroll Reveal Animations (System-wide)
 
@@ -414,15 +414,15 @@ New lucide-react imports for Editor.tsx: `Sparkles`, `Badge`, `PanelTop`, `BarCh
 | 2 | ~~F1: Gradient Text~~ | ~~`GradientText.ts`~~ | ~~Medium~~ | ✅ |
 | 3 | ~~F2: Animated Text~~ | ~~`AnimatedText.ts`~~ | ~~Medium~~ | ✅ |
 | 4 | F12: Glass Callouts | — (modify Callout.ts) | Simple |
-| 5 | F10: Animated Dividers | — (modify SectionDivider.tsx) | Simple |
+| 5 | ~~F10: Animated Dividers~~ | ~~— (modify SectionDivider.tsx)~~ | ~~Simple~~ | ✅ |
 | 6 | ~~F6: Testimonial Card~~ | ~~`Testimonial.tsx`~~ | ~~Simple~~ | ✅ |
 | 7 | ~~F4: Hero Banner~~ | ~~`HeroBanner.tsx`~~ | ~~Medium~~ | ✅ |
 | 8 | ~~F5: Stat Row~~ | ~~`StatRow.tsx`~~ | ~~Medium~~ | ✅ |
 | 9 | F14: Image Effects | — (modify AnnotatedImage) | Medium |
 | 10 | ~~F8: Code Diff~~ | ~~`CodeDiff.tsx`~~ | ~~Medium~~ | ✅ |
 | 11 | F13: Inline Code | `InlineCode.ts` | Complex |
-| 12 | F9: Scroll Reveal | `ScrollReveal.ts` | Medium |
-| 13 | F11: Confetti | `Confetti.tsx` | Medium |
+| 12 | ~~F9: Scroll Reveal~~ | ~~`ScrollReveal.ts`~~ | ~~Medium~~ | ✅ |
+| 13 | ~~F11: Confetti~~ | ~~`Confetti.tsx`~~ | ~~Medium~~ | ✅ |
 | 14 | ~~F7: Before/After~~ | ~~`BeforeAfter.tsx`~~ | ~~Complex~~ | ✅ |
 
 **Rationale:** Simple features first to establish patterns, existing file modifications before new complex files, JS-heavy interactive features last.

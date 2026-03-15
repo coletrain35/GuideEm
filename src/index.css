@@ -213,6 +213,17 @@
     }
   }
 
+  @keyframes gradient-shift {
+    to { background-position: 200% center; }
+  }
+  @keyframes pulse-line {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.25; }
+  }
+  @keyframes rainbow-cycle {
+    to { filter: hue-rotate(360deg); }
+  }
+
   @keyframes shimmer-text-preview {
     to { background-position: 200% center; }
   }
@@ -225,6 +236,21 @@
   @keyframes fade-in-word-preview {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.4; }
+  }
+
+  /* Animated Dividers */
+  .divider-animated-gradient {
+    background: linear-gradient(90deg, #6366f1, #ec4899, #f59e0b, #6366f1);
+    background-size: 200% auto;
+    animation: gradient-shift 3s linear infinite;
+  }
+  .divider-pulse {
+    background: var(--brand-primary, #2563eb);
+    animation: pulse-line 2s ease-in-out infinite;
+  }
+  .divider-rainbow {
+    background: linear-gradient(to right, #ef4444, #f97316, #eab308, #22c55e, #3b82f6, #8b5cf6, #ec4899);
+    animation: rainbow-cycle 4s linear infinite;
   }
 
   /* Timeline step counter in editor */

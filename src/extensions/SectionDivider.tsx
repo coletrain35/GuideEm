@@ -3,8 +3,18 @@ import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import React from 'react';
 import { Trash2 } from 'lucide-react';
 
-const STYLES = ['gradient', 'solid', 'wave', 'dots'] as const;
+const STYLES = ['gradient', 'solid', 'wave', 'dots', 'animated-gradient', 'pulse', 'rainbow'] as const;
 type DividerStyle = typeof STYLES[number];
+
+const STYLE_LABELS: Record<DividerStyle, string> = {
+  gradient: 'Gradient',
+  solid: 'Solid',
+  wave: 'Wave',
+  dots: 'Dots',
+  'animated-gradient': 'Animated',
+  pulse: 'Pulse',
+  rainbow: 'Rainbow',
+};
 
 const DividerPreview = ({ style }: { style: DividerStyle }) => {
   switch (style) {
@@ -36,6 +46,12 @@ const DividerPreview = ({ style }: { style: DividerStyle }) => {
           ))}
         </div>
       );
+    case 'animated-gradient':
+      return <div className="divider-animated-gradient h-0.5 w-full rounded-full" />;
+    case 'pulse':
+      return <div className="divider-pulse h-px w-full" />;
+    case 'rainbow':
+      return <div className="divider-rainbow h-0.5 w-full rounded-full" />;
   }
 };
 
@@ -54,11 +70,11 @@ const SectionDividerNodeView = (props: any) => {
             <button
               key={s}
               onClick={() => updateAttributes({ style: s })}
-              className={`px-3 py-1 rounded-full capitalize hover:bg-slate-100 ${
+              className={`px-3 py-1 rounded-full hover:bg-slate-100 ${
                 style === s ? 'bg-slate-100 font-medium text-slate-900' : 'text-slate-600'
               }`}
             >
-              {s}
+              {STYLE_LABELS[s]}
             </button>
           ))}
           <div className="w-px h-4 bg-slate-300 mx-1" />

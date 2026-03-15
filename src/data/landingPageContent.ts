@@ -68,11 +68,11 @@ const exportGuide = (title, content) => {
     <p>Yes. Every document has a Theme panel where you set a primary brand color (applied to links, active TOC items, tab indicators, and progress bars), choose between three font stacks (Modern, Editorial, and Technical/Mono), and optionally inject custom CSS for anything else. The brand color propagates through the entire exported file as a single CSS variable, so changing it updates everything at once.</p>
   </div>
   <div data-type="accordion-item" data-title="What content blocks are available?">
-    <p>The editor ships with: headings, paragraphs, bullet and numbered lists, interactive task lists, blockquotes, code blocks with syntax highlighting, tables, info/warning/success callouts, annotated images, two-column grids, accordion sections, tabbed content, and section dividers. More block types are on the roadmap.</p>
+    <p>The editor ships with: headings, paragraphs, bullet and numbered lists, interactive task lists, blockquotes, code blocks with syntax highlighting, tables, info/warning/success callouts, annotated images, two-column grids, accordion sections, tabbed content, section dividers, animated dividers, scroll reveal animations, confetti blocks, and more.</p>
   </div>
 </div>
 
-<div data-type="section-divider" data-style="dots" class="section-divider"></div>
+<div data-type="section-divider" data-style="animated-gradient" class="section-divider"></div>
 
 <h2>7. Built for Every Team</h2>
 <p>The same engine serves fundamentally different audiences. Select your role below to see how the workflow adapts to your specific needs.</p>
@@ -119,7 +119,7 @@ npm run export -- --output ./dist/runbook.html</code></pre>
   </div>
 </div>
 
-<div data-type="section-divider" data-style="dots" class="section-divider"></div>
+<div data-type="section-divider" data-style="pulse" class="section-divider"></div>
 
 <h2>10. Animated Counters</h2>
 <p>Numbers that count up when they scroll into view. Drop a Counter block anywhere — it works especially well inside grid columns for stat showcases.</p>
@@ -158,7 +158,7 @@ npm run export -- --output ./dist/runbook.html</code></pre>
   <span data-animation="typewriter" class="animated-text animated-text-typewriter" style="font-weight: 600;">Typewriter</span> — blinks a cursor at the end.
 </p>
 
-<div data-type="section-divider" data-style="dots" class="section-divider"></div>
+<div data-type="section-divider" data-style="rainbow" class="section-divider"></div>
 
 <h2>12. What's Inside Every Export</h2>
 <p>A single <code>.html</code> file that ships everything readers need — no runtime, no CDN, no dependencies.</p>
@@ -189,18 +189,18 @@ npm run export -- --output ./dist/runbook.html</code></pre>
 <h2>13. Hero Banners</h2>
 <p>Drop a full-width gradient banner anywhere in your document — perfect for chapter headers, product announcements, or calls to action. Pick any two colors and add an optional CTA button.</p>
 
-<div data-type="hero-banner" data-gradient-from="#6366f1" data-gradient-to="#ec4899" data-title="Phase 2: Visual Blocks" data-subtitle="Hero banners, stat rows, testimonials, code diffs, and before/after sliders — all exported as a single self-contained HTML file." data-cta-text="Start Writing" data-cta-url="#"></div>
+<div data-type="hero-banner" data-scroll-reveal="zoom-in" data-gradient-from="#6366f1" data-gradient-to="#ec4899" data-title="Phase 2: Visual Blocks" data-subtitle="Hero banners, stat rows, testimonials, code diffs, and before/after sliders — all exported as a single self-contained HTML file." data-cta-text="Start Writing" data-cta-url="#"></div>
 
-<div data-type="hero-banner" data-gradient-from="#0ea5e9" data-gradient-to="#10b981" data-title="Ship Docs That Stand Out" data-subtitle="Every block renders identically in the editor and in the exported file. What you see is exactly what your readers get."></div>
+<div data-type="hero-banner" data-scroll-reveal="zoom-in" data-gradient-from="#0ea5e9" data-gradient-to="#10b981" data-title="Ship Docs That Stand Out" data-subtitle="Every block renders identically in the editor and in the exported file. What you see is exactly what your readers get."></div>
 
 <div data-type="section-divider" data-style="dots" class="section-divider"></div>
 
 <h2>14. Testimonial Cards</h2>
 <p>Embed social proof directly in your documentation. Each card renders a quote, author name, role, and a colored avatar initial — no images needed, and no external services required.</p>
 
-<div data-type="testimonial" data-quote="GuideEm replaced three different tools in our workflow. We now hand off design specs, onboarding flows, and release notes as single HTML files that work everywhere — no Notion, no Confluence, no Figma links that expire." data-author-name="Sarah Chen" data-author-role="Head of Product, Veritas Labs" data-avatar-color="#6366f1"></div>
+<div data-type="testimonial" data-scroll-reveal="slide-left" data-quote="GuideEm replaced three different tools in our workflow. We now hand off design specs, onboarding flows, and release notes as single HTML files that work everywhere — no Notion, no Confluence, no Figma links that expire." data-author-name="Sarah Chen" data-author-role="Head of Product, Veritas Labs" data-avatar-color="#6366f1"></div>
 
-<div data-type="testimonial" data-quote="The image compression alone is worth it. We went from 40 MB documentation bundles to under 4 MB. Our field teams can actually email these files now instead of sharing a Confluence link that half our clients can't access." data-author-name="Marcus Webb" data-author-role="Senior Technical Writer, Apex Systems" data-avatar-color="#10b981"></div>
+<div data-type="testimonial" data-scroll-reveal="slide-right" data-quote="The image compression alone is worth it. We went from 40 MB documentation bundles to under 4 MB. Our field teams can actually email these files now instead of sharing a Confluence link that half our clients can't access." data-author-name="Marcus Webb" data-author-role="Senior Technical Writer, Apex Systems" data-avatar-color="#10b981"></div>
 
 <div data-type="section-divider" data-style="dots" class="section-divider"></div>
 
@@ -233,10 +233,29 @@ const response = await fetch('/api/v2/users', {
 const { users, total } = await response.json();
 setUsers(users);"></div>
 
-<div data-type="section-divider" data-style="dots" class="section-divider"></div>
+<div data-type="section-divider" data-style="animated-gradient" class="section-divider"></div>
 
 <h2>17. Before / After Slider</h2>
 <p>Let readers drag a divider to compare two images side by side — ideal for UI redesigns, photo edits, design system migrations, or any visual before/after comparison. The slider is fully interactive in the exported file.</p>
 
 <div data-type="before-after" data-before-image="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=1200&q=80" data-after-image="https://images.unsplash.com/photo-1543722530-d2c3201371e7?auto=format&fit=crop&w=1200&q=80" data-slider-position="50" data-before-label="Night" data-after-label="Day"></div>
+
+<div data-type="section-divider" data-style="rainbow" class="section-divider"></div>
+
+<h2>18. Motion & Animation</h2>
+<p>Phase 3 adds three new animation systems that work in both the editor and every exported file.</p>
+
+<div data-type="card-grid" data-cols="3">
+  <div data-type="card" data-emoji="✨" data-title="Scroll Reveal">
+    <p>Every block in this document fades up on scroll via the global setting. Individual blocks can override with <strong>slide-left</strong>, <strong>slide-right</strong>, or <strong>zoom-in</strong> — the testimonials above use this. Set with a single attribute, no JS to write.</p>
+  </div>
+  <div data-type="card" data-emoji="〰️" data-title="Animated Dividers">
+    <p>Three new section divider styles driven purely by CSS <code>@keyframes</code>: a shifting <strong>animated-gradient</strong>, a breathing <strong>pulse</strong>, and a hue-rotating <strong>rainbow</strong>. You can spot all three separating sections in this demo.</p>
+  </div>
+  <div data-type="card" data-emoji="🎉" data-title="Confetti Block">
+    <p>A celebration block that fires a physics-based confetti burst when it scrolls into view — triggered once per block via <code>IntersectionObserver</code>, then cleans up after three seconds. Scroll down to see it fire.</p>
+  </div>
+</div>
+
+<div data-type="confetti" data-message="You made it to the end!" data-emoji="🎉" data-colors='["#6366f1","#ec4899","#f59e0b","#10b981","#3b82f6"]'></div>
 `;
