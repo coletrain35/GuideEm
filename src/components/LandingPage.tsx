@@ -99,9 +99,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
             >
               Start Writing Locally
             </button>
-            <button className="w-full sm:w-auto px-8 py-4 bg-white text-slate-700 font-semibold rounded-full border border-slate-200 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all duration-300">
+            <a
+              href="https://github.com/coletrain35/GuideEm"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full sm:w-auto px-8 py-4 bg-white text-slate-700 font-semibold rounded-full border border-slate-200 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all duration-300 text-center"
+            >
               View Source on GitHub
-            </button>
+            </a>
           </div>
         </div>
       </section>
