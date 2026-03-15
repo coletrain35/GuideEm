@@ -1,13 +1,15 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import React from 'react';
+import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 const CounterNodeView = (props: any) => {
-  const { node, updateAttributes, selected } = props;
+  const { node, updateAttributes, selected, deleteNode } = props;
   const { value, prefix, suffix, label } = node.attrs;
 
   return (
-    <NodeViewWrapper className="counter-editor-wrapper my-4 flex justify-start">
+    <NodeViewWrapper className="group/block counter-editor-wrapper my-4 flex justify-start relative">
+      <BlockDeleteButton deleteNode={deleteNode} />
       <div
         className={`counter-editor flex flex-col items-center text-center p-6 rounded-xl border transition-all ${
           selected ? 'border-blue-400 ring-2 ring-blue-200 bg-blue-50' : 'border-slate-200 bg-white'

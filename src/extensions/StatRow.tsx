@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import React from 'react';
+import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 interface StatItem {
   value: string;
@@ -17,7 +18,7 @@ const DEFAULT_STATS: StatItem[] = [
 ];
 
 const StatRowNodeView = (props: any) => {
-  const { node, updateAttributes, selected } = props;
+  const { node, updateAttributes, selected, deleteNode } = props;
 
   let stats: StatItem[] = DEFAULT_STATS;
   try {
@@ -43,7 +44,8 @@ const StatRowNodeView = (props: any) => {
   };
 
   return (
-    <NodeViewWrapper className="stat-row-editor-wrapper my-6">
+    <NodeViewWrapper className="group/block stat-row-editor-wrapper my-6 relative">
+      <BlockDeleteButton deleteNode={deleteNode} />
       <div
         className={`rounded-xl border transition-all ${
           selected ? 'border-blue-400 ring-2 ring-blue-200' : 'border-slate-200'

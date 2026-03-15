@@ -1,15 +1,17 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import React from 'react';
+import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 const TestimonialNodeView = (props: any) => {
-  const { node, updateAttributes, selected } = props;
+  const { node, updateAttributes, selected, deleteNode } = props;
   const { quote, authorName, authorRole, avatarColor } = node.attrs;
 
   const initial = authorName ? authorName[0].toUpperCase() : '?';
 
   return (
-    <NodeViewWrapper className="testimonial-editor-wrapper my-6">
+    <NodeViewWrapper className="group/block testimonial-editor-wrapper my-6 relative">
+      <BlockDeleteButton deleteNode={deleteNode} />
       <div
         className={`relative bg-white rounded-2xl border transition-all ${
           selected ? 'border-blue-400 ring-2 ring-blue-200' : 'border-slate-200'

@@ -2,6 +2,7 @@ import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap/react';
 import React, { useState } from 'react';
 import { ChevronDown, Trash2, Plus } from 'lucide-react';
+import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 // --- AccordionItem ---
 
@@ -85,7 +86,8 @@ const AccordionNodeView = (props: any) => {
   };
 
   return (
-    <NodeViewWrapper className={`relative my-8 transition-all ${selected ? 'ring-2 ring-slate-200 rounded-xl p-2' : ''}`}>
+    <NodeViewWrapper className={`group/block relative my-8 transition-all ${selected ? 'ring-2 ring-slate-200 rounded-xl p-2' : ''}`}>
+      <BlockDeleteButton deleteNode={deleteNode} />
       {selected && (
         <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-10 text-sm">
           <button

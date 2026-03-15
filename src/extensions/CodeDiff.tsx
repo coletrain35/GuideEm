@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import React from 'react';
+import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 const LANGS = ['javascript', 'typescript', 'python', 'go', 'rust', 'java', 'css', 'html', 'json', 'bash', 'sql', 'plaintext'];
 
@@ -54,13 +55,14 @@ const lineStyle = (type: DiffLine['type']): React.CSSProperties => {
 };
 
 const CodeDiffNodeView = (props: any) => {
-  const { node, updateAttributes, selected } = props;
+  const { node, updateAttributes, selected, deleteNode } = props;
   const { codeBefore, codeAfter, language } = node.attrs;
 
   const { beforeLines, afterLines } = computeDiff(codeBefore, codeAfter);
 
   return (
-    <NodeViewWrapper className="code-diff-editor-wrapper my-6">
+    <NodeViewWrapper className="group/block code-diff-editor-wrapper my-6 relative">
+      <BlockDeleteButton deleteNode={deleteNode} />
       <div
         className={`rounded-xl overflow-hidden border transition-all ${
           selected ? 'border-blue-400 ring-2 ring-blue-200' : 'border-slate-200'

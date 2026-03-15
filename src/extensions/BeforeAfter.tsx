@@ -2,9 +2,10 @@ import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { compressImageToWebP } from '../utils/imageCompressor';
+import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 const BeforeAfterNodeView = (props: any) => {
-  const { node, updateAttributes, selected } = props;
+  const { node, updateAttributes, selected, deleteNode } = props;
   const { beforeImage, afterImage, sliderPosition, beforeLabel, afterLabel } = node.attrs;
 
   const [sliderPos, setSliderPos] = useState<number>(sliderPosition);
@@ -72,7 +73,8 @@ const BeforeAfterNodeView = (props: any) => {
   const hasImages = beforeImage && afterImage;
 
   return (
-    <NodeViewWrapper className="before-after-editor-wrapper my-6">
+    <NodeViewWrapper className="group/block before-after-editor-wrapper my-6 relative">
+      <BlockDeleteButton deleteNode={deleteNode} />
       <div
         className={`rounded-xl overflow-hidden border transition-all ${
           selected ? 'border-blue-400 ring-2 ring-blue-200' : 'border-slate-200'

@@ -2,6 +2,7 @@ import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap/react';
 import React from 'react';
 import { Trash2 } from 'lucide-react';
+import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 // 1. The React Component (What the author sees)
 const GridNodeView = (props: any) => {
@@ -9,7 +10,8 @@ const GridNodeView = (props: any) => {
   const { layout } = node.attrs; // '50-50', '40-60', or '60-40'
 
   return (
-    <NodeViewWrapper className={`relative my-8 transition-all ${selected ? 'ring-2 ring-slate-200 rounded-lg p-2' : ''}`}>
+    <NodeViewWrapper className={`group/block relative my-8 transition-all ${selected ? 'ring-2 ring-slate-200 rounded-lg p-2' : ''}`}>
+      <BlockDeleteButton deleteNode={deleteNode} />
       
       {/* Contextual Menu: Only visible when the grid is clicked */}
       {selected && (

@@ -2,6 +2,7 @@ import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import React, { useState } from 'react';
 import { Play, Edit2, Trash2 } from 'lucide-react';
+import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 export const parseVideoURL = (url: string): { type: 'youtube' | 'vimeo' | 'html5' | null; embedSrc: string } => {
   const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
@@ -31,7 +32,8 @@ const VideoEmbedNodeView = (props: any) => {
   };
 
   return (
-    <NodeViewWrapper className={`relative my-8 transition-all ${selected ? 'ring-2 ring-slate-200 rounded-xl' : ''}`}>
+    <NodeViewWrapper className={`group/block relative my-8 transition-all ${selected ? 'ring-2 ring-slate-200 rounded-xl' : ''}`}>
+      {!selected && <BlockDeleteButton deleteNode={deleteNode} />}
       {selected && src && (
         <div className="absolute top-2 right-2 flex items-center gap-1 z-10">
           <button
