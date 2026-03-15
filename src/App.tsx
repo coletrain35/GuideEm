@@ -5,7 +5,8 @@ import { Sidebar } from './components/Sidebar';
 import { ExportModal } from './components/ExportModal';
 import { loadDocuments, saveDocument, deleteDocument, Document, ThemeConfig } from './utils/storage';
 import { generateHTML } from './utils/exporter';
-import { FileDown, FileText, Trash2, Loader2, Keyboard, HelpCircle, X, CheckCircle, AlertTriangle, Info, Menu, Plus, Settings, Upload, Palette } from 'lucide-react';
+import { LandingPage } from './components/LandingPage';
+import { FileDown, FileText, Trash2, Loader2, Keyboard, HelpCircle, X, CheckCircle, AlertTriangle, Info, Menu, Plus, Settings, Upload, Palette, ArrowLeft } from 'lucide-react';
 
 const DEFAULT_THEME: ThemeConfig = {
   primaryColor: '#2563eb', // Tailwind blue-600
@@ -26,6 +27,7 @@ const DEFAULT_THEME: ThemeConfig = {
 export default function App() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [currentDocId, setCurrentDocId] = useState<string | null>(null);
+  const [currentView, setCurrentView] = useState<'landing' | 'editor'>('landing');
   const [isLoading, setIsLoading] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
@@ -178,6 +180,10 @@ export default function App() {
     );
   }
 
+  if (currentView === 'landing') {
+    return <LandingPage onStartWriting={() => setCurrentView('editor')} />;
+  }
+
   return (
     <div 
       className="min-h-screen bg-slate-50 text-slate-900 font-sans flex h-screen overflow-hidden transition-colors duration-300"
@@ -212,6 +218,14 @@ export default function App() {
                 title="Toggle Sidebar"
               >
                 <Menu size={20} />
+              </button>
+              <div className="w-px h-6 bg-slate-200" />
+              <button
+                onClick={() => setCurrentView('landing')}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <ArrowLeft size={16} />
+                <span className="hidden sm:inline">Back to Site</span>
               </button>
             </div>
             

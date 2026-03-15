@@ -278,6 +278,35 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       <div className="flex-1 w-full prose-li:my-0 prose-p:my-2 pb-32">
         <EditorContent editor={editor} className="prose prose-slate prose-lg max-w-none focus:outline-none" />
       </div>
+
+      {/* Internal Table of Contents (Editor View Only) */}
+      {headings.length > 0 && (
+        <div className="fixed right-8 top-32 w-64 hidden xl:block">
+          <div className="sticky top-32 p-6 bg-slate-50 border border-slate-200 rounded-xl shadow-sm">
+            <h3 className="font-semibold text-slate-900 mb-4 text-xs uppercase tracking-wider">Document Outline</h3>
+            <nav className="flex flex-col gap-2 max-h-[calc(100vh-16rem)] overflow-y-auto pr-2">
+              {headings.map((heading) => (
+                <button
+                  key={heading.id}
+                  onClick={() => {
+                    // Tiptap doesn't render actual IDs in its DOM easily, so we scroll to the roughly matched text
+                    const elements = document.querySelectorAll('.ProseMirror h1, .ProseMirror h2');
+                    const element = Array.from(elements).find(el => el.textContent === heading.text);
+                    if (element) {
+                      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                  }}
+                  className={`text-left text-sm hover:text-blue-600 transition-colors truncate ${
+                    heading.level === 1 ? 'text-slate-700 font-medium' : 'text-slate-500 pl-4'
+                  }`}
+                >
+                  {heading.text}
+                </button>
+              ))}
+            </nav>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

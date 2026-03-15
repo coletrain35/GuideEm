@@ -60,13 +60,13 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
   let tocHTML = '';
   
   if (headings.length > 0) {
-    tocHTML = `<aside class="hidden lg:block toc-sidebar">
+    tocHTML = `<aside class="toc-sidebar">
       <h3 class="font-semibold text-slate-900 mb-4 text-sm uppercase tracking-wider">On this page</h3>
       <nav class="flex flex-col">`;
     
     headings.forEach((heading, index) => {
       const id = `heading-${index}`;
-      heading.id = id;
+      heading.setAttribute('id', id); // Inject ID into the DOM node to ensure it persists in processedHTML
       const level = heading.tagName.toLowerCase() === 'h1' ? 1 : 2;
       tocHTML += `<a class="toc-link level-${level}" href="#${id}">${heading.textContent}</a>`;
     });
@@ -74,6 +74,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     tocHTML += `</nav></aside>`;
   }
 
+  // processedHTML now contains the headings with their newly injected IDs
   const processedHTML = doc.body.innerHTML;
 
   const primaryColor = theme?.primaryColor || '#2563eb';
@@ -138,39 +139,59 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       });
 
       // --- SCROLL SPY LOGIC ---
-      // 1. Grab all the ToC links and headings
       const tocLinks = document.querySelectorAll('.toc-link');
-      const headings = document.querySelectorAll('.guide-container h1[id], .guide-container h2[id]');
-      
-      if (headings.length > 0 && tocLinks.length > 0) {
-        // 2. Set up the Intersection Observer
-        const observerOptions = {
-          root: null,
-          // This margin creates a trigger line about 20% down from the top of the screen
-          rootMargin: '-20% 0px -80% 0px',
-          threshold: 0
-        };
+      const headingEls = document.querySelectorAll('.guide-container h1[id], .guide-container h2[id]');
 
-        const observer = new IntersectionObserver((entries) => {
-          entries.forEach(entry => {
-            if (entry.isIntersecting) {
-              // Remove the active class from ALL links
-              tocLinks.forEach(link => link.classList.remove('active'));
-              
-              // Find the specific link that matches the heading ID
-              const activeId = entry.target.getAttribute('id');
-              const activeLink = document.querySelector(\`.toc-link[href="#\${activeId}"]\`);
-              
-              // Add the active class, triggering that beautiful brand color
-              if (activeLink) {
-                activeLink.classList.add('active');
+      if (headingEls.length > 0 && tocLinks.length > 0) {
+        tocLinks[0].classList.add('active');
+
+        function setActiveLink(id) {
+          tocLinks.forEach(link => link.classList.remove('active'));
+          const activeLink = document.querySelector('.toc-link[href="#' + id + '"]');
+          if (activeLink) activeLink.classList.add('active');
+        }
+
+        // Click handler: directly set active class and scroll
+        let isClickScrolling = false;
+        tocLinks.forEach(link => {
+          link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetId = link.getAttribute('href')?.substring(1);
+            if (targetId) {
+              const targetElement = document.getElementById(targetId);
+              if (targetElement) {
+                isClickScrolling = true;
+                setActiveLink(targetId);
+                targetElement.scrollIntoView({ behavior: 'smooth' });
+                // Re-enable scroll spy after smooth scroll completes
+                setTimeout(() => { isClickScrolling = false; }, 1000);
               }
             }
           });
-        }, observerOptions);
+        });
 
-        // 3. Tell the observer to watch every heading
-        headings.forEach(heading => observer.observe(heading));
+        // Scroll spy: find the heading closest to the top of the viewport
+        function onScroll() {
+          if (isClickScrolling) return;
+          let current = null;
+          const scrollY = window.scrollY || document.documentElement.scrollTop;
+          const offset = window.innerHeight * 0.25;
+
+          headingEls.forEach(heading => {
+            const top = heading.getBoundingClientRect().top + scrollY;
+            if (top <= scrollY + offset) {
+              current = heading;
+            }
+          });
+
+          if (current) {
+            const id = current.getAttribute('id');
+            if (id) setActiveLink(id);
+          }
+        }
+
+        window.addEventListener('scroll', onScroll, { passive: true });
+        onScroll();
       }
     });
   `;
@@ -392,9 +413,9 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       padding-left: 2rem;
     }
 
-    @media (max-width: 1024px) {
+    @media (max-width: 800px) {
       .export-layout {
-        flex-direction: column;
+        flex-direction: column-reverse;
       }
       .toc-sidebar {
         width: 100%;
@@ -682,22 +703,54 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
 
     ${theme?.features?.darkModeSupport ? `
     @media (prefers-color-scheme: dark) {
-      body {
-        background-color: #0f172a;
-        color: #f1f5f9;
-      }
-      .toc-sidebar {
-        border-left-color: #1e293b;
-      }
+      body { background-color: #0f172a; color: #f1f5f9; }
+      .toc-sidebar { border-left-color: #1e293b; }
       .toc-sidebar h3 { color: #f8fafc; }
       .toc-link { color: #94a3b8; border-left-color: #334155; }
       .toc-link:hover { color: #e2e8f0; border-left-color: #cbd5e1; }
-      @media (max-width: 1024px) {
-        .toc-sidebar {
-          border-bottom-color: #1e293b;
-        }
-      }
+      table th { background-color: #1e293b; color: #f8fafc; border-bottom-color: #334155; }
+      table td { border-bottom-color: #1e293b; color: #cbd5e1; }
+      table tr:hover td { background-color: rgba(30, 41, 59, 0.5); }
+      .grid-column { background-color: #1e293b; border-color: #334155; }
+      @media (max-width: 800px) { .toc-sidebar { border-bottom-color: #1e293b; } }
+      .callout[data-type="info"] { background-color: rgba(37, 99, 235, 0.1); border-color: rgba(37, 99, 235, 0.2); color: #60a5fa; }
+      .callout[data-type="warning"] { background-color: rgba(217, 119, 6, 0.1); border-color: rgba(217, 119, 6, 0.2); color: #fbbf24; }
+      .callout[data-type="success"] { background-color: rgba(5, 150, 105, 0.1); border-color: rgba(5, 150, 105, 0.2); color: #34d399; }
+      pre { background-color: #020617; }
+      .guide-container { color: #e2e8f0; }
+      .guide-container h1, .guide-container h2, .guide-container h3,
+      .guide-container h4, .guide-container h5, .guide-container h6 { color: #f8fafc; }
+      .guide-container p, .guide-container li { color: #cbd5e1; }
+      .guide-container a { color: #93c5fd; }
+      .guide-container strong { color: #f1f5f9; }
+      .guide-container blockquote { color: #94a3b8; border-left-color: #334155; }
+      .export-layout { background-color: #0f172a; }
+      mark { background-color: #713f12; color: #fef3c7; }
     }
+
+    html.dark body { background-color: #0f172a; color: #f1f5f9; }
+    html.dark .toc-sidebar { border-left-color: #1e293b; }
+    html.dark .toc-sidebar h3 { color: #f8fafc; }
+    html.dark .toc-link { color: #94a3b8; border-left-color: #334155; }
+    html.dark .toc-link:hover { color: #e2e8f0; border-left-color: #cbd5e1; }
+    html.dark table th { background-color: #1e293b; color: #f8fafc; border-bottom-color: #334155; }
+    html.dark table td { border-bottom-color: #1e293b; color: #cbd5e1; }
+    html.dark table tr:hover td { background-color: rgba(30, 41, 59, 0.5); }
+    html.dark .grid-column { background-color: #1e293b; border-color: #334155; }
+    @media (max-width: 800px) { html.dark .toc-sidebar { border-bottom-color: #1e293b; } }
+    html.dark .callout[data-type="info"] { background-color: rgba(37, 99, 235, 0.1); border-color: rgba(37, 99, 235, 0.2); color: #60a5fa; }
+    html.dark .callout[data-type="warning"] { background-color: rgba(217, 119, 6, 0.1); border-color: rgba(217, 119, 6, 0.2); color: #fbbf24; }
+    html.dark .callout[data-type="success"] { background-color: rgba(5, 150, 105, 0.1); border-color: rgba(5, 150, 105, 0.2); color: #34d399; }
+    html.dark pre { background-color: #020617; }
+    html.dark .guide-container { color: #e2e8f0; }
+    html.dark .guide-container h1, html.dark .guide-container h2, html.dark .guide-container h3,
+    html.dark .guide-container h4, html.dark .guide-container h5, html.dark .guide-container h6 { color: #f8fafc; }
+    html.dark .guide-container p, html.dark .guide-container li { color: #cbd5e1; }
+    html.dark .guide-container a { color: #93c5fd; }
+    html.dark .guide-container strong { color: #f1f5f9; }
+    html.dark .guide-container blockquote { color: #94a3b8; border-left-color: #334155; }
+    html.dark .export-layout { background-color: #0f172a; }
+    html.dark mark { background-color: #713f12; color: #fef3c7; }
     ` : ''}
 
     ${theme?.features?.scrollReveal ? `
