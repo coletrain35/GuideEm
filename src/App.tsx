@@ -45,9 +45,30 @@ export default function App() {
   const [isThemeDrawerOpen, setIsThemeDrawerOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Always-current mirror of documents state for use in callbacks.
+  // Callbacks captured by useCallback only see the snapshot of state at the
+  // time they were created; the ref lets them read the latest value without
+  // being re-created on every render.
+  const documentsRef = useRef<Document[]>([]);
+  useEffect(() => { documentsRef.current = documents; }, [documents]);
+
+  // Tracks whether there is a save that has been queued but not yet persisted
+  // to IndexedDB.  Used by the beforeunload guard.
+  const hasPendingSaveRef = useRef(false);
 
   const currentDoc = documents.find(d => d.id === currentDocId);
+
+  // Warn the user before closing/refreshing if there is a pending write.
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasPendingSaveRef.current) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
 
   useEffect(() => {
     const init = async () => {
@@ -88,40 +109,48 @@ export default function App() {
   const handleUpdate = useCallback((html: string, json: any, newTitle: string) => {
     if (!currentDocId) return;
 
-    setDocuments(prev => prev.map(doc => {
-      if (doc.id === currentDocId) {
-        const updatedDoc = {
-          ...doc,
-          content: json,
-          htmlContent: html,
-          title: newTitle,
-          lastEdited: Date.now()
-        };
-        
-        saveDocument(updatedDoc);
+    // Build the updated document from the ref so we always have the latest
+    // field values (e.g. theme) without needing `documents` in the dep array.
+    const existing = documentsRef.current.find(d => d.id === currentDocId);
+    if (!existing) return;
 
-        return updatedDoc;
-      }
-      return doc;
-    }));
+    const updatedDoc: Document = {
+      ...existing,
+      content: json,
+      htmlContent: html,
+      title: newTitle,
+      lastEdited: Date.now(),
+    };
+
+    // Update React state synchronously (pure — no side effects inside updater).
+    setDocuments(prev => prev.map(d => d.id === currentDocId ? updatedDoc : d));
+
+    // Persist asynchronously outside the state updater.
+    hasPendingSaveRef.current = true;
+    saveDocument(updatedDoc).then(() => {
+      hasPendingSaveRef.current = false;
+    });
   }, [currentDocId]);
 
-  const handleThemeChange = (themeUpdates: Partial<ThemeConfig>) => {
+  const handleThemeChange = useCallback((themeUpdates: Partial<ThemeConfig>) => {
     if (!currentDocId) return;
 
-    setDocuments(prev => prev.map(doc => {
-      if (doc.id === currentDocId) {
-        const updatedDoc = { 
-          ...doc, 
-          theme: { ...(doc.theme || DEFAULT_THEME), ...themeUpdates },
-          lastEdited: Date.now() 
-        };
-        saveDocument(updatedDoc);
-        return updatedDoc;
-      }
-      return doc;
-    }));
-  };
+    const existing = documentsRef.current.find(d => d.id === currentDocId);
+    if (!existing) return;
+
+    const updatedDoc: Document = {
+      ...existing,
+      theme: { ...(existing.theme || DEFAULT_THEME), ...themeUpdates },
+      lastEdited: Date.now(),
+    };
+
+    setDocuments(prev => prev.map(d => d.id === currentDocId ? updatedDoc : d));
+
+    hasPendingSaveRef.current = true;
+    saveDocument(updatedDoc).then(() => {
+      hasPendingSaveRef.current = false;
+    });
+  }, [currentDocId]);
 
   const handleExportDownload = () => {
     if (!currentDoc) return;
