@@ -17,12 +17,20 @@ import { Highlight } from '@tiptap/extension-highlight';
 import { Callout } from '../extensions/Callout';
 import { AnnotatedImage } from '../extensions/AnnotatedImage';
 import { Grid, GridColumn } from '../extensions/Grid';
+import { Accordion, AccordionItem } from '../extensions/Accordion';
+import { TabGroup, TabPanel } from '../extensions/Tabs';
+import { SectionDivider } from '../extensions/SectionDivider';
+import { VideoEmbed } from '../extensions/VideoEmbed';
+import { Timeline, TimelineStep } from '../extensions/Timeline';
+import { CardGrid, Card } from '../extensions/CardGrid';
+import { Counter } from '../extensions/Counter';
 import { compressImageToWebP } from '../utils/imageCompressor';
 import { useEffect, useState, useRef } from 'react';
-import { 
+import {
   Heading1, Heading2, Heading3, List, ListOrdered, CheckSquare, Code, Quote, Image as ImageIcon,
   Link as LinkIcon, Highlighter, AlignLeft, AlignCenter, AlignRight, Table as TableIcon,
-  Info, AlertTriangle, CheckCircle, Minus, Undo, Redo, Bold, Italic, Strikethrough, Columns
+  Info, AlertTriangle, CheckCircle, Minus, Undo, Redo, Bold, Italic, Strikethrough, Columns,
+  ChevronsUpDown, Layers, GripHorizontal, Video, Milestone, LayoutGrid, Hash
 } from 'lucide-react';
 
 const lowlight = createLowlight(common);
@@ -107,6 +115,17 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       Callout,
       Grid,
       GridColumn,
+      Accordion,
+      AccordionItem,
+      TabGroup,
+      TabPanel,
+      SectionDivider,
+      VideoEmbed,
+      Timeline,
+      TimelineStep,
+      CardGrid,
+      Card,
+      Counter,
     ],
     content: initialContent || '',
     editorProps: {
@@ -260,6 +279,61 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
 
           <button onClick={() => { const url = window.prompt('URL'); if (url) { editor.chain().focus().setAnnotatedImage({ src: url }).run(); } }} className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600" title="Image URL"><ImageIcon size={18} /></button>
           <button onClick={() => editor.chain().focus().insertContent('<div data-type="grid"><div data-type="grid-column"><p></p></div><div data-type="grid-column"><p></p></div></div>').run()} className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600" title="Insert 2-Column Grid"><Columns size={18} /></button>
+
+          <div className="w-px bg-slate-200 mx-1" />
+
+          <button
+            onClick={() => editor.chain().focus().insertContent({ type: 'accordion', content: [{ type: 'accordionItem', attrs: { title: 'Section 1' }, content: [{ type: 'paragraph' }] }, { type: 'accordionItem', attrs: { title: 'Section 2' }, content: [{ type: 'paragraph' }] }] }).run()}
+            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
+            title="Insert Accordion"
+          >
+            <ChevronsUpDown size={18} />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().insertContent({ type: 'tabGroup', content: [{ type: 'tabPanel', attrs: { label: 'Tab 1' }, content: [{ type: 'paragraph' }] }, { type: 'tabPanel', attrs: { label: 'Tab 2' }, content: [{ type: 'paragraph' }] }] }).run()}
+            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
+            title="Insert Tabs"
+          >
+            <Layers size={18} />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().insertContent({ type: 'sectionDivider', attrs: { style: 'gradient' } }).run()}
+            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
+            title="Insert Section Divider"
+          >
+            <GripHorizontal size={18} />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().insertContent({ type: 'videoEmbed', attrs: { src: '' } }).run()}
+            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
+            title="Insert Video Embed"
+          >
+            <Video size={18} />
+          </button>
+
+          <div className="w-px bg-slate-200 mx-1" />
+
+          <button
+            onClick={() => editor.chain().focus().insertContent({ type: 'timeline', content: [{ type: 'timelineStep', attrs: { title: 'Step 1' }, content: [{ type: 'paragraph' }] }, { type: 'timelineStep', attrs: { title: 'Step 2' }, content: [{ type: 'paragraph' }] }] }).run()}
+            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
+            title="Insert Timeline"
+          >
+            <Milestone size={18} />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().insertContent({ type: 'cardGrid', attrs: { cols: 3 }, content: [{ type: 'card', attrs: { emoji: '🚀', title: 'Card 1' }, content: [{ type: 'paragraph' }] }, { type: 'card', attrs: { emoji: '⚡', title: 'Card 2' }, content: [{ type: 'paragraph' }] }, { type: 'card', attrs: { emoji: '🎯', title: 'Card 3' }, content: [{ type: 'paragraph' }] }] }).run()}
+            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
+            title="Insert Card Grid"
+          >
+            <LayoutGrid size={18} />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().insertContent({ type: 'counter', attrs: { value: 100, prefix: '', suffix: '+', label: 'Label' } }).run()}
+            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
+            title="Insert Animated Counter"
+          >
+            <Hash size={18} />
+          </button>
         </FloatingMenu>
       )}
 

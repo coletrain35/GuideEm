@@ -1,8 +1,13 @@
 import localforage from 'localforage';
 
+export interface FooterLink {
+  label: string;
+  url: string;
+}
+
 export interface ThemeConfig {
   primaryColor: string;
-  fontFamily: 'modern' | 'editorial' | 'technical'; 
+  fontFamily: 'modern' | 'editorial' | 'technical';
   hero: {
     enabled: boolean;
     coverImageBase64: string | null;
@@ -13,8 +18,20 @@ export interface ThemeConfig {
     stickyHeader: boolean;
     scrollReveal: boolean;
     darkModeSupport: boolean;
+    readingProgressBar: boolean;
+    backToTop: boolean;
+    printStylesheet: boolean;
+    shareButtons: boolean;
   };
+  footer?: {
+    enabled: boolean;
+    text: string;
+    links: FooterLink[];
+    showBranding: boolean;
+  };
+  codeTheme?: 'dark' | 'light' | 'solarized';
   logoBase64?: string; // Keeping logoBase64 for backward compatibility and existing functionality
+  customCSS?: string;
 }
 
 export interface Document {
@@ -28,7 +45,7 @@ export interface Document {
 
 // Initialize localforage instance
 const store = localforage.createInstance({
-  name: 'DocAuthoringApp',
+  name: 'GuideEm',
   storeName: 'workspace_drafts',
 });
 

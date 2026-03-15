@@ -176,6 +176,17 @@
     }
   }
 
+  /* Timeline step counter in editor */
+  .timeline-editor {
+    counter-reset: timeline-step;
+  }
+  .timeline-step-editor {
+    counter-increment: timeline-step;
+  }
+  .timeline-step-num::before {
+    content: counter(timeline-step);
+  }
+
   /* Placeholder styling */
   .ProseMirror p.is-editor-empty:first-child::before {
     color: #adb5bd;

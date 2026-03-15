@@ -1,11 +1,11 @@
 # Modern Website Features Roadmap
 
 ## Context
-DocuBlock Author exports standalone HTML files that already include TOC with scroll-spy, dark mode, lightbox, code copy buttons, scroll-reveal animations, hero sections, and responsive layout. This roadmap adds features to push exports from "documentation pages" to "modern website pages."
+GuideEm exports standalone HTML files that already include TOC with scroll-spy, dark mode, lightbox, code copy buttons, scroll-reveal animations, hero sections, and responsive layout. This roadmap adds features to push exports from "documentation pages" to "modern website pages."
 
 ---
 
-## Phase 1: Export-Only Polish (Small, no new extensions)
+## Phase 1: Export-Only Polish (Small, no new extensions) ✅ COMPLETE
 
 ### 1. Reading Progress Bar
 - Thin bar at page top showing scroll %, colored with `--brand-primary`
@@ -29,7 +29,7 @@ DocuBlock Author exports standalone HTML files that already include TOC with scr
 
 ---
 
-## Phase 2: Interactive Content Blocks (New Tiptap extensions)
+## Phase 2: Interactive Content Blocks (New Tiptap extensions) ✅ COMPLETE
 
 ### 5. Accordion/Collapsible Sections
 - Parent `accordion` + child `accordionItem` nodes (React NodeView, pattern from `Grid.tsx`)
@@ -53,7 +53,7 @@ DocuBlock Author exports standalone HTML files that already include TOC with scr
 
 ---
 
-## Phase 3: Theme & Config Enhancements
+## Phase 3: Theme & Config Enhancements ✅ COMPLETE
 
 ### 8. Footer Section
 - Configurable footer: text, link list, optional branding
@@ -71,7 +71,7 @@ DocuBlock Author exports standalone HTML files that already include TOC with scr
 
 ---
 
-## Phase 4: Rich Content Blocks
+## Phase 4: Rich Content Blocks ✅ COMPLETE
 
 ### 10. Video Embed
 - Atom node supporting YouTube, Vimeo, and HTML5 video URLs
@@ -95,7 +95,7 @@ DocuBlock Author exports standalone HTML files that already include TOC with scr
 
 ---
 
-## Phase 5: Final Polish
+## Phase 5: Final Polish ✅ COMPLETE
 
 ### 13. Animated Counters
 - Atom node with `value`, `prefix`, `suffix`, `label` attributes
@@ -140,3 +140,6 @@ DocuBlock Author exports standalone HTML files that already include TOC with scr
 - Print: Ctrl+P on exported page, verify clean output
 - Mobile: resize browser to <768px, verify responsive behavior
 - Existing features: re-export old documents, confirm no regressions
+
+## Landing Page Demo
+After completing each phase, add any applicable interactive features to the landing page demo (`LandingPage.tsx`). Follow the existing toggle pattern in the "Live Theming" panel so visitors can experience the features live in the iframe. Features that are visual and toggle-able (e.g. progress bar, back-to-top, scroll reveal) are good candidates. Features that are not meaningfully demonstrable in a preview (e.g. print stylesheet, custom CSS) can be skipped.

@@ -16,7 +16,7 @@ No test framework is configured.
 
 ## Architecture
 
-**DocuBlock Author** is a local-first, browser-only documentation editor that exports standalone HTML files. All data persists in IndexedDB (via Localforage) — there is no backend API.
+**GuideEm** is a local-first, browser-only documentation editor that exports standalone HTML files. All data persists in IndexedDB (via Localforage) — there is no backend API.
 
 ### Core Data Flow
 

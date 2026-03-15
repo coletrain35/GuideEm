@@ -21,7 +21,18 @@ const DEFAULT_THEME: ThemeConfig = {
     stickyHeader: true,
     scrollReveal: false,
     darkModeSupport: false,
-  }
+    readingProgressBar: false,
+    backToTop: false,
+    printStylesheet: true,
+    shareButtons: false,
+  },
+  footer: {
+    enabled: false,
+    text: '',
+    links: [],
+    showBranding: true,
+  },
+  codeTheme: 'dark',
 };
 
 export default function App() {

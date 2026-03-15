@@ -1,5 +1,5 @@
 {
-  "name": "DocuBlock Author",
+  "name": "GuideEm",
   "description": "A zero-dependency, local-first block-based documentation authoring tool with on-drop WebP compression and single-file HTML export.",
   "requestFramePermissions": []
 }

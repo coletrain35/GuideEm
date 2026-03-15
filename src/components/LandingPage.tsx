@@ -15,13 +15,27 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
       stickyHeader: true,
       scrollReveal: true,
       darkModeSupport: false,
+      readingProgressBar: false,
+      backToTop: false,
+      printStylesheet: true,
+      shareButtons: false,
     },
     hero: {
       enabled: false,
       subtitle: '',
       coverImageBase64: null,
       layout: 'full',
-    }
+    },
+    footer: {
+      enabled: false,
+      text: '© 2025 GuideEm',
+      links: [
+        { label: 'GitHub', url: 'https://github.com/coletrain35/GuideEm' },
+        { label: 'Get Started', url: '#' },
+      ],
+      showBranding: true,
+    },
+    codeTheme: 'dark',
   });
 
   const [generatedHtml, setGeneratedHtml] = useState<string>('');
@@ -106,7 +120,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
             </p>
           </div>
           
-          {/* Interactive Theming Toggles */}
+          {/* Combined features + theming card */}
           <div className="p-6 bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
             <h4 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
               <span className="bg-slate-100 p-1.5 rounded-md">🎨</span>
@@ -143,13 +157,87 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
                 </div>
               </div>
               
-              <div className="pt-4 border-t border-slate-100">
+              <div className="pt-4 border-t border-slate-100 space-y-3">
                 <label onClick={toggleDarkMode} className="flex items-center justify-between cursor-pointer group">
                   <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">Dark Mode</span>
                   <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 ${isDarkMode ? 'bg-slate-900' : 'bg-slate-200'}`}>
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ${isDarkMode ? 'translate-x-6' : 'translate-x-1'}`} />
                   </div>
                 </label>
+                <label
+                  onClick={() => setTheme(prev => ({ ...prev, features: { ...prev.features, readingProgressBar: !prev.features.readingProgressBar } }))}
+                  className="flex items-center justify-between cursor-pointer group"
+                >
+                  <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">Progress Bar</span>
+                  <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 ${theme.features.readingProgressBar ? 'bg-slate-900' : 'bg-slate-200'}`}>
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ${theme.features.readingProgressBar ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </div>
+                </label>
+                <label
+                  onClick={() => setTheme(prev => ({ ...prev, features: { ...prev.features, backToTop: !prev.features.backToTop } }))}
+                  className="flex items-center justify-between cursor-pointer group"
+                >
+                  <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">Back-to-Top</span>
+                  <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 ${theme.features.backToTop ? 'bg-slate-900' : 'bg-slate-200'}`}>
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ${theme.features.backToTop ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </div>
+                </label>
+                <label
+                  onClick={() => setTheme(prev => ({ ...prev, footer: { ...(prev.footer ?? { text: '© 2025 GuideEm', links: [], showBranding: true }), enabled: !prev.footer?.enabled } }))}
+                  className="flex items-center justify-between cursor-pointer group"
+                >
+                  <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">Footer</span>
+                  <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 ${theme.footer?.enabled ? 'bg-slate-900' : 'bg-slate-200'}`}>
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ${theme.footer?.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </div>
+                </label>
+                <label
+                  onClick={() => setTheme(prev => ({ ...prev, features: { ...prev.features, shareButtons: !prev.features.shareButtons } }))}
+                  className="flex items-center justify-between cursor-pointer group"
+                >
+                  <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">Share Buttons</span>
+                  <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 ${theme.features.shareButtons ? 'bg-slate-900' : 'bg-slate-200'}`}>
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ${theme.features.shareButtons ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </div>
+                </label>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100">
+                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 block">Code Block Theme</label>
+                <div className="flex gap-2">
+                  {(['dark', 'light', 'solarized'] as const).map((ct) => (
+                    <button
+                      key={ct}
+                      onClick={() => setTheme(prev => ({ ...prev, codeTheme: ct }))}
+                      className={`flex-1 py-1.5 text-xs font-medium rounded-lg border capitalize transition-colors
+                        ${theme.codeTheme === ct ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
+                    >
+                      {ct}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100">
+                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 block">Content Blocks</label>
+                <ul className="space-y-2 text-sm text-slate-600">
+                  <li className="flex items-center gap-2">
+                    <span>🎬</span>
+                    <span><strong className="text-slate-800">Video Embed</strong> — YouTube, Vimeo, MP4</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span>📍</span>
+                    <span><strong className="text-slate-800">Timeline</strong> — step-by-step sequences</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span>🃏</span>
+                    <span><strong className="text-slate-800">Card Grid</strong> — 2–4 col feature grids</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span>#️⃣</span>
+                    <span><strong className="text-slate-800">Counter</strong> — animated count-up stats</span>
+                  </li>
+                </ul>
               </div>
             </div>
           </div>

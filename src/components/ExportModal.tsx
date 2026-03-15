@@ -86,10 +86,66 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 <p className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Scroll Animations</p>
                 <p className="text-xs text-slate-500">Elements gently fade in as the user scrolls down.</p>
               </div>
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 checked={theme.features.scrollReveal}
                 onChange={() => toggleFeature('scrollReveal')}
+                className="w-5 h-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+              />
+            </label>
+
+            {/* Toggle 4: Reading Progress Bar */}
+            <label className="flex items-center justify-between cursor-pointer group">
+              <div>
+                <p className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Reading Progress Bar</p>
+                <p className="text-xs text-slate-500">Thin bar at the top showing scroll progress.</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={theme.features.readingProgressBar ?? false}
+                onChange={() => toggleFeature('readingProgressBar')}
+                className="w-5 h-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+              />
+            </label>
+
+            {/* Toggle 5: Back-to-Top Button */}
+            <label className="flex items-center justify-between cursor-pointer group">
+              <div>
+                <p className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Back-to-Top Button</p>
+                <p className="text-xs text-slate-500">Floating button that appears after scrolling 400px.</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={theme.features.backToTop ?? false}
+                onChange={() => toggleFeature('backToTop')}
+                className="w-5 h-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+              />
+            </label>
+
+            {/* Toggle 6: Print Stylesheet */}
+            <label className="flex items-center justify-between cursor-pointer group">
+              <div>
+                <p className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Print Stylesheet</p>
+                <p className="text-xs text-slate-500">Clean print layout hiding nav and UI elements.</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={theme.features.printStylesheet ?? true}
+                onChange={() => toggleFeature('printStylesheet')}
+                className="w-5 h-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+              />
+            </label>
+
+            {/* Toggle 7: Share Buttons */}
+            <label className="flex items-center justify-between cursor-pointer group">
+              <div>
+                <p className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Share Buttons</p>
+                <p className="text-xs text-slate-500">Floating "Copy Link" and "Print" buttons on the exported page.</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={theme.features.shareButtons ?? false}
+                onChange={() => toggleFeature('shareButtons')}
                 className="w-5 h-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
               />
             </label>
