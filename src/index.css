@@ -183,6 +183,88 @@
       cursor: pointer;
     }
 
+    /* Glass Callouts */
+    .callout[data-type="glass-info"] {
+      background: rgba(59, 130, 246, 0.08);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      color: #1e40af;
+      backdrop-filter: blur(12px);
+    }
+    .callout[data-type="glass-info"]::before {
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%232563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>');
+    }
+    .callout[data-type="glass-warning"] {
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      color: #92400e;
+      backdrop-filter: blur(12px);
+    }
+    .callout[data-type="glass-warning"]::before {
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>');
+    }
+    .callout[data-type="glass-success"] {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      color: #065f46;
+      backdrop-filter: blur(12px);
+    }
+    .callout[data-type="glass-success"]::before {
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>');
+    }
+
+    /* Inline Code — language tints */
+    code[data-language="js"], code[data-language="ts"] { background-color: rgba(234, 179, 8, 0.15); color: #854d0e; border-radius: 0.25rem; padding: 0.1em 0.35em; }
+    code[data-language="ts"] { background-color: rgba(59, 130, 246, 0.15); color: #1e40af; }
+    code[data-language="py"] { background-color: rgba(34, 197, 94, 0.15); color: #14532d; border-radius: 0.25rem; padding: 0.1em 0.35em; }
+    code[data-language="html"] { background-color: rgba(239, 68, 68, 0.15); color: #991b1b; border-radius: 0.25rem; padding: 0.1em 0.35em; }
+    code[data-language="css"] { background-color: rgba(168, 85, 247, 0.15); color: #6b21a8; border-radius: 0.25rem; padding: 0.1em 0.35em; }
+    code[data-language="bash"] { background-color: rgba(100, 116, 139, 0.15); color: #334155; border-radius: 0.25rem; padding: 0.1em 0.35em; }
+
+    /* Image Effects — editor preview */
+    .image-effect-tilt-on-hover {
+      transition: transform 0.2s ease;
+    }
+    .image-effect-tilt-on-hover img {
+      transition: transform 0.2s ease;
+    }
+    .image-effect-tilt-on-hover:hover img {
+      transform: perspective(800px) rotateX(3deg) rotateY(6deg) scale(1.02);
+    }
+    .image-effect-polaroid {
+      display: inline-block;
+      padding: 12px 12px 48px;
+      background: white;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2), 0 1px 4px rgba(0,0,0,0.1);
+      transform: rotate(-1.5deg);
+      border-radius: 2px;
+    }
+    .image-effect-polaroid img {
+      border-radius: 2px !important;
+    }
+    .image-effect-film-strip {
+      border: 12px solid #1a1a1a;
+      border-top: 28px solid #1a1a1a;
+      border-bottom: 28px solid #1a1a1a;
+      position: relative;
+      background: #1a1a1a;
+    }
+    .image-effect-film-strip img {
+      border-radius: 0 !important;
+      display: block;
+    }
+    .image-effect-film-strip::before,
+    .image-effect-film-strip::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 28px;
+      background: repeating-linear-gradient(to right, transparent 0, transparent 6px, white 6px, white 16px, transparent 16px, transparent 22px);
+      pointer-events: none;
+    }
+    .image-effect-film-strip::before { top: -28px; }
+    .image-effect-film-strip::after { bottom: -28px; }
+
     /* Text Badge */
     .text-badge {
       display: inline;

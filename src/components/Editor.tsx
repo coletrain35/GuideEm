@@ -34,6 +34,7 @@ import { CodeDiff } from '../extensions/CodeDiff';
 import { BeforeAfter } from '../extensions/BeforeAfter';
 import { Confetti } from '../extensions/Confetti';
 import { ScrollReveal, REVEAL_TYPES } from '../extensions/ScrollReveal';
+import { InlineCode, type InlineCodeLanguage } from '../extensions/InlineCode';
 import { compressImageToWebP } from '../utils/imageCompressor';
 import { useEffect, useState, useRef } from 'react';
 import {
@@ -42,7 +43,7 @@ import {
   Info, AlertTriangle, CheckCircle, Minus, Undo, Redo, Bold, Italic, Strikethrough, Columns,
   ChevronsUpDown, Layers, GripHorizontal, Video, Milestone, LayoutGrid, Hash,
   MessageSquareQuote, PanelTop, BarChart3, GitCompare, SplitSquareHorizontal,
-  PartyPopper, Sparkles
+  PartyPopper, Sparkles, Glasses
 } from 'lucide-react';
 
 const lowlight = createLowlight(common);
@@ -62,6 +63,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
   const [headings, setHeadings] = useState<{ text: string; level: number; id: string }[]>([]);
 
   const [showRevealPop, setShowRevealPop] = useState(false);
+  const [showCodeLangPop, setShowCodeLangPop] = useState(false);
   const [showGradientPop, setShowGradientPop] = useState(false);
   const [gradientFrom, setGradientFrom] = useState('#6366f1');
   const [gradientTo, setGradientTo] = useState('#ec4899');
@@ -107,7 +109,9 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       StarterKit.configure({
         codeBlock: false,
         link: false,
+        code: false,
       }),
+      InlineCode,
       AnnotatedImage,
       Placeholder.configure({
         placeholder: 'Type "/" for commands or start writing...',
@@ -339,6 +343,9 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
           <button onClick={() => editor.chain().focus().toggleCallout('info').run()} className={`p-2 rounded hover:bg-slate-100 transition-colors ${editor.isActive('callout', { type: 'info' }) ? 'bg-blue-100 text-blue-600' : 'text-blue-500'}`} title="Info Callout"><Info size={18} /></button>
           <button onClick={() => editor.chain().focus().toggleCallout('warning').run()} className={`p-2 rounded hover:bg-slate-100 transition-colors ${editor.isActive('callout', { type: 'warning' }) ? 'bg-amber-100 text-amber-600' : 'text-amber-500'}`} title="Warning Callout"><AlertTriangle size={18} /></button>
           <button onClick={() => editor.chain().focus().toggleCallout('success').run()} className={`p-2 rounded hover:bg-slate-100 transition-colors ${editor.isActive('callout', { type: 'success' }) ? 'bg-emerald-100 text-emerald-600' : 'text-emerald-500'}`} title="Success Callout"><CheckCircle size={18} /></button>
+          <button onClick={() => editor.chain().focus().toggleCallout('glass-info').run()} className={`p-2 rounded hover:bg-slate-100 transition-colors ${editor.isActive('callout', { type: 'glass-info' }) ? 'bg-blue-100 text-blue-600' : 'text-blue-400 opacity-70'}`} title="Glass Info Callout"><Glasses size={18} className="text-blue-400" /></button>
+          <button onClick={() => editor.chain().focus().toggleCallout('glass-warning').run()} className={`p-2 rounded hover:bg-slate-100 transition-colors ${editor.isActive('callout', { type: 'glass-warning' }) ? 'bg-amber-100 text-amber-600' : 'text-amber-400 opacity-70'}`} title="Glass Warning Callout"><Glasses size={18} className="text-amber-400" /></button>
+          <button onClick={() => editor.chain().focus().toggleCallout('glass-success').run()} className={`p-2 rounded hover:bg-slate-100 transition-colors ${editor.isActive('callout', { type: 'glass-success' }) ? 'bg-emerald-100 text-emerald-600' : 'text-emerald-400 opacity-70'}`} title="Glass Success Callout"><Glasses size={18} className="text-emerald-400" /></button>
 
           <div className="w-px bg-slate-200 mx-1" />
 
@@ -455,7 +462,27 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
           <button onClick={() => editor.chain().focus().toggleHighlight().run()} className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${editor.isActive('highlight') ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}>Highlight</button>
           <button onClick={setLink} className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${editor.isActive('link') ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}>Link</button>
           <div className="w-px bg-slate-600 mx-1 my-1" />
-          <button onClick={() => editor.chain().focus().toggleCode().run()} className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${editor.isActive('code') ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}>Code</button>
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={() => { editor.chain().focus().toggleCode().run(); setShowCodeLangPop(false); }}
+              className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${editor.isActive('code') ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}
+            >Code</button>
+            {editor.isActive('code') && (
+              <select
+                value={editor.getAttributes('code').language || ''}
+                onChange={(e) => editor.chain().focus().setInlineCodeLanguage(e.target.value as InlineCodeLanguage).run()}
+                className="text-xs bg-slate-700 text-white border border-slate-600 rounded px-1 py-1 cursor-pointer"
+              >
+                <option value="">auto</option>
+                <option value="js">JS</option>
+                <option value="ts">TS</option>
+                <option value="py">Python</option>
+                <option value="html">HTML</option>
+                <option value="css">CSS</option>
+                <option value="bash">Bash</option>
+              </select>
+            )}
+          </div>
 
           <div className="w-px bg-slate-600 mx-1 my-1" />
 

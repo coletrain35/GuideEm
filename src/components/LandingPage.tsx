@@ -245,75 +245,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
               </div>
 
               <div className="pt-4 border-t border-slate-100">
-                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 block">Content Blocks</label>
-                <ul className="space-y-2 text-sm text-slate-600">
-                  <li className="flex items-center gap-2">
-                    <span>🎬</span>
-                    <span><strong className="text-slate-800">Video Embed</strong> — YouTube, Vimeo, MP4</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span>📍</span>
-                    <span><strong className="text-slate-800">Timeline</strong> — step-by-step sequences</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span>🃏</span>
-                    <span><strong className="text-slate-800">Card Grid</strong> — 2–4 col feature grids</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span>#️⃣</span>
-                    <span><strong className="text-slate-800">Counter</strong> — animated count-up stats</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span>🖼️</span>
-                    <span><strong className="text-slate-800">Hero Banner</strong> — gradient full-width headers</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span>💬</span>
-                    <span><strong className="text-slate-800">Testimonial</strong> — quote cards with avatars</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span>📊</span>
-                    <span><strong className="text-slate-800">Stat Row</strong> — animated metric counters</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span>🔀</span>
-                    <span><strong className="text-slate-800">Code Diff</strong> — side-by-side before/after</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span>↔️</span>
-                    <span><strong className="text-slate-800">Before/After Slider</strong> — draggable image compare</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span>✨</span>
-                    <span><strong className="text-slate-800">Scroll Reveal</strong> — fade-up, slide, or zoom per block</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span>〰️</span>
-                    <span><strong className="text-slate-800">Animated Dividers</strong> — gradient, pulse, rainbow</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span>🎉</span>
-                    <span><strong className="text-slate-800">Confetti Block</strong> — celebration burst on scroll</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="pt-4 border-t border-slate-100">
-                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 block">Text Effects</label>
-                <ul className="space-y-2 text-sm text-slate-600">
-                  <li className="flex items-center gap-2">
-                    <span>🌈</span>
-                    <span><strong className="text-slate-800">Gradient Text</strong> — color transitions on any text</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span>🏷️</span>
-                    <span><strong className="text-slate-800">Text Badge</strong> — inline status / version pills</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span>✨</span>
-                    <span><strong className="text-slate-800">Animated Text</strong> — shimmer, fade-in, typewriter</span>
-                  </li>
-                </ul>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Scroll the document to see all 19 sections — accordions, tabs, timelines, counters, hero banners, testimonials, code diffs, before/after sliders, scroll reveal, animated dividers, confetti, glass callouts, language-tinted inline code, image effects, and more.
+                </p>
               </div>
             </div>
           </div>

@@ -257,5 +257,58 @@ setUsers(users);"></div>
   </div>
 </div>
 
+<div data-type="section-divider" data-style="gradient" class="section-divider"></div>
+
+<h2>19. Phase 4: Visual Polish</h2>
+<p>The final phase adds three more layer of visual refinement: glassmorphism callouts, language-tinted inline code labels, and image presentation effects — all rendered identically in the editor and in every exported file.</p>
+
+<h3>Glass Callouts</h3>
+<p>Three frosted-glass variants that pair well with light backgrounds or image-heavy layouts. The translucent border and <code>backdrop-filter: blur</code> let the page texture show through subtly.</p>
+
+<div data-type="glass-info" class="callout callout-glass-info">
+  <p><strong>Design consideration:</strong> Glass callouts work best when layered over a gradient or textured background. On solid white they appear as subtle tinted boxes — on a hero banner they become fully translucent panels.</p>
+</div>
+
+<div data-type="glass-warning" class="callout callout-glass-warning">
+  <p><strong>Rate limit:</strong> The glass warning variant keeps the amber warning signal readable at lower contrast. Use it for soft cautions rather than hard blockers.</p>
+</div>
+
+<div data-type="glass-success" class="callout callout-glass-success">
+  <p><strong>Checkpoint passed:</strong> Inline <code class="inline-code lang-bash">npm run lint</code> returned zero errors. All 14 Phase 4 assertions are green.</p>
+</div>
+
+<h3>Syntax-Highlighted Inline Code</h3>
+<p>Inline code now carries an optional language label that applies a distinct background tint — making it immediately clear which runtime a snippet belongs to without adding visual noise.</p>
+
+<p>
+  In the new API, call <code class="inline-code lang-js" data-language="js">exportGuide(title, content)</code> to generate the file, or use the lower-level <code class="inline-code lang-ts" data-language="ts">Compiler.build&lt;GuideOutput&gt;(opts)</code> type-safe overload.
+  The Python SDK exposes <code class="inline-code lang-py" data-language="py">guide_em.export(title, content)</code> with identical behaviour.
+  Template authors can override the default layout via the <code class="inline-code lang-html" data-language="html">&lt;guide-slot&gt;</code> custom element or tweak spacing with a <code class="inline-code lang-css" data-language="css">--guide-gap</code> variable.
+  The CLI accepts <code class="inline-code lang-bash" data-language="bash">--output ./dist/guide.html</code> for scripted pipelines.
+</p>
+
+<h3>Image Effects</h3>
+<p>Three presentation effects for annotated images. <strong>Tilt on hover</strong> applies a live perspective transform as the cursor moves — try hovering the first image. <strong>Polaroid</strong> wraps the image in a white border with a slight rotation. <strong>Film strip</strong> frames it with a dark cinema border.</p>
+
+<div data-type="grid" data-layout="50-50" class="grid-wrapper ratio-50-50" style="align-items:start;">
+  <div data-type="grid-column" class="grid-column">
+    <p style="text-align:center;font-size:0.8rem;color:#64748b;margin-bottom:0.5rem;">Polaroid</p>
+    <div class="annotated-image-container image-effect-polaroid" data-effect="polaroid">
+      <img src="https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=800&q=80" alt="Code editor" style="border-radius:2px;margin:0;" />
+    </div>
+  </div>
+  <div data-type="grid-column" class="grid-column">
+    <p style="text-align:center;font-size:0.8rem;color:#64748b;margin-bottom:0.5rem;">Film Strip</p>
+    <div class="annotated-image-container image-effect-film-strip" data-effect="film-strip">
+      <img src="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80" alt="Circuit board" style="border-radius:0;margin:0;display:block;" />
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:2rem;">Hover the image below to see the tilt-on-hover perspective effect:</p>
+<div class="annotated-image-container image-effect-tilt-on-hover" data-effect="tilt-on-hover" style="max-width:600px;margin:0 auto;">
+  <img src="https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80" alt="Laptop on desk" style="margin:0;" />
+</div>
+
 <div data-type="confetti" data-message="You made it to the end!" data-emoji="🎉" data-colors='["#6366f1","#ec4899","#f59e0b","#10b981","#3b82f6"]'></div>
 `;

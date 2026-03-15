@@ -4,11 +4,13 @@ export interface CalloutOptions {
   HTMLAttributes: Record<string, any>
 }
 
+export type CalloutType = 'info' | 'warning' | 'success' | 'glass-info' | 'glass-warning' | 'glass-success'
+
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     callout: {
-      setCallout: (type?: 'info' | 'warning' | 'success') => ReturnType
-      toggleCallout: (type?: 'info' | 'warning' | 'success') => ReturnType
+      setCallout: (type?: CalloutType) => ReturnType
+      toggleCallout: (type?: CalloutType) => ReturnType
     }
   }
 }
@@ -45,6 +47,9 @@ export const Callout = Node.create<CalloutOptions>({
       { tag: 'div[data-type="info"]' },
       { tag: 'div[data-type="warning"]' },
       { tag: 'div[data-type="success"]' },
+      { tag: 'div[data-type="glass-info"]' },
+      { tag: 'div[data-type="glass-warning"]' },
+      { tag: 'div[data-type="glass-success"]' },
       { tag: 'div.callout' },
     ]
   },

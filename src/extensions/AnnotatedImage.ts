@@ -30,7 +30,8 @@ export const AnnotatedImage = Node.create<AnnotatedImageOptions>({
     return {
       src: { default: null },
       alt: { default: null },
-      annotations: { 
+      effect: { default: 'none' },
+      annotations: {
         default: [],
         parseHTML: element => {
           const parsed = element.getAttribute('data-annotations');
@@ -61,6 +62,9 @@ export const AnnotatedImage = Node.create<AnnotatedImageOptions>({
       : [];
     const annotations: any[] = fromNode.length > 0 ? fromNode : fromAttrs;
 
+    const effect: string = node?.attrs?.effect || 'none';
+    const effectClass = effect !== 'none' ? ` image-effect-${effect}` : '';
+
     const markers = annotations.map((ann: any, index: number) => {
       return ['div', {
         class: 'annotation-marker',
@@ -73,7 +77,7 @@ export const AnnotatedImage = Node.create<AnnotatedImageOptions>({
       'div',
       mergeAttributes(
         this.options.HTMLAttributes,
-        { 'data-type': 'annotated-image', class: 'annotated-image-container' },
+        { 'data-type': 'annotated-image', class: `annotated-image-container${effectClass}`, 'data-effect': effect },
         annotations.length > 0 ? { 'data-annotations': JSON.stringify(annotations) } : {}
       ),
       ['img', { src: HTMLAttributes.src, alt: HTMLAttributes.alt }],

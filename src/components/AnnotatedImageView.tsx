@@ -47,22 +47,37 @@ export const AnnotatedImageView = ({ node, updateAttributes, selected, editor }:
     setEditingId(null);
   };
 
+  const effect = node.attrs.effect || 'none';
+
   return (
     <NodeViewWrapper className={`relative block my-8 ${selected ? 'ring-4 ring-blue-500/50 rounded-lg' : ''}`}>
       {selected && editor.isEditable && (
-        <div className="absolute -top-12 left-0 bg-slate-800 text-white text-sm px-4 py-2 rounded-lg shadow-lg z-10 flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
-          <span className="flex items-center justify-center w-5 h-5 rounded-full bg-blue-500 text-xs font-bold">+</span>
-          <span>Click anywhere on the image to add a hotspot marker</span>
+        <div className="absolute -top-16 left-0 bg-slate-800 text-white text-sm px-4 py-2 rounded-lg shadow-lg z-10 flex items-center justify-between gap-4 w-full animate-in fade-in slide-in-from-bottom-2">
+          <div className="flex items-center gap-2">
+            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-blue-500 text-xs font-bold">+</span>
+            <span>Click anywhere on the image to add a hotspot marker</span>
+          </div>
+          <select
+            value={effect}
+            onChange={(e) => { e.stopPropagation(); updateAttributes({ effect: e.target.value }); }}
+            onClick={(e) => e.stopPropagation()}
+            className="text-xs bg-slate-700 text-white border border-slate-600 rounded px-2 py-1 cursor-pointer flex-shrink-0"
+          >
+            <option value="none">No Effect</option>
+            <option value="tilt-on-hover">Tilt on Hover</option>
+            <option value="polaroid">Polaroid</option>
+            <option value="film-strip">Film Strip</option>
+          </select>
         </div>
       )}
-      <div 
+      <div
         ref={containerRef}
-        className="relative inline-block w-full cursor-crosshair"
+        className={`relative inline-block w-full cursor-crosshair${effect !== 'none' ? ` image-effect-${effect}` : ''}`}
         onClick={handleImageClick}
       >
-        <img 
-          src={node.attrs.src} 
-          alt={node.attrs.alt || ''} 
+        <img
+          src={node.attrs.src}
+          alt={node.attrs.alt || ''}
           className="block w-full rounded-lg shadow-sm"
         />
         
