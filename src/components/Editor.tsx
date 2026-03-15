@@ -1,5 +1,5 @@
 import { EditorContent, useEditor } from '@tiptap/react';
-import { FloatingMenu, BubbleMenu } from '@tiptap/react/menus';
+import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
@@ -35,15 +35,14 @@ import { BeforeAfter } from '../extensions/BeforeAfter';
 import { Confetti } from '../extensions/Confetti';
 import { ScrollReveal, REVEAL_TYPES } from '../extensions/ScrollReveal';
 import { InlineCode, type InlineCodeLanguage } from '../extensions/InlineCode';
+import { SlashCommand } from '../extensions/SlashCommand';
+import { PlusMenu } from './PlusMenu';
 import { compressImageToWebP } from '../utils/imageCompressor';
 import { useEffect, useState, useRef } from 'react';
 import {
-  Heading1, Heading2, Heading3, List, ListOrdered, CheckSquare, Code, Quote, Image as ImageIcon,
   Link as LinkIcon, Highlighter, AlignLeft, AlignCenter, AlignRight, Table as TableIcon,
-  Info, AlertTriangle, CheckCircle, Minus, Undo, Redo, Bold, Italic, Strikethrough, Columns,
-  ChevronsUpDown, Layers, GripHorizontal, Video, Milestone, LayoutGrid, Hash,
-  MessageSquareQuote, PanelTop, BarChart3, GitCompare, SplitSquareHorizontal,
-  PartyPopper, Sparkles, Glasses
+  Minus, Undo, Redo, Bold, Italic, Strikethrough, Columns,
+  Sparkles
 } from 'lucide-react';
 
 const lowlight = createLowlight(common);
@@ -161,6 +160,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       BeforeAfter,
       Confetti,
       ScrollReveal,
+      SlashCommand,
     ],
     content: initialContent || '',
     editorProps: {
@@ -321,138 +321,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
         className="w-full text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-slate-900 border-none outline-none bg-transparent placeholder:text-slate-300 mb-4 sm:mb-8"
       />
 
-      {editor && (
-        <FloatingMenu editor={editor} className="flex bg-white shadow-lg border border-slate-200 rounded-lg overflow-x-auto p-1 gap-1 max-w-[calc(100vw-2rem)] scrollbar-hide">
-          <button onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} className={`p-2 rounded hover:bg-slate-100 transition-colors ${editor.isActive('heading', { level: 1 }) ? 'bg-slate-100 text-blue-600' : 'text-slate-600'}`} title="Heading 1"><Heading1 size={18} /></button>
-          <button onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={`p-2 rounded hover:bg-slate-100 transition-colors ${editor.isActive('heading', { level: 2 }) ? 'bg-slate-100 text-blue-600' : 'text-slate-600'}`} title="Heading 2"><Heading2 size={18} /></button>
-          <button onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className={`p-2 rounded hover:bg-slate-100 transition-colors ${editor.isActive('heading', { level: 3 }) ? 'bg-slate-100 text-blue-600' : 'text-slate-600'}`} title="Heading 3"><Heading3 size={18} /></button>
-          
-          <div className="w-px bg-slate-200 mx-1" />
-          
-          <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-2 rounded hover:bg-slate-100 transition-colors ${editor.isActive('bulletList') ? 'bg-slate-100 text-blue-600' : 'text-slate-600'}`} title="Bullet List"><List size={18} /></button>
-          <button onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-2 rounded hover:bg-slate-100 transition-colors ${editor.isActive('orderedList') ? 'bg-slate-100 text-blue-600' : 'text-slate-600'}`} title="Ordered List"><ListOrdered size={18} /></button>
-          <button onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-2 rounded hover:bg-slate-100 transition-colors ${editor.isActive('taskList') ? 'bg-slate-100 text-blue-600' : 'text-slate-600'}`} title="Task List"><CheckSquare size={18} /></button>
-          
-          <div className="w-px bg-slate-200 mx-1" />
-          
-          <button onClick={() => editor.chain().focus().toggleCodeBlock().run()} className={`p-2 rounded hover:bg-slate-100 transition-colors ${editor.isActive('codeBlock') ? 'bg-slate-100 text-blue-600' : 'text-slate-600'}`} title="Code Block"><Code size={18} /></button>
-          <button onClick={() => editor.chain().focus().toggleBlockquote().run()} className={`p-2 rounded hover:bg-slate-100 transition-colors ${editor.isActive('blockquote') ? 'bg-slate-100 text-blue-600' : 'text-slate-600'}`} title="Blockquote"><Quote size={18} /></button>
-          
-          <div className="w-px bg-slate-200 mx-1" />
-
-          <button onClick={() => editor.chain().focus().toggleCallout('info').run()} className={`p-2 rounded hover:bg-slate-100 transition-colors ${editor.isActive('callout', { type: 'info' }) ? 'bg-blue-100 text-blue-600' : 'text-blue-500'}`} title="Info Callout"><Info size={18} /></button>
-          <button onClick={() => editor.chain().focus().toggleCallout('warning').run()} className={`p-2 rounded hover:bg-slate-100 transition-colors ${editor.isActive('callout', { type: 'warning' }) ? 'bg-amber-100 text-amber-600' : 'text-amber-500'}`} title="Warning Callout"><AlertTriangle size={18} /></button>
-          <button onClick={() => editor.chain().focus().toggleCallout('success').run()} className={`p-2 rounded hover:bg-slate-100 transition-colors ${editor.isActive('callout', { type: 'success' }) ? 'bg-emerald-100 text-emerald-600' : 'text-emerald-500'}`} title="Success Callout"><CheckCircle size={18} /></button>
-          <button onClick={() => editor.chain().focus().toggleCallout('glass-info').run()} className={`p-2 rounded hover:bg-slate-100 transition-colors ${editor.isActive('callout', { type: 'glass-info' }) ? 'bg-blue-100 text-blue-600' : 'text-blue-400 opacity-70'}`} title="Glass Info Callout"><Glasses size={18} className="text-blue-400" /></button>
-          <button onClick={() => editor.chain().focus().toggleCallout('glass-warning').run()} className={`p-2 rounded hover:bg-slate-100 transition-colors ${editor.isActive('callout', { type: 'glass-warning' }) ? 'bg-amber-100 text-amber-600' : 'text-amber-400 opacity-70'}`} title="Glass Warning Callout"><Glasses size={18} className="text-amber-400" /></button>
-          <button onClick={() => editor.chain().focus().toggleCallout('glass-success').run()} className={`p-2 rounded hover:bg-slate-100 transition-colors ${editor.isActive('callout', { type: 'glass-success' }) ? 'bg-emerald-100 text-emerald-600' : 'text-emerald-400 opacity-70'}`} title="Glass Success Callout"><Glasses size={18} className="text-emerald-400" /></button>
-
-          <div className="w-px bg-slate-200 mx-1" />
-
-          <button onClick={() => { const url = window.prompt('URL'); if (url) { editor.chain().focus().setAnnotatedImage({ src: url }).run(); } }} className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600" title="Image URL"><ImageIcon size={18} /></button>
-          <button onClick={() => editor.chain().focus().insertContent('<div data-type="grid"><div data-type="grid-column"><p></p></div><div data-type="grid-column"><p></p></div></div>').run()} className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600" title="Insert 2-Column Grid"><Columns size={18} /></button>
-
-          <div className="w-px bg-slate-200 mx-1" />
-
-          <button
-            onClick={() => editor.chain().focus().insertContent({ type: 'accordion', content: [{ type: 'accordionItem', attrs: { title: 'Section 1' }, content: [{ type: 'paragraph' }] }, { type: 'accordionItem', attrs: { title: 'Section 2' }, content: [{ type: 'paragraph' }] }] }).run()}
-            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
-            title="Insert Accordion"
-          >
-            <ChevronsUpDown size={18} />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().insertContent({ type: 'tabGroup', content: [{ type: 'tabPanel', attrs: { label: 'Tab 1' }, content: [{ type: 'paragraph' }] }, { type: 'tabPanel', attrs: { label: 'Tab 2' }, content: [{ type: 'paragraph' }] }] }).run()}
-            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
-            title="Insert Tabs"
-          >
-            <Layers size={18} />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().insertContent({ type: 'sectionDivider', attrs: { style: 'gradient' } }).run()}
-            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
-            title="Insert Section Divider"
-          >
-            <GripHorizontal size={18} />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().insertContent({ type: 'videoEmbed', attrs: { src: '' } }).run()}
-            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
-            title="Insert Video Embed"
-          >
-            <Video size={18} />
-          </button>
-
-          <div className="w-px bg-slate-200 mx-1" />
-
-          <button
-            onClick={() => editor.chain().focus().insertContent({ type: 'timeline', content: [{ type: 'timelineStep', attrs: { title: 'Step 1' }, content: [{ type: 'paragraph' }] }, { type: 'timelineStep', attrs: { title: 'Step 2' }, content: [{ type: 'paragraph' }] }] }).run()}
-            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
-            title="Insert Timeline"
-          >
-            <Milestone size={18} />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().insertContent({ type: 'cardGrid', attrs: { cols: 3 }, content: [{ type: 'card', attrs: { emoji: '🚀', title: 'Card 1' }, content: [{ type: 'paragraph' }] }, { type: 'card', attrs: { emoji: '⚡', title: 'Card 2' }, content: [{ type: 'paragraph' }] }, { type: 'card', attrs: { emoji: '🎯', title: 'Card 3' }, content: [{ type: 'paragraph' }] }] }).run()}
-            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
-            title="Insert Card Grid"
-          >
-            <LayoutGrid size={18} />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().insertContent({ type: 'counter', attrs: { value: 100, prefix: '', suffix: '+', label: 'Label' } }).run()}
-            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
-            title="Insert Animated Counter"
-          >
-            <Hash size={18} />
-          </button>
-
-          <div className="w-px bg-slate-200 mx-1" />
-
-          <button
-            onClick={() => editor.chain().focus().insertContent({ type: 'testimonial', attrs: { quote: 'Your testimonial goes here.', authorName: 'Author Name', authorRole: 'Title, Company', avatarColor: '#6366f1' } }).run()}
-            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
-            title="Insert Testimonial"
-          >
-            <MessageSquareQuote size={18} />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().insertContent({ type: 'heroBanner', attrs: { gradientFrom: '#6366f1', gradientTo: '#ec4899', title: 'Your Title Here', subtitle: '', ctaText: '', ctaUrl: '' } }).run()}
-            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
-            title="Insert Hero Banner"
-          >
-            <PanelTop size={18} />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().insertContent({ type: 'statRow', attrs: { stats: JSON.stringify([{ value: '100', prefix: '', suffix: '+', label: 'Label', icon: '' }, { value: '50', prefix: '', suffix: 'k', label: 'Users', icon: '' }, { value: '99', prefix: '', suffix: '%', label: 'Uptime', icon: '' }]) } }).run()}
-            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
-            title="Insert Stat Row"
-          >
-            <BarChart3 size={18} />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().insertContent({ type: 'codeDiff', attrs: { codeBefore: "// Before\nfunction hello() {\n  console.log('hello');\n}", codeAfter: "// After\nfunction hello(name) {\n  console.log(`hello, ${name}!`);\n}", language: 'javascript' } }).run()}
-            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
-            title="Insert Code Diff"
-          >
-            <GitCompare size={18} />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().insertContent({ type: 'beforeAfter', attrs: { beforeImage: '', afterImage: '', sliderPosition: 50, beforeLabel: 'Before', afterLabel: 'After' } }).run()}
-            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
-            title="Insert Before/After Slider"
-          >
-            <SplitSquareHorizontal size={18} />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().insertContent({ type: 'confetti', attrs: { message: 'Congratulations!', emoji: '🎉', colors: '["#6366f1","#ec4899","#f59e0b","#10b981","#3b82f6"]' } }).run()}
-            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
-            title="Insert Confetti Block"
-          >
-            <PartyPopper size={18} />
-          </button>
-        </FloatingMenu>
-      )}
+      {editor && <PlusMenu editor={editor} />}
 
       {editor && (
         <BubbleMenu editor={editor} className="relative flex bg-slate-800 shadow-xl rounded-lg p-1 gap-1 max-w-[calc(100vw-2rem)] overflow-x-auto scrollbar-hide">
