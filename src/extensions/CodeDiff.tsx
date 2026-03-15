@@ -68,10 +68,10 @@ const CodeDiffNodeView = (props: any) => {
         contentEditable={false}
       >
         {/* Split view */}
-        <div className="flex" style={{ minHeight: '100px' }}>
+        <div className="flex flex-col sm:flex-row" style={{ minHeight: '100px' }}>
           {/* Before panel */}
           <div className="flex-1 min-w-0">
-            <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wider bg-red-50 text-red-700 border-b border-r border-red-100">
+            <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wider bg-red-50 text-red-700 border-b sm:border-r border-red-100">
               Before
             </div>
             <pre
@@ -79,7 +79,6 @@ const CodeDiffNodeView = (props: any) => {
               style={{
                 background: '#f8fafc',
                 fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                borderRight: '1px solid #e2e8f0',
               }}
             >
               {beforeLines.map((line, i) => (

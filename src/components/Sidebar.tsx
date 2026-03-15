@@ -1,6 +1,6 @@
 import React from 'react';
 import { Document } from '../utils/storage';
-import { Plus, FileText, Trash2 } from 'lucide-react';
+import { Plus, FileText, Trash2, X } from 'lucide-react';
 
 interface SidebarProps {
   documents: Document[];
@@ -8,10 +8,11 @@ interface SidebarProps {
   onSelectDoc: (id: string) => void;
   onCreateDoc: () => void;
   onDeleteDoc: (id: string, e: React.MouseEvent) => void;
+  onClose?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ 
-  documents, currentDocId, onSelectDoc, onCreateDoc, onDeleteDoc 
+export const Sidebar: React.FC<SidebarProps> = ({
+  documents, currentDocId, onSelectDoc, onCreateDoc, onDeleteDoc, onClose
 }) => {
   // Sort documents so the most recently edited is at the top
   const sortedDocs = [...documents].sort((a, b) => b.lastEdited - a.lastEdited);
@@ -26,13 +27,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <FileText size={18} className="text-blue-400" />
             GuideEm'
           </span>
-          <button 
-            onClick={onCreateDoc} 
-            className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white transition-colors" 
-            title="New Document"
-          >
-            <Plus size={18} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={onCreateDoc}
+              className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white transition-colors"
+              title="New Document"
+            >
+              <Plus size={18} />
+            </button>
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white transition-colors md:hidden"
+                title="Close Sidebar"
+              >
+                <X size={18} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

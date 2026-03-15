@@ -55,7 +55,7 @@ const StatRowNodeView = (props: any) => {
           {stats.map((stat, i) => (
             <div
               key={i}
-              className="flex flex-col items-center text-center p-6 border border-slate-200 rounded-xl bg-white min-w-[140px] flex-1"
+              className="flex flex-col items-center text-center p-6 border border-slate-200 rounded-xl bg-white min-w-[100px] sm:min-w-[140px] flex-1"
             >
               {stat.icon && <div className="text-2xl mb-2">{stat.icon}</div>}
               <div className="text-4xl font-bold text-blue-600 leading-none mb-1.5 tabular-nums">

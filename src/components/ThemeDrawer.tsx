@@ -20,7 +20,7 @@ export const ThemeDrawer: React.FC<ThemeDrawerProps> = ({ isOpen, onClose, theme
       )}
 
       {/* The Drawer Panel */}
-      <div className={`fixed top-0 right-0 z-50 w-80 h-full bg-white border-l border-slate-200 shadow-2xl transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+      <div className={`fixed top-0 right-0 z-50 w-full sm:w-80 h-full bg-white border-l border-slate-200 shadow-2xl transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
         <div className="flex items-center justify-between p-4 border-b border-slate-100">
           <h2 className="text-lg font-semibold text-slate-900">Theme Settings</h2>
           <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">

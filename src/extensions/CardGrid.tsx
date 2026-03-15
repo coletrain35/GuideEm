@@ -82,9 +82,9 @@ const CardGridNodeView = (props: any) => {
   };
 
   const gridClass =
-    cols === 2 ? 'grid-cols-1 sm:grid-cols-2' :
-    cols === 4 ? 'grid-cols-2 sm:grid-cols-4' :
-    'grid-cols-1 sm:grid-cols-3';
+    cols === 2 ? 'grid-cols-2' :
+    cols === 4 ? 'grid-cols-4' :
+    'grid-cols-3';
 
   return (
     <NodeViewWrapper className={`relative my-8 transition-all ${selected ? 'ring-2 ring-slate-200 rounded-xl p-2' : ''}`}>

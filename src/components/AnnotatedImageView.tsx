@@ -77,14 +77,14 @@ export const AnnotatedImageView = ({ node, updateAttributes, selected, editor }:
             }}
           >
             {/* The Marker Dot */}
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shadow-lg border-2 border-white transition-transform ${editingId === ann.id ? 'bg-amber-500 scale-110 ring-4 ring-amber-500/30' : 'bg-blue-600 hover:bg-blue-700 hover:scale-110'} text-white cursor-pointer`}>
+            <div className={`w-8 h-8 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-xs font-bold shadow-lg border-2 border-white transition-transform ${editingId === ann.id ? 'bg-amber-500 scale-110 ring-4 ring-amber-500/30' : 'bg-blue-600 hover:bg-blue-700 hover:scale-110'} text-white cursor-pointer`}>
               {i + 1}
             </div>
             
             {/* Tooltip / Editor Popover */}
             {editingId === ann.id && editor.isEditable ? (
-              <div 
-                className="absolute top-full left-1/2 -translate-x-1/2 mt-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 z-50 w-64 cursor-default animate-in zoom-in-95" 
+              <div
+                className="absolute top-full left-1/2 -translate-x-1/2 mt-3 bg-white p-3 rounded-xl shadow-2xl border border-slate-200 z-50 max-w-[min(16rem,calc(100vw-3rem))] w-64 cursor-default animate-in zoom-in-95"
                 onClick={e => e.stopPropagation()}
               >
                 <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-t border-l border-slate-200 rotate-45"></div>

@@ -1,6 +1,14 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+/* Tiptap v3 injects an extra wrapper div ([data-node-view-content-react]) inside
+   NodeViewContent as the ProseMirror contentDOM. This breaks CSS grid/flex layouts
+   where NodeViewContent is the grid/flex container. display:contents makes the
+   wrapper transparent to layout so grid items are seen directly by the container. */
+[data-node-view-content-react] {
+  display: contents;
+}
+
 @layer components {
   .ProseMirror {
     > * + * {
@@ -238,4 +246,14 @@
     height: 0;
     pointer-events: none;
   }
+}
+
+/* Scrollbar hide utility */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Mobile prose overrides */
+@media (max-width: 640px) {
+  .ProseMirror h1 { font-size: 1.75rem; }
+  .ProseMirror h2 { font-size: 1.375rem; }
 }

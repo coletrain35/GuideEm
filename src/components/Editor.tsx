@@ -102,6 +102,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
     extensions: [
       StarterKit.configure({
         codeBlock: false,
+        link: false,
       }),
       AnnotatedImage,
       Placeholder.configure({
@@ -238,12 +239,12 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
   }
 
   return (
-    <div className="flex flex-col h-full max-w-3xl px-4 mx-auto mt-12 sm:px-6 lg:px-8 w-full">
+    <div className="flex flex-col h-full max-w-3xl px-4 mx-auto mt-4 sm:mt-8 lg:mt-12 sm:px-6 lg:px-8 w-full">
       {/* The Floating Toolbar (The "Hovering Pill") */}
       <div className="sticky top-4 z-40 flex items-center justify-center w-full mb-8 pointer-events-none">
-        <div className="flex items-center gap-1 px-3 py-2 bg-white/80 backdrop-blur-md border border-slate-200 rounded-full shadow-sm pointer-events-auto">
-          <button onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} className="p-2 rounded hover:bg-slate-200 disabled:opacity-50 text-slate-600" title="Undo"><Undo size={16} /></button>
-          <button onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} className="p-2 rounded hover:bg-slate-200 disabled:opacity-50 text-slate-600" title="Redo"><Redo size={16} /></button>
+        <div className="flex items-center gap-1 px-2 sm:px-3 py-2 bg-white/80 backdrop-blur-md border border-slate-200 rounded-full shadow-sm pointer-events-auto overflow-x-auto scrollbar-hide">
+          <button onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} className="p-1.5 sm:p-2 rounded hover:bg-slate-200 disabled:opacity-50 text-slate-600" title="Undo"><Undo size={16} /></button>
+          <button onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} className="p-1.5 sm:p-2 rounded hover:bg-slate-200 disabled:opacity-50 text-slate-600" title="Redo"><Redo size={16} /></button>
           
           <div className="w-px h-5 bg-slate-300 mx-1" />
           
@@ -273,11 +274,11 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Guide Title"
-        className="w-full text-4xl font-bold tracking-tight text-slate-900 border-none outline-none bg-transparent placeholder:text-slate-300 mb-8"
+        className="w-full text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-slate-900 border-none outline-none bg-transparent placeholder:text-slate-300 mb-4 sm:mb-8"
       />
 
       {editor && (
-        <FloatingMenu editor={editor} className="flex bg-white shadow-lg border border-slate-200 rounded-lg overflow-hidden p-1 gap-1">
+        <FloatingMenu editor={editor} className="flex bg-white shadow-lg border border-slate-200 rounded-lg overflow-x-auto p-1 gap-1 max-w-[calc(100vw-2rem)] scrollbar-hide">
           <button onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} className={`p-2 rounded hover:bg-slate-100 transition-colors ${editor.isActive('heading', { level: 1 }) ? 'bg-slate-100 text-blue-600' : 'text-slate-600'}`} title="Heading 1"><Heading1 size={18} /></button>
           <button onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={`p-2 rounded hover:bg-slate-100 transition-colors ${editor.isActive('heading', { level: 2 }) ? 'bg-slate-100 text-blue-600' : 'text-slate-600'}`} title="Heading 2"><Heading2 size={18} /></button>
           <button onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className={`p-2 rounded hover:bg-slate-100 transition-colors ${editor.isActive('heading', { level: 3 }) ? 'bg-slate-100 text-blue-600' : 'text-slate-600'}`} title="Heading 3"><Heading3 size={18} /></button>
@@ -400,7 +401,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       )}
 
       {editor && (
-        <BubbleMenu editor={editor} className="relative flex bg-slate-800 shadow-xl rounded-lg p-1 gap-1">
+        <BubbleMenu editor={editor} className="relative flex bg-slate-800 shadow-xl rounded-lg p-1 gap-1 max-w-[calc(100vw-2rem)] overflow-x-auto scrollbar-hide">
           <button onClick={() => editor.chain().focus().toggleBold().run()} className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${editor.isActive('bold') ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}>Bold</button>
           <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${editor.isActive('italic') ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}>Italic</button>
           <button onClick={() => editor.chain().focus().toggleStrike().run()} className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${editor.isActive('strike') ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}>Strike</button>

@@ -237,13 +237,27 @@ export default function App() {
       
       {/* Sidebar */}
       {showSidebar && (
-        <Sidebar 
-          documents={documents}
-          currentDocId={currentDocId}
-          onSelectDoc={setCurrentDocId}
-          onCreateDoc={createNewDocument}
-          onDeleteDoc={handleDelete}
-        />
+        <>
+          {/* Mobile backdrop */}
+          <div
+            className="fixed inset-0 z-40 bg-slate-900/50 md:hidden"
+            onClick={() => setShowSidebar(false)}
+          />
+          <div className="fixed inset-y-0 left-0 z-50 md:relative md:z-auto">
+            <Sidebar
+              documents={documents}
+              currentDocId={currentDocId}
+              onSelectDoc={(id) => {
+                setCurrentDocId(id);
+                // Auto-close sidebar on mobile
+                if (window.innerWidth < 768) setShowSidebar(false);
+              }}
+              onCreateDoc={createNewDocument}
+              onDeleteDoc={handleDelete}
+              onClose={() => setShowSidebar(false)}
+            />
+          </div>
+        </>
       )}
 
       {/* Main Content */}
@@ -303,7 +317,7 @@ export default function App() {
         </header>
 
         {/* Main Workspace */}
-        <main className="flex-1 overflow-y-auto relative flex flex-col md:flex-row gap-6 px-4 py-8">
+        <main className="flex-1 overflow-y-auto relative flex flex-col md:flex-row gap-6 px-2 py-4 sm:px-4 sm:py-8">
           {currentDoc ? (
             <>
               <div className={`transition-all duration-300 ease-in-out ${showHelp ? 'md:w-2/3 lg:w-3/4' : 'w-full'}`}>
@@ -324,17 +338,21 @@ export default function App() {
                       </button>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-4 max-h-[calc(100vh-12rem)] overflow-y-auto pr-1">
                       <div>
                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Menus</h4>
                         <ul className="space-y-3 text-sm text-slate-600">
                           <li className="flex items-start gap-2">
-                            <div className="mt-0.5 p-1 bg-slate-100 rounded text-slate-500"><Info size={14} /></div>
-                            <span><strong>Floating Menu:</strong> Click on any empty line to reveal options for inserting blocks, lists, and callouts.</span>
+                            <div className="mt-0.5 p-1 bg-slate-100 rounded text-slate-500 flex-shrink-0"><Info size={14} /></div>
+                            <span><strong>Floating Menu:</strong> Click on any empty line to insert blocks — headings, lists, callouts, grids, timelines, cards, and more.</span>
                           </li>
                           <li className="flex items-start gap-2">
-                            <div className="mt-0.5 p-1 bg-slate-100 rounded text-slate-500"><Info size={14} /></div>
-                            <span><strong>Bubble Menu:</strong> Highlight any text to reveal inline formatting options (bold, links, highlights).</span>
+                            <div className="mt-0.5 p-1 bg-slate-100 rounded text-slate-500 flex-shrink-0"><Info size={14} /></div>
+                            <span><strong>Bubble Menu:</strong> Highlight text for inline formatting — bold, italic, links, gradient text, badges, and animations.</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <div className="mt-0.5 p-1 bg-slate-100 rounded text-slate-500 flex-shrink-0"><Info size={14} /></div>
+                            <span><strong>Top Toolbar:</strong> Always-visible buttons for undo/redo, formatting, alignment, tables, grids, and dividers.</span>
                           </li>
                         </ul>
                       </div>
@@ -370,15 +388,53 @@ export default function App() {
                       </div>
 
                       <div>
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Content Blocks</h4>
+                        <p className="text-xs text-slate-500 mb-2">Available via the floating menu (click an empty line):</p>
+                        <ul className="space-y-1.5 text-sm text-slate-600">
+                          <li className="flex items-center gap-2"><span className="text-blue-500 flex-shrink-0"><Info size={12} /></span> <span>Info / Warning / Success Callouts</span></li>
+                          <li className="flex items-center gap-2"><span className="text-blue-500 flex-shrink-0"><Info size={12} /></span> <span>2-Column Grid (50/50, 40/60, 60/40)</span></li>
+                          <li className="flex items-center gap-2"><span className="text-blue-500 flex-shrink-0"><Info size={12} /></span> <span>Accordion &amp; Tabs</span></li>
+                          <li className="flex items-center gap-2"><span className="text-blue-500 flex-shrink-0"><Info size={12} /></span> <span>Video Embed (YouTube, Vimeo, MP4)</span></li>
+                          <li className="flex items-center gap-2"><span className="text-blue-500 flex-shrink-0"><Info size={12} /></span> <span>Timeline (step-by-step sequences)</span></li>
+                          <li className="flex items-center gap-2"><span className="text-blue-500 flex-shrink-0"><Info size={12} /></span> <span>Card Grid (2–4 columns)</span></li>
+                          <li className="flex items-center gap-2"><span className="text-blue-500 flex-shrink-0"><Info size={12} /></span> <span>Animated Counter</span></li>
+                          <li className="flex items-center gap-2"><span className="text-blue-500 flex-shrink-0"><Info size={12} /></span> <span>Testimonial Quote</span></li>
+                          <li className="flex items-center gap-2"><span className="text-blue-500 flex-shrink-0"><Info size={12} /></span> <span>Hero Banner (gradient header)</span></li>
+                          <li className="flex items-center gap-2"><span className="text-blue-500 flex-shrink-0"><Info size={12} /></span> <span>Stat Row (animated metrics)</span></li>
+                          <li className="flex items-center gap-2"><span className="text-blue-500 flex-shrink-0"><Info size={12} /></span> <span>Code Diff (before/after comparison)</span></li>
+                          <li className="flex items-center gap-2"><span className="text-blue-500 flex-shrink-0"><Info size={12} /></span> <span>Before/After Image Slider</span></li>
+                          <li className="flex items-center gap-2"><span className="text-blue-500 flex-shrink-0"><Info size={12} /></span> <span>Section Dividers (gradient, solid, wave, dots)</span></li>
+                        </ul>
+                      </div>
+
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Text Effects</h4>
+                        <p className="text-xs text-slate-500 mb-2">Select text, then use the bubble menu:</p>
+                        <ul className="space-y-1.5 text-sm text-slate-600">
+                          <li className="flex items-center gap-2"><span className="text-blue-500 flex-shrink-0"><Info size={12} /></span> <span><strong>Gradient Text</strong> — color transitions with direction control</span></li>
+                          <li className="flex items-center gap-2"><span className="text-blue-500 flex-shrink-0"><Info size={12} /></span> <span><strong>Text Badge</strong> — inline colored pills for labels</span></li>
+                          <li className="flex items-center gap-2"><span className="text-blue-500 flex-shrink-0"><Info size={12} /></span> <span><strong>Animated Text</strong> — shimmer, typewriter, or fade-in</span></li>
+                        </ul>
+                      </div>
+
+                      <div>
                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Pro Tips</h4>
                         <ul className="space-y-3 text-sm text-slate-600">
                           <li className="flex items-start gap-2">
-                            <div className="mt-0.5 text-blue-500"><Info size={14} /></div>
-                            <span><strong>Images:</strong> Drag and drop images directly into the editor to embed them instantly.</span>
+                            <div className="mt-0.5 text-blue-500 flex-shrink-0"><Info size={14} /></div>
+                            <span><strong>Images:</strong> Drag and drop images to embed them. Click on an image to add annotation hotspots.</span>
                           </li>
                           <li className="flex items-start gap-2">
-                            <div className="mt-0.5 text-blue-500"><Info size={14} /></div>
-                            <span><strong>Tables:</strong> Use the top toolbar to insert a table. Drag column borders to resize them.</span>
+                            <div className="mt-0.5 text-blue-500 flex-shrink-0"><Info size={14} /></div>
+                            <span><strong>Tables:</strong> Use the top toolbar to insert a table. Drag column borders to resize.</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <div className="mt-0.5 text-blue-500 flex-shrink-0"><Info size={14} /></div>
+                            <span><strong>Block Settings:</strong> Click on any block (grid, card grid, etc.) to reveal layout and editing controls.</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <div className="mt-0.5 text-blue-500 flex-shrink-0"><Info size={14} /></div>
+                            <span><strong>Theme:</strong> Use the Theme button in the header to customize colors, fonts, hero section, footer, and export features.</span>
                           </li>
                         </ul>
                       </div>

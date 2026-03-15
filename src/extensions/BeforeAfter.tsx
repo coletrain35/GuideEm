@@ -139,7 +139,7 @@ const BeforeAfterNodeView = (props: any) => {
           </div>
         ) : (
           /* Placeholder */
-          <div className="flex items-center justify-center gap-6 p-12 bg-slate-50">
+          <div className="flex items-center justify-center gap-6 p-4 sm:p-8 lg:p-12 bg-slate-50">
             <div className="flex flex-col items-center gap-2">
               <div className="w-16 h-16 rounded-xl bg-slate-200 flex items-center justify-center">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>

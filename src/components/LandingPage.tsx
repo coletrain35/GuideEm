@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { generateHTML } from '../utils/exporter';
 import { ThemeConfig } from '../utils/storage';
 import { landingPageTitle, landingPageHtmlContent } from '../data/landingPageContent';
@@ -40,6 +40,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
 
   const [generatedHtml, setGeneratedHtml] = useState<string>('');
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [iframeScale, setIframeScale] = useState(1);
+  const iframeContainerRef = useRef<HTMLDivElement>(null);
+  const IFRAME_DESIGN_WIDTH = 800;
+
+  useEffect(() => {
+    const el = iframeContainerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setIframeScale(Math.min(1, entry.contentRect.width / IFRAME_DESIGN_WIDTH));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // Re-generate HTML when theme changes
   useEffect(() => {
@@ -286,7 +299,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
         </div>
 
         {/* The Live Document Container */}
-        <div className="lg:w-3/4 bg-white rounded-2xl shadow-2xl border border-slate-200/60 overflow-hidden ring-1 ring-slate-900/5 flex flex-col h-[85vh] lg:h-[800px] xl:h-[900px] transition-all duration-500">
+        <div className="lg:w-3/4 bg-white rounded-2xl shadow-2xl border border-slate-200/60 overflow-hidden ring-1 ring-slate-900/5 flex flex-col h-[70vh] sm:h-[80vh] lg:h-[800px] xl:h-[900px] transition-all duration-500">
            {/* Browser Window UI Header */}
            <div className="bg-slate-100 flex-shrink-0 border-b border-slate-200 px-4 py-3 flex items-center justify-between">
              <div className="flex items-center gap-3">
@@ -306,13 +319,28 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
            </div>
            
            {/* Hosted iframe perfectly isolating the output */}
-           <div className="flex-1 relative bg-white">
+           <div ref={iframeContainerRef} className="flex-1 relative bg-white overflow-hidden">
              {generatedHtml ? (
-               <iframe 
-                 srcDoc={generatedHtml} 
+               <iframe
+                 srcDoc={generatedHtml}
                  title="Exported Document Preview"
-                 className="absolute inset-0 w-full h-full border-0"
-                 sandbox="allow-scripts allow-same-origin"
+                 style={iframeScale < 1 ? {
+                   position: 'absolute',
+                   top: 0,
+                   left: 0,
+                   width: `${IFRAME_DESIGN_WIDTH}px`,
+                   height: `${100 / iframeScale}%`,
+                   border: 'none',
+                   transform: `scale(${iframeScale})`,
+                   transformOrigin: 'top left',
+                 } : {
+                   position: 'absolute',
+                   inset: 0,
+                   width: '100%',
+                   height: '100%',
+                   border: 'none',
+                 }}
+                 sandbox="allow-scripts allow-same-origin allow-presentation"
                />
              ) : (
                <div className="absolute inset-0 flex items-center justify-center bg-slate-50">

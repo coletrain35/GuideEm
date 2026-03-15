@@ -16,7 +16,7 @@ const HeroBannerNodeView = (props: any) => {
       >
         {/* Preview */}
         <div
-          className="px-12 py-16 text-center"
+          className="px-4 py-8 sm:px-8 sm:py-12 lg:px-12 lg:py-16 text-center"
           style={{
             background: `linear-gradient(135deg, ${gradientFrom}, ${gradientTo})`,
             minHeight: '200px',
@@ -26,7 +26,7 @@ const HeroBannerNodeView = (props: any) => {
             justifyContent: 'center',
           }}
         >
-          <h2 className="text-4xl font-extrabold text-white m-0 mb-4 leading-tight">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white m-0 mb-4 leading-tight">
             {title || 'Your Title Here'}
           </h2>
           {subtitle && (
