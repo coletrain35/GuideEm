@@ -53,6 +53,9 @@ const getFontStack = (fontFamily?: string) => {
   }
 };
 
+const escapeHtml = (str: string) =>
+  str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
 /**
  * Extracts all CSS rules from the current document's stylesheets.
  * This ensures the exported HTML has the exact same styling as the editor,
@@ -252,6 +255,140 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
         ${suffix ? `<span class="counter-suffix">${suffix}</span>` : ''}
       </div>
       ${label ? `<div class="counter-label">${label}</div>` : ''}
+    `;
+  });
+
+  // Transform testimonial blocks
+  doc.querySelectorAll('div[data-type="testimonial"]').forEach((el) => {
+    const quote = el.getAttribute('data-quote') || 'Your testimonial goes here.';
+    const authorName = el.getAttribute('data-author-name') || 'Author Name';
+    const authorRole = el.getAttribute('data-author-role') || 'Title, Company';
+    const avatarColor = el.getAttribute('data-avatar-color') || '#6366f1';
+    const initial = authorName[0]?.toUpperCase() || '?';
+    el.className = 'testimonial-card';
+    el.removeAttribute('data-type');
+    el.removeAttribute('data-quote');
+    el.removeAttribute('data-author-name');
+    el.removeAttribute('data-author-role');
+    el.removeAttribute('data-avatar-color');
+    el.innerHTML = `
+      <div class="testimonial-quote-mark">❝</div>
+      <p class="testimonial-quote">${escapeHtml(quote)}</p>
+      <div class="testimonial-author">
+        <div class="testimonial-avatar" style="background-color: ${avatarColor};">${initial}</div>
+        <div>
+          <div class="testimonial-author-name">${escapeHtml(authorName)}</div>
+          <div class="testimonial-author-role">${escapeHtml(authorRole)}</div>
+        </div>
+      </div>
+    `;
+  });
+
+  // Transform hero banner blocks
+  doc.querySelectorAll('div[data-type="hero-banner"]').forEach((el) => {
+    const gradFrom = el.getAttribute('data-gradient-from') || '#6366f1';
+    const gradTo = el.getAttribute('data-gradient-to') || '#ec4899';
+    const title = el.getAttribute('data-title') || '';
+    const subtitle = el.getAttribute('data-subtitle') || '';
+    const ctaText = el.getAttribute('data-cta-text') || '';
+    const ctaUrl = el.getAttribute('data-cta-url') || '';
+    el.className = 'hero-banner';
+    el.removeAttribute('data-type');
+    ['data-gradient-from', 'data-gradient-to', 'data-title', 'data-subtitle', 'data-cta-text', 'data-cta-url'].forEach((a) => el.removeAttribute(a));
+    el.innerHTML = `
+      <div class="hero-banner-inner" style="background: linear-gradient(135deg, ${gradFrom}, ${gradTo});">
+        <h2 class="hero-banner-title">${escapeHtml(title)}</h2>
+        ${subtitle ? `<p class="hero-banner-subtitle">${escapeHtml(subtitle)}</p>` : ''}
+        ${ctaText && ctaUrl ? `<a href="${ctaUrl}" class="hero-banner-cta">${escapeHtml(ctaText)}</a>` : ''}
+      </div>
+    `;
+  });
+
+  // Transform stat row blocks
+  doc.querySelectorAll('div[data-type="stat-row"]').forEach((el) => {
+    let stats: any[] = [];
+    try { stats = JSON.parse(el.getAttribute('data-stats') || '[]'); } catch (e) { /* empty */ }
+    el.className = 'stat-row';
+    el.removeAttribute('data-type');
+    el.removeAttribute('data-stats');
+    el.innerHTML = stats.map((s: any) => `
+      <div class="stat-item" data-target="${parseFloat(s.value) || 0}">
+        ${s.icon ? `<div class="stat-icon">${s.icon}</div>` : ''}
+        <div class="stat-number">
+          ${s.prefix ? `<span class="stat-prefix">${escapeHtml(s.prefix)}</span>` : ''}
+          <span class="stat-value">0</span>
+          ${s.suffix ? `<span class="stat-suffix">${escapeHtml(s.suffix)}</span>` : ''}
+        </div>
+        <div class="stat-label">${escapeHtml(s.label || '')}</div>
+      </div>
+    `).join('');
+  });
+
+  // Transform code diff blocks
+  doc.querySelectorAll('div[data-type="code-diff"]').forEach((el) => {
+    const codeBefore = el.getAttribute('data-code-before') || '';
+    const codeAfter = el.getAttribute('data-code-after') || '';
+    const language = el.getAttribute('data-language') || 'javascript';
+
+    const beforeLines = codeBefore.split('\n');
+    const afterLines = codeAfter.split('\n');
+    const maxLen = Math.max(beforeLines.length, afterLines.length);
+    let beforeHTML = '';
+    let afterHTML = '';
+    for (let i = 0; i < maxLen; i++) {
+      const b = beforeLines[i] ?? '';
+      const a = afterLines[i] ?? '';
+      const bSame = b === a;
+      const bClass = !bSame && b ? 'diff-removed' : (bSame ? '' : 'diff-empty');
+      const aClass = !bSame && a ? 'diff-added' : (bSame ? '' : 'diff-empty');
+      beforeHTML += `<div class="diff-line ${bClass}">${escapeHtml(b) || ' '}</div>`;
+      afterHTML += `<div class="diff-line ${aClass}">${escapeHtml(a) || ' '}</div>`;
+    }
+
+    el.className = 'code-diff';
+    el.removeAttribute('data-type');
+    ['data-code-before', 'data-code-after', 'data-language'].forEach((a) => el.removeAttribute(a));
+    el.innerHTML = `
+      <div class="code-diff-inner">
+        <div class="code-diff-panel">
+          <div class="code-diff-label diff-label-before">Before</div>
+          <pre class="code-diff-pre lang-${language}">${beforeHTML}</pre>
+        </div>
+        <div class="code-diff-panel">
+          <div class="code-diff-label diff-label-after">After</div>
+          <pre class="code-diff-pre lang-${language}">${afterHTML}</pre>
+        </div>
+      </div>
+    `;
+  });
+
+  // Transform before/after slider blocks
+  doc.querySelectorAll('div[data-type="before-after"]').forEach((el) => {
+    const beforeImage = el.getAttribute('data-before-image') || '';
+    const afterImage = el.getAttribute('data-after-image') || '';
+    const sliderPos = el.getAttribute('data-slider-position') || '50';
+    const beforeLabel = el.getAttribute('data-before-label') || 'Before';
+    const afterLabel = el.getAttribute('data-after-label') || 'After';
+
+    el.className = 'before-after';
+    el.removeAttribute('data-type');
+    ['data-before-image', 'data-after-image', 'data-slider-position', 'data-before-label', 'data-after-label'].forEach((a) => el.removeAttribute(a));
+
+    if (!beforeImage || !afterImage) {
+      el.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:2rem;">Before/After slider: no images set</p>';
+      return;
+    }
+
+    el.innerHTML = `
+      <div class="before-after-container" data-slider="${sliderPos}">
+        <img class="before-after-after-img" src="${afterImage}" alt="${escapeHtml(afterLabel)}" />
+        <div class="before-after-before-clip" style="clip-path: inset(0 ${100 - parseFloat(sliderPos)}% 0 0);">
+          <img src="${beforeImage}" alt="${escapeHtml(beforeLabel)}" />
+        </div>
+        <div class="before-after-divider" style="left: ${sliderPos}%;"></div>
+        <span class="before-after-label before-after-label-left">${escapeHtml(beforeLabel)}</span>
+        <span class="before-after-label before-after-label-right">${escapeHtml(afterLabel)}</span>
+      </div>
     `;
   });
 
@@ -477,6 +614,71 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
 
         counterBlocks.forEach(el => counterObserver.observe(el));
       }
+
+      // --- ANIMATED TEXT ---
+      const animatedTexts = document.querySelectorAll('.animated-text');
+      if (animatedTexts.length > 0) {
+        const textObserver = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('animate-active');
+            } else {
+              entry.target.classList.remove('animate-active');
+            }
+          });
+        }, { threshold: 0.5 });
+        animatedTexts.forEach(el => textObserver.observe(el));
+      }
+
+      // --- STAT ROW COUNTERS ---
+      const statItems = document.querySelectorAll('.stat-item');
+      if (statItems.length > 0) {
+        function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+        function animateStat(el) {
+          const target = parseFloat(el.getAttribute('data-target') || '0');
+          const valueEl = el.querySelector('.stat-value');
+          if (!valueEl) return;
+          const duration = 2000;
+          const startTime = performance.now();
+          const isFloat = target % 1 !== 0;
+          function update(now) {
+            const elapsed = now - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const current = easeOut(progress) * target;
+            valueEl.textContent = isFloat ? current.toFixed(1) : Math.floor(current).toLocaleString();
+            if (progress < 1) requestAnimationFrame(update);
+            else valueEl.textContent = isFloat ? target.toFixed(1) : target.toLocaleString();
+          }
+          requestAnimationFrame(update);
+        }
+        const statObserver = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) { animateStat(entry.target); statObserver.unobserve(entry.target); }
+          });
+        }, { threshold: 0.5 });
+        statItems.forEach(el => statObserver.observe(el));
+      }
+
+      // --- BEFORE/AFTER SLIDER ---
+      document.querySelectorAll('.before-after-container').forEach(container => {
+        const divider = container.querySelector('.before-after-divider');
+        const beforeClip = container.querySelector('.before-after-before-clip');
+        if (!divider || !beforeClip) return;
+        let dragging = false;
+        function setPos(x) {
+          const rect = container.getBoundingClientRect();
+          let pct = ((x - rect.left) / rect.width) * 100;
+          pct = Math.max(0, Math.min(100, pct));
+          divider.style.left = pct + '%';
+          beforeClip.style.clipPath = 'inset(0 ' + (100 - pct) + '% 0 0)';
+        }
+        divider.addEventListener('mousedown', (e) => { dragging = true; e.preventDefault(); });
+        divider.addEventListener('touchstart', (e) => { dragging = true; }, { passive: true });
+        document.addEventListener('mousemove', (e) => { if (dragging) setPos(e.clientX); });
+        document.addEventListener('touchmove', (e) => { if (dragging && e.touches[0]) setPos(e.touches[0].clientX); }, { passive: true });
+        document.addEventListener('mouseup', () => { dragging = false; });
+        document.addEventListener('touchend', () => { dragging = false; });
+      });
 
       // --- SHARE BUTTONS ---
       const copyLinkBtn = document.getElementById('copy-link-btn');
@@ -1072,6 +1274,99 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       font-weight: 500;
     }
 
+    /* Testimonial Card */
+    .testimonial-card {
+      margin: 2rem 0;
+      padding: 2rem;
+      background-color: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 1rem;
+      position: relative;
+    }
+    .testimonial-quote-mark {
+      font-size: 4rem;
+      line-height: 1;
+      color: #e2e8f0;
+      font-family: Georgia, serif;
+      margin-bottom: 0.5rem;
+    }
+    .testimonial-quote {
+      font-size: 1.125rem;
+      line-height: 1.75;
+      color: #334155;
+      font-style: italic;
+      margin-bottom: 1.5rem;
+    }
+    .testimonial-author {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .testimonial-avatar {
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1rem;
+      color: white;
+      flex-shrink: 0;
+    }
+    .testimonial-author-name {
+      font-weight: 600;
+      color: #0f172a;
+      font-size: 0.9375rem;
+    }
+    .testimonial-author-role {
+      font-size: 0.8125rem;
+      color: #64748b;
+    }
+
+    /* Hero Banner */
+    .hero-banner { margin: 2rem 0; border-radius: 1rem; overflow: hidden; }
+    .hero-banner-inner { padding: 4rem 3rem; text-align: center; }
+    .hero-banner-title { font-size: 2.5rem; font-weight: 800; color: white; margin: 0 0 1rem; line-height: 1.2; }
+    .hero-banner-subtitle { font-size: 1.125rem; color: rgba(255,255,255,0.9); margin: 0 0 2rem; max-width: 600px; margin-left: auto; margin-right: auto; }
+    .hero-banner-cta { display: inline-block; padding: 0.75rem 2rem; background: rgba(255,255,255,0.2); color: white; border-radius: 9999px; text-decoration: none; font-weight: 600; border: 2px solid rgba(255,255,255,0.5); transition: background 0.2s; }
+    .hero-banner-cta:hover { background: rgba(255,255,255,0.3); }
+
+    /* Stat Row */
+    .stat-row { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; margin: 2rem 0; }
+    .stat-item { flex: 1; min-width: 140px; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 1.5rem; border: 1px solid #e2e8f0; border-radius: 0.75rem; background: #ffffff; }
+    .stat-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .stat-number { font-size: 2.5rem; font-weight: 700; color: var(--brand-primary); line-height: 1; margin-bottom: 0.375rem; font-variant-numeric: tabular-nums; }
+    .stat-prefix, .stat-suffix { font-size: 1.5rem; opacity: 0.75; }
+    .stat-label { font-size: 0.875rem; color: #64748b; font-weight: 500; }
+
+    /* Code Diff */
+    .code-diff { margin: 2rem 0; border-radius: 0.75rem; overflow: hidden; border: 1px solid #e2e8f0; }
+    .code-diff-inner { display: flex; }
+    .code-diff-panel { flex: 1; min-width: 0; }
+    .code-diff-label { padding: 0.5rem 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+    .diff-label-before { background: #fff1f2; color: #be123c; border-right: 1px solid #fecdd3; }
+    .diff-label-after { background: #f0fdf4; color: #15803d; }
+    .code-diff-pre { margin: 0; padding: 1rem; overflow-x: auto; background: #f8fafc; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.875rem; line-height: 1.6; border-radius: 0; }
+    .code-diff-panel:first-child .code-diff-pre { border-right: 1px solid #e2e8f0; }
+    .diff-line { padding: 0 0.25rem; min-height: 1.6em; white-space: pre; }
+    .diff-removed { background: #fee2e2; color: #be123c; }
+    .diff-added { background: #dcfce7; color: #15803d; }
+    .diff-empty { opacity: 0.3; }
+    @media (max-width: 600px) { .code-diff-inner { flex-direction: column; } }
+
+    /* Before/After Slider */
+    .before-after { margin: 2rem 0; border-radius: 0.75rem; overflow: hidden; }
+    .before-after-container { position: relative; user-select: none; line-height: 0; }
+    .before-after-container img { display: block; width: 100%; height: auto; }
+    .before-after-before-clip { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; }
+    .before-after-before-clip img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+    .before-after-divider { position: absolute; top: 0; bottom: 0; width: 3px; background: white; transform: translateX(-50%); cursor: ew-resize; box-shadow: 0 0 8px rgba(0,0,0,0.4); }
+    .before-after-divider::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 2.5rem; height: 2.5rem; border-radius: 50%; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; }
+    .before-after-label { position: absolute; top: 0.75rem; padding: 0.25rem 0.75rem; background: rgba(0,0,0,0.5); color: white; font-size: 0.75rem; font-weight: 600; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .before-after-label-left { left: 0.75rem; }
+    .before-after-label-right { right: 0.75rem; }
+
     /* Share Buttons */
     #share-bar {
       position: fixed;
@@ -1368,6 +1663,59 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       font-family: inherit;
     }
 
+    /* Text Badge */
+    .text-badge {
+      display: inline;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 0.75em;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    /* Animated Text */
+    @keyframes shimmer-text {
+      to { background-position: 200% center; }
+    }
+    @keyframes fade-in-word {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animated-text-shimmer {
+      background: linear-gradient(90deg, #6366f1 0%, #ec4899 40%, #6366f1 80%);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .animated-text-shimmer.animate-active {
+      animation: shimmer-text 2s linear infinite;
+    }
+    .animated-text-typewriter.animate-active {
+      border-right: 2px solid currentColor;
+      animation: typewriter-blink 1s step-end infinite;
+    }
+    @keyframes typewriter-blink {
+      0%, 100% { border-color: transparent; }
+      50% { border-color: currentColor; }
+    }
+    .animated-text-fade-in-word {
+      opacity: 0;
+    }
+    .animated-text-fade-in-word.animate-active {
+      animation: fade-in-word 0.6s ease-out forwards;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .animated-text-shimmer.animate-active,
+      .animated-text-typewriter.animate-active,
+      .animated-text-fade-in-word.animate-active {
+        animation: none !important;
+        opacity: 1 !important;
+        -webkit-text-fill-color: inherit !important;
+        background: none !important;
+      }
+    }
+
     ${getCodeThemeCSS(theme?.codeTheme)}
 
     ${theme?.features?.darkModeSupport ? `
@@ -1411,6 +1759,18 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       .card-body { color: #94a3b8; }
       .counter-block { background-color: #1e293b; border-color: #334155; }
       .counter-label { color: #94a3b8; }
+      .testimonial-card { background-color: #1e293b; border-color: #334155; }
+      .testimonial-quote { color: #cbd5e1; }
+      .testimonial-author-name { color: #f1f5f9; }
+      .testimonial-author-role { color: #94a3b8; }
+      .stat-item { background: #1e293b; border-color: #334155; }
+      .stat-label { color: #94a3b8; }
+      .code-diff { border-color: #334155; }
+      .code-diff-pre { background: #0f172a; color: #e2e8f0; }
+      .diff-removed { background: rgba(190,18,60,0.2); color: #fda4af; }
+      .diff-added { background: rgba(21,128,61,0.2); color: #86efac; }
+      .diff-label-before { background: rgba(190,18,60,0.15); border-color: #334155; }
+      .diff-label-after { background: rgba(21,128,61,0.15); }
       .share-btn { background: rgba(15, 23, 42, 0.9); border-color: #334155; color: #94a3b8; }
       .share-btn:hover { background: rgba(30, 41, 59, 1); color: var(--brand-primary); }
     }
@@ -1455,6 +1815,18 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     html.dark .card-body { color: #94a3b8; }
     html.dark .counter-block { background-color: #1e293b; border-color: #334155; }
     html.dark .counter-label { color: #94a3b8; }
+    html.dark .testimonial-card { background-color: #1e293b; border-color: #334155; }
+    html.dark .testimonial-quote { color: #cbd5e1; }
+    html.dark .testimonial-author-name { color: #f1f5f9; }
+    html.dark .testimonial-author-role { color: #94a3b8; }
+    html.dark .stat-item { background: #1e293b; border-color: #334155; }
+    html.dark .stat-label { color: #94a3b8; }
+    html.dark .code-diff { border-color: #334155; }
+    html.dark .code-diff-pre { background: #0f172a; color: #e2e8f0; }
+    html.dark .diff-removed { background: rgba(190,18,60,0.2); color: #fda4af; }
+    html.dark .diff-added { background: rgba(21,128,61,0.2); color: #86efac; }
+    html.dark .diff-label-before { background: rgba(190,18,60,0.15); border-color: #334155; }
+    html.dark .diff-label-after { background: rgba(21,128,61,0.15); }
     html.dark .share-btn { background: rgba(15, 23, 42, 0.9); border-color: #334155; color: #94a3b8; }
     html.dark .share-btn:hover { background: rgba(30, 41, 59, 1); color: var(--brand-primary); }
     html.dark .site-footer { background-color: #0f172a; border-top-color: #1e293b; }
@@ -1573,6 +1945,9 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       .timeline-step::after { background-color: #e2e8f0 !important; }
       .video-embed-wrapper { display: none; }
       .video-embed video { display: none; }
+      .before-after-container { display: flex; flex-direction: column; }
+      .before-after-before-clip { position: static; clip-path: none; width: 100%; }
+      .before-after-divider, .before-after-label { display: none; }
     }
     ` : ''}
   </style>

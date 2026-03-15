@@ -15,6 +15,9 @@ import { TableHeader } from '@tiptap/extension-table-header';
 import { TextAlign } from '@tiptap/extension-text-align';
 import { Highlight } from '@tiptap/extension-highlight';
 import { Callout } from '../extensions/Callout';
+import { GradientText } from '../extensions/GradientText';
+import { TextBadge } from '../extensions/TextBadge';
+import { AnimatedText } from '../extensions/AnimatedText';
 import { AnnotatedImage } from '../extensions/AnnotatedImage';
 import { Grid, GridColumn } from '../extensions/Grid';
 import { Accordion, AccordionItem } from '../extensions/Accordion';
@@ -24,13 +27,19 @@ import { VideoEmbed } from '../extensions/VideoEmbed';
 import { Timeline, TimelineStep } from '../extensions/Timeline';
 import { CardGrid, Card } from '../extensions/CardGrid';
 import { Counter } from '../extensions/Counter';
+import { Testimonial } from '../extensions/Testimonial';
+import { HeroBanner } from '../extensions/HeroBanner';
+import { StatRow } from '../extensions/StatRow';
+import { CodeDiff } from '../extensions/CodeDiff';
+import { BeforeAfter } from '../extensions/BeforeAfter';
 import { compressImageToWebP } from '../utils/imageCompressor';
 import { useEffect, useState, useRef } from 'react';
 import {
   Heading1, Heading2, Heading3, List, ListOrdered, CheckSquare, Code, Quote, Image as ImageIcon,
   Link as LinkIcon, Highlighter, AlignLeft, AlignCenter, AlignRight, Table as TableIcon,
   Info, AlertTriangle, CheckCircle, Minus, Undo, Redo, Bold, Italic, Strikethrough, Columns,
-  ChevronsUpDown, Layers, GripHorizontal, Video, Milestone, LayoutGrid, Hash
+  ChevronsUpDown, Layers, GripHorizontal, Video, Milestone, LayoutGrid, Hash,
+  MessageSquareQuote, PanelTop, BarChart3, GitCompare, SplitSquareHorizontal
 } from 'lucide-react';
 
 const lowlight = createLowlight(common);
@@ -48,6 +57,13 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
   const [title, setTitle] = useState(initialTitle);
   const [isMounted, setIsMounted] = useState(false);
   const [headings, setHeadings] = useState<{ text: string; level: number; id: string }[]>([]);
+
+  const [showGradientPop, setShowGradientPop] = useState(false);
+  const [gradientFrom, setGradientFrom] = useState('#6366f1');
+  const [gradientTo, setGradientTo] = useState('#ec4899');
+  const [gradientDir, setGradientDir] = useState('to right');
+  const [showBadgePop, setShowBadgePop] = useState(false);
+  const [showAnimPop, setShowAnimPop] = useState(false);
 
   const isFirstRender = useRef(true);
 
@@ -112,6 +128,9 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
         types: ['heading', 'paragraph'],
       }),
       Highlight,
+      GradientText,
+      TextBadge,
+      AnimatedText,
       Callout,
       Grid,
       GridColumn,
@@ -126,6 +145,11 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       CardGrid,
       Card,
       Counter,
+      Testimonial,
+      HeroBanner,
+      StatRow,
+      CodeDiff,
+      BeforeAfter,
     ],
     content: initialContent || '',
     editorProps: {
@@ -334,11 +358,49 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
           >
             <Hash size={18} />
           </button>
+
+          <div className="w-px bg-slate-200 mx-1" />
+
+          <button
+            onClick={() => editor.chain().focus().insertContent({ type: 'testimonial', attrs: { quote: 'Your testimonial goes here.', authorName: 'Author Name', authorRole: 'Title, Company', avatarColor: '#6366f1' } }).run()}
+            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
+            title="Insert Testimonial"
+          >
+            <MessageSquareQuote size={18} />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().insertContent({ type: 'heroBanner', attrs: { gradientFrom: '#6366f1', gradientTo: '#ec4899', title: 'Your Title Here', subtitle: '', ctaText: '', ctaUrl: '' } }).run()}
+            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
+            title="Insert Hero Banner"
+          >
+            <PanelTop size={18} />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().insertContent({ type: 'statRow', attrs: { stats: JSON.stringify([{ value: '100', prefix: '', suffix: '+', label: 'Label', icon: '' }, { value: '50', prefix: '', suffix: 'k', label: 'Users', icon: '' }, { value: '99', prefix: '', suffix: '%', label: 'Uptime', icon: '' }]) } }).run()}
+            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
+            title="Insert Stat Row"
+          >
+            <BarChart3 size={18} />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().insertContent({ type: 'codeDiff', attrs: { codeBefore: "// Before\nfunction hello() {\n  console.log('hello');\n}", codeAfter: "// After\nfunction hello(name) {\n  console.log(`hello, ${name}!`);\n}", language: 'javascript' } }).run()}
+            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
+            title="Insert Code Diff"
+          >
+            <GitCompare size={18} />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().insertContent({ type: 'beforeAfter', attrs: { beforeImage: '', afterImage: '', sliderPosition: 50, beforeLabel: 'Before', afterLabel: 'After' } }).run()}
+            className="p-2 rounded hover:bg-slate-100 transition-colors text-slate-600"
+            title="Insert Before/After Slider"
+          >
+            <SplitSquareHorizontal size={18} />
+          </button>
         </FloatingMenu>
       )}
 
       {editor && (
-        <BubbleMenu editor={editor} className="flex bg-slate-800 shadow-xl rounded-lg overflow-hidden p-1 gap-1">
+        <BubbleMenu editor={editor} className="relative flex bg-slate-800 shadow-xl rounded-lg p-1 gap-1">
           <button onClick={() => editor.chain().focus().toggleBold().run()} className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${editor.isActive('bold') ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}>Bold</button>
           <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${editor.isActive('italic') ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}>Italic</button>
           <button onClick={() => editor.chain().focus().toggleStrike().run()} className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${editor.isActive('strike') ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}>Strike</button>
@@ -346,6 +408,107 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
           <button onClick={setLink} className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${editor.isActive('link') ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}>Link</button>
           <div className="w-px bg-slate-600 mx-1 my-1" />
           <button onClick={() => editor.chain().focus().toggleCode().run()} className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${editor.isActive('code') ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}>Code</button>
+
+          <div className="w-px bg-slate-600 mx-1 my-1" />
+
+          {/* Gradient Text */}
+          <div className="relative">
+            <button
+              onClick={() => { setShowGradientPop(v => !v); setShowBadgePop(false); setShowAnimPop(false); }}
+              className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${editor.isActive('gradientText') ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}
+            >Gradient</button>
+            {showGradientPop && (
+              <div className="absolute bottom-full mb-2 left-0 bg-white rounded-lg shadow-xl border border-slate-200 p-3 flex flex-col gap-2 z-50" style={{ minWidth: '200px' }}>
+                <div className="flex gap-2 items-center">
+                  <label className="text-xs text-slate-600">From</label>
+                  <input type="color" value={gradientFrom} onChange={e => setGradientFrom(e.target.value)} className="w-8 h-6 cursor-pointer rounded" />
+                  <label className="text-xs text-slate-600">To</label>
+                  <input type="color" value={gradientTo} onChange={e => setGradientTo(e.target.value)} className="w-8 h-6 cursor-pointer rounded" />
+                </div>
+                <select value={gradientDir} onChange={e => setGradientDir(e.target.value)} className="text-xs border border-slate-200 rounded px-2 py-1 text-slate-700">
+                  <option value="to right">→ Horizontal</option>
+                  <option value="to bottom">↓ Vertical</option>
+                  <option value="135deg">↘ Diagonal</option>
+                </select>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { editor.chain().focus().setGradientText({ colorFrom: gradientFrom, colorTo: gradientTo, direction: gradientDir }).run(); setShowGradientPop(false); }}
+                    className="flex-1 text-xs bg-blue-600 text-white rounded px-2 py-1 hover:bg-blue-700"
+                  >Apply</button>
+                  {editor.isActive('gradientText') && (
+                    <button
+                      onClick={() => { editor.chain().focus().unsetGradientText().run(); setShowGradientPop(false); }}
+                      className="flex-1 text-xs bg-slate-200 text-slate-700 rounded px-2 py-1 hover:bg-slate-300"
+                    >Remove</button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Text Badge */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                if (editor.isActive('textBadge')) {
+                  editor.chain().focus().unsetTextBadge().run();
+                  setShowBadgePop(false);
+                } else {
+                  setShowBadgePop(v => !v);
+                  setShowGradientPop(false);
+                  setShowAnimPop(false);
+                }
+              }}
+              className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${editor.isActive('textBadge') ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}
+            >Badge</button>
+            {showBadgePop && (
+              <div className="absolute bottom-full mb-2 left-0 bg-white rounded-lg shadow-xl border border-slate-200 p-3 z-50">
+                <p className="text-xs text-slate-600 mb-2">Badge color</p>
+                <div className="flex gap-1.5">
+                  {([['#6366f1', 'Indigo'], ['#16a34a', 'Green'], ['#d97706', 'Amber'], ['#dc2626', 'Red'], ['#7c3aed', 'Purple']] as const).map(([color, name]) => (
+                    <button
+                      key={color}
+                      onClick={() => { editor.chain().focus().setTextBadge({ color }).run(); setShowBadgePop(false); }}
+                      style={{ background: color }}
+                      className="w-6 h-6 rounded-full hover:scale-110 transition-transform"
+                      title={name}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Animated Text */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                if (editor.isActive('animatedText')) {
+                  editor.chain().focus().unsetAnimatedText().run();
+                  setShowAnimPop(false);
+                } else {
+                  setShowAnimPop(v => !v);
+                  setShowGradientPop(false);
+                  setShowBadgePop(false);
+                }
+              }}
+              className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${editor.isActive('animatedText') ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}
+            >Animate</button>
+            {showAnimPop && (
+              <div className="absolute bottom-full mb-2 left-0 bg-white rounded-lg shadow-xl border border-slate-200 p-3 z-50" style={{ minWidth: '140px' }}>
+                <p className="text-xs text-slate-600 mb-2">Animation type</p>
+                <div className="flex flex-col gap-1">
+                  {(['shimmer', 'typewriter', 'fade-in-word'] as const).map(anim => (
+                    <button
+                      key={anim}
+                      onClick={() => { editor.chain().focus().setAnimatedText({ animation: anim }).run(); setShowAnimPop(false); }}
+                      className="text-xs text-left px-2 py-1 rounded hover:bg-slate-100 text-slate-700 capitalize"
+                    >{anim.replace(/-/g, ' ')}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </BubbleMenu>
       )}
 

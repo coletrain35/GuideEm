@@ -131,9 +131,36 @@ npm run export -- --output ./dist/runbook.html</code></pre>
   <div data-type="counter" data-value="10" data-suffix="x" data-label="Image Compression"></div>
 </div>
 
+<div data-type="section-divider" data-style="gradient" class="section-divider"></div>
+
+<h2>11. Text Effects</h2>
+<p>Three new inline mark types let you add visual flair to any selected text. All effects are preserved in the exported HTML — no extra setup required.</p>
+
+<h3>Gradient Text</h3>
+<p>Select any text in the editor and choose <strong>Gradient</strong> from the bubble menu to apply a smooth color transition. Pick start color, end color, and direction.</p>
+<p>Works on headlines: <span data-gradient="true" data-gradient-from="#6366f1" data-gradient-to="#ec4899" data-gradient-dir="to right" style="background: linear-gradient(to right, #6366f1, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 700; font-size: 1.15em;">Zero-Dependency Documentation</span></p>
+<p>Or on inline phrases — <span data-gradient="true" data-gradient-from="#0ea5e9" data-gradient-to="#10b981" data-gradient-dir="135deg" style="background: linear-gradient(135deg, #0ea5e9, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 600;">diagonal ocean-to-emerald</span> and <span data-gradient="true" data-gradient-from="#f97316" data-gradient-to="#ef4444" data-gradient-dir="to right" style="background: linear-gradient(to right, #f97316, #ef4444); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 600;">orange to red</span>.</p>
+
+<h3>Text Badges</h3>
+<p>Tag terms, statuses, or version labels inline without breaking reading flow. Five color presets available in the bubble menu.</p>
+<p>
+  Release status: <span data-badge-color="#16a34a" style="background-color: #16a34a; color: white; padding: 2px 8px; border-radius: 9999px; font-size: 0.75em; font-weight: 600; text-transform: uppercase; display: inline;" class="text-badge">stable</span> &nbsp;&nbsp;
+  API: <span data-badge-color="#6366f1" style="background-color: #6366f1; color: white; padding: 2px 8px; border-radius: 9999px; font-size: 0.75em; font-weight: 600; text-transform: uppercase; display: inline;" class="text-badge">v2.4</span> &nbsp;&nbsp;
+  <span data-badge-color="#d97706" style="background-color: #d97706; color: white; padding: 2px 8px; border-radius: 9999px; font-size: 0.75em; font-weight: 600; text-transform: uppercase; display: inline;" class="text-badge">deprecated</span> <code>legacyInit()</code> &nbsp;&nbsp;
+  <span data-badge-color="#dc2626" style="background-color: #dc2626; color: white; padding: 2px 8px; border-radius: 9999px; font-size: 0.75em; font-weight: 600; text-transform: uppercase; display: inline;" class="text-badge">breaking</span>
+</p>
+
+<h3>Animated Text</h3>
+<p>Three animation types activate when the text scrolls into view. All respect <code>prefers-reduced-motion</code>.</p>
+<p>
+  <span data-animation="shimmer" class="animated-text animated-text-shimmer" style="font-weight: 700;">Shimmer</span> — sweeps a gradient highlight continuously. &nbsp;&nbsp;
+  <span data-animation="fade-in-word" class="animated-text animated-text-fade-in-word" style="font-weight: 600;">Fade-in</span> — glides into view on scroll. &nbsp;&nbsp;
+  <span data-animation="typewriter" class="animated-text animated-text-typewriter" style="font-weight: 600;">Typewriter</span> — blinks a cursor at the end.
+</p>
+
 <div data-type="section-divider" data-style="dots" class="section-divider"></div>
 
-<h2>11. What's Inside Every Export</h2>
+<h2>12. What's Inside Every Export</h2>
 <p>A single <code>.html</code> file that ships everything readers need — no runtime, no CDN, no dependencies.</p>
 
 <div data-type="card-grid" data-cols="3">
@@ -156,4 +183,60 @@ npm run export -- --output ./dist/runbook.html</code></pre>
     <p>Email it, host it on S3, open it from a network drive, or view it offline. If a browser can open it, it works.</p>
   </div>
 </div>
+
+<div data-type="section-divider" data-style="gradient" class="section-divider"></div>
+
+<h2>13. Hero Banners</h2>
+<p>Drop a full-width gradient banner anywhere in your document — perfect for chapter headers, product announcements, or calls to action. Pick any two colors and add an optional CTA button.</p>
+
+<div data-type="hero-banner" data-gradient-from="#6366f1" data-gradient-to="#ec4899" data-title="Phase 2: Visual Blocks" data-subtitle="Hero banners, stat rows, testimonials, code diffs, and before/after sliders — all exported as a single self-contained HTML file." data-cta-text="Start Writing" data-cta-url="#"></div>
+
+<div data-type="hero-banner" data-gradient-from="#0ea5e9" data-gradient-to="#10b981" data-title="Ship Docs That Stand Out" data-subtitle="Every block renders identically in the editor and in the exported file. What you see is exactly what your readers get."></div>
+
+<div data-type="section-divider" data-style="dots" class="section-divider"></div>
+
+<h2>14. Testimonial Cards</h2>
+<p>Embed social proof directly in your documentation. Each card renders a quote, author name, role, and a colored avatar initial — no images needed, and no external services required.</p>
+
+<div data-type="testimonial" data-quote="GuideEm replaced three different tools in our workflow. We now hand off design specs, onboarding flows, and release notes as single HTML files that work everywhere — no Notion, no Confluence, no Figma links that expire." data-author-name="Sarah Chen" data-author-role="Head of Product, Veritas Labs" data-avatar-color="#6366f1"></div>
+
+<div data-type="testimonial" data-quote="The image compression alone is worth it. We went from 40 MB documentation bundles to under 4 MB. Our field teams can actually email these files now instead of sharing a Confluence link that half our clients can't access." data-author-name="Marcus Webb" data-author-role="Senior Technical Writer, Apex Systems" data-avatar-color="#10b981"></div>
+
+<div data-type="section-divider" data-style="dots" class="section-divider"></div>
+
+<h2>15. Animated Stat Rows</h2>
+<p>Numbers that count up when they scroll into view. The Stat Row block groups multiple animated counters in a responsive flex row — great for product pages, API reference intros, or capability overviews.</p>
+
+<div data-type="stat-row" data-stats='[{"value":"14","prefix":"","suffix":"","label":"Block Types","icon":"🧩"},{"value":"100","prefix":"","suffix":"%","label":"Client-Side Export","icon":"⚡"},{"value":"10","prefix":"","suffix":"x","label":"Image Compression","icon":"🗜️"},{"value":"0","prefix":"","suffix":"","label":"External Dependencies","icon":"📦"}]'></div>
+
+<div data-type="section-divider" data-style="dots" class="section-divider"></div>
+
+<h2>16. Code Diff Blocks</h2>
+<p>Show exactly what changed between two versions of code — perfect for migration guides, API changelogs, and before/after refactoring examples. The diff is pre-computed at export time, so no JavaScript runs in the exported file to generate it.</p>
+
+<div data-type="code-diff" data-language="javascript" data-code-before="// v1 API
+fetch('/api/users', {
+  method: 'GET',
+  headers: {
+    'Authorization': 'Bearer ' + token
+  }
+}).then(res => res.json())
+  .then(data => setUsers(data))
+  .catch(err => console.error(err));" data-code-after="// v2 API — async/await
+const response = await fetch('/api/v2/users', {
+  method: 'GET',
+  headers: {
+    'Authorization': \`Bearer \${token}\`,
+    'Accept': 'application/json'
+  }
+});
+const { users, total } = await response.json();
+setUsers(users);"></div>
+
+<div data-type="section-divider" data-style="dots" class="section-divider"></div>
+
+<h2>17. Before / After Slider</h2>
+<p>Let readers drag a divider to compare two images side by side — ideal for UI redesigns, photo edits, design system migrations, or any visual before/after comparison. The slider is fully interactive in the exported file.</p>
+
+<div data-type="before-after" data-before-image="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=1200&q=80" data-after-image="https://images.unsplash.com/photo-1543722530-d2c3201371e7?auto=format&fit=crop&w=1200&q=80" data-slider-position="50" data-before-label="Night" data-after-label="Day"></div>
 `;

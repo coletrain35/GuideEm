@@ -78,11 +78,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
         <div className="absolute inset-0 bg-gradient-to-b from-blue-50/50 to-transparent pointer-events-none" />
         
         <div className="relative z-10 max-w-4xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1 mb-8 text-sm font-medium text-blue-700 bg-blue-100/50 rounded-full border border-blue-200/50 shadow-sm">
-            <span className="flex h-2 w-2 rounded-full bg-blue-600 animate-pulse"></span>
-            v2.0 Documentation Engine
+          <div className="flex justify-center mb-8">
+            <img src="/logo.png" alt="GuideEm" className="h-24 md:h-32 w-auto" />
           </div>
-          
+
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-slate-900 mb-8 leading-[1.1]">
             Zero-Dependency <br className="hidden md:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-violet-600">User Guides.</span>
@@ -237,6 +236,44 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
                     <span>#️⃣</span>
                     <span><strong className="text-slate-800">Counter</strong> — animated count-up stats</span>
                   </li>
+                  <li className="flex items-center gap-2">
+                    <span>🖼️</span>
+                    <span><strong className="text-slate-800">Hero Banner</strong> — gradient full-width headers</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span>💬</span>
+                    <span><strong className="text-slate-800">Testimonial</strong> — quote cards with avatars</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span>📊</span>
+                    <span><strong className="text-slate-800">Stat Row</strong> — animated metric counters</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span>🔀</span>
+                    <span><strong className="text-slate-800">Code Diff</strong> — side-by-side before/after</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span>↔️</span>
+                    <span><strong className="text-slate-800">Before/After Slider</strong> — draggable image compare</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100">
+                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 block">Text Effects</label>
+                <ul className="space-y-2 text-sm text-slate-600">
+                  <li className="flex items-center gap-2">
+                    <span>🌈</span>
+                    <span><strong className="text-slate-800">Gradient Text</strong> — color transitions on any text</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span>🏷️</span>
+                    <span><strong className="text-slate-800">Text Badge</strong> — inline status / version pills</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span>✨</span>
+                    <span><strong className="text-slate-800">Animated Text</strong> — shimmer, fade-in, typewriter</span>
+                  </li>
                 </ul>
               </div>
             </div>
@@ -247,10 +284,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
         <div className="lg:w-3/4 bg-white rounded-2xl shadow-2xl border border-slate-200/60 overflow-hidden ring-1 ring-slate-900/5 flex flex-col h-[85vh] lg:h-[800px] xl:h-[900px] transition-all duration-500">
            {/* Browser Window UI Header */}
            <div className="bg-slate-100 flex-shrink-0 border-b border-slate-200 px-4 py-3 flex items-center justify-between">
-             <div className="flex gap-2">
-               <div className="w-3 h-3 rounded-full bg-red-400/90 shadow-sm" />
-               <div className="w-3 h-3 rounded-full bg-amber-400/90 shadow-sm" />
-               <div className="w-3 h-3 rounded-full bg-emerald-400/90 shadow-sm" />
+             <div className="flex items-center gap-3">
+               <div className="flex gap-2">
+                 <div className="w-3 h-3 rounded-full bg-red-400/90 shadow-sm" />
+                 <div className="w-3 h-3 rounded-full bg-amber-400/90 shadow-sm" />
+                 <div className="w-3 h-3 rounded-full bg-emerald-400/90 shadow-sm" />
+               </div>
+               <img src="/logo.png" alt="GuideEm" className="h-5 w-auto opacity-70" />
              </div>
              <div className="flex-1 max-w-sm mx-4">
                 <div className="bg-white/60 text-slate-400 text-xs font-mono py-1.5 px-3 rounded-md text-center border border-slate-200/50 truncate">
