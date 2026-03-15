@@ -101,7 +101,7 @@ These are the first custom Marks in the codebase (all current marks come from @t
 
 ---
 
-## Phase 2: Block-Level Visual Blocks
+## Phase 2: Block-Level Visual Blocks ✅ COMPLETE
 
 These follow the React NodeView pattern (like `Counter.tsx`, `CardGrid.tsx`).
 
@@ -415,15 +415,15 @@ New lucide-react imports for Editor.tsx: `Sparkles`, `Badge`, `PanelTop`, `BarCh
 | 3 | ~~F2: Animated Text~~ | ~~`AnimatedText.ts`~~ | ~~Medium~~ | ✅ |
 | 4 | F12: Glass Callouts | — (modify Callout.ts) | Simple |
 | 5 | F10: Animated Dividers | — (modify SectionDivider.tsx) | Simple |
-| 6 | F6: Testimonial Card | `Testimonial.tsx` | Simple |
-| 7 | F4: Hero Banner | `HeroBanner.tsx` | Medium |
-| 8 | F5: Stat Row | `StatRow.tsx` | Medium |
+| 6 | ~~F6: Testimonial Card~~ | ~~`Testimonial.tsx`~~ | ~~Simple~~ | ✅ |
+| 7 | ~~F4: Hero Banner~~ | ~~`HeroBanner.tsx`~~ | ~~Medium~~ | ✅ |
+| 8 | ~~F5: Stat Row~~ | ~~`StatRow.tsx`~~ | ~~Medium~~ | ✅ |
 | 9 | F14: Image Effects | — (modify AnnotatedImage) | Medium |
-| 10 | F8: Code Diff | `CodeDiff.tsx` | Medium |
+| 10 | ~~F8: Code Diff~~ | ~~`CodeDiff.tsx`~~ | ~~Medium~~ | ✅ |
 | 11 | F13: Inline Code | `InlineCode.ts` | Complex |
 | 12 | F9: Scroll Reveal | `ScrollReveal.ts` | Medium |
 | 13 | F11: Confetti | `Confetti.tsx` | Medium |
-| 14 | F7: Before/After | `BeforeAfter.tsx` | Complex |
+| 14 | ~~F7: Before/After~~ | ~~`BeforeAfter.tsx`~~ | ~~Complex~~ | ✅ |
 
 **Rationale:** Simple features first to establish patterns, existing file modifications before new complex files, JS-heavy interactive features last.
 
