@@ -1,4 +1,4 @@
-# GuideEm'
+# GuideEm
 
 A local-first, block-based documentation editor that exports fully standalone HTML guides — no backend, no accounts, everything runs in your browser.
 
