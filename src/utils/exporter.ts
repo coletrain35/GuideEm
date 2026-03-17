@@ -1,8 +1,16 @@
 import { ThemeConfig } from './storage';
+import { getSectionBgPreset } from './backgroundPresets';
 
 const hexToRgb = (hex: string) => {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : '37, 99, 235';
+};
+
+const hexToLuminance = (hex: string): number => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!result) return 0.5;
+  const toLinear = (c: number) => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
+  return 0.2126 * toLinear(parseInt(result[1], 16)) + 0.7152 * toLinear(parseInt(result[2], 16)) + 0.0722 * toLinear(parseInt(result[3], 16));
 };
 
 const getCodeThemeCSS = (codeTheme?: string): string => {
@@ -55,6 +63,94 @@ const getFontStack = (fontFamily?: string) => {
 
 const escapeHtml = (str: string) =>
   str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+const darkenHexExport = (hex: string, amount: number): string => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!result) return hex;
+  const r = Math.max(0, parseInt(result[1], 16) - amount);
+  const g = Math.max(0, parseInt(result[2], 16) - amount);
+  const b = Math.max(0, parseInt(result[3], 16) - amount);
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+};
+
+function renderHeroCover(title: string, theme?: ThemeConfig): string {
+  const style = theme?.hero?.style;
+  const isLegacyEnabled = theme?.hero?.enabled;
+
+  const primaryColor = theme?.primaryColor ?? '#2563eb';
+  const subtitle = theme?.hero?.subtitle ?? '';
+  const coverImageBase64 = theme?.hero?.coverImageBase64 ?? null;
+  const escapedTitle = escapeHtml(title || 'Untitled Guide');
+  const escapedSubtitle = escapeHtml(subtitle);
+  const darkened = darkenHexExport(primaryColor, 60);
+
+  // Plain style: explicitly 'none', or no style set with no legacy hero enabled
+  if (!style || style === 'none') {
+    if (isLegacyEnabled) {
+      // Legacy hero banner (enabled=true, no new style)
+      return `
+    <div class="hero-section" style="background-color: ${primaryColor}; color: white; padding: ${theme?.hero?.layout === 'full' ? '6rem 2rem' : '3rem 2rem'}; text-align: center; position: relative; overflow: hidden;">
+      ${coverImageBase64 ? `<img src="${coverImageBase64}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.3; z-index: 0;" alt="Hero Cover" />` : ''}
+      <div style="position: relative; z-index: 1; max-width: 800px; margin: 0 auto;">
+        <h1 style="font-size: ${theme?.hero?.layout === 'full' ? '3.5rem' : '2.5rem'}; font-weight: 800; margin-bottom: 1rem; line-height: 1.2;">${escapedTitle}</h1>
+        ${subtitle ? `<p style="font-size: 1.25rem; opacity: 0.9; max-width: 600px; margin: 0 auto;">${escapedSubtitle}</p>` : ''}
+      </div>
+    </div>`;
+    }
+    // Plain cover — matches DocumentCover 'none' style in the editor
+    return `
+    <div style="border-left: 4px solid ${primaryColor}; padding-left: 1.25rem; margin-bottom: 2.5rem;">
+      <h1 style="font-size: 3rem; font-weight: 900; letter-spacing: -0.04em; color: #0f172a; margin: 0; line-height: 1.1; font-family: inherit;">${escapedTitle}</h1>
+    </div>`;
+  }
+
+  if (style === 'gradient') {
+    return `
+    <div style="background: linear-gradient(135deg, ${primaryColor}, ${darkened}); padding: 4rem 3rem; margin-bottom: 2rem; border-radius: 0.75rem; position: relative; overflow: hidden;">
+      ${coverImageBase64 ? `<img src="${coverImageBase64}" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.2; pointer-events: none;" />` : ''}
+      <div style="position: relative; z-index: 1;">
+        <h1 style="font-size: 3.5rem; font-weight: 800; color: white; margin: 0 0 0.75rem; line-height: 1.15;">${escapedTitle}</h1>
+        ${subtitle ? `<p style="font-size: 1.25rem; color: rgba(255,255,255,0.8); margin: 0;">${escapedSubtitle}</p>` : ''}
+      </div>
+    </div>`;
+  }
+
+  if (style === 'dark') {
+    return `
+    <div style="background: #0c0c11; padding: 4rem 3rem; margin-bottom: 2rem; border-radius: 0.75rem; position: relative; overflow: hidden;">
+      <div aria-hidden style="position: absolute; inset: 0; display: flex; align-items: center; padding-left: 3rem; pointer-events: none; z-index: 0; overflow: hidden;">
+        <span style="font-size: 8rem; font-weight: 900; color: ${primaryColor}; opacity: 0.08; filter: blur(2px); user-select: none; line-height: 1; white-space: nowrap;">${escapedTitle}</span>
+      </div>
+      <div style="position: relative; z-index: 1;">
+        <h1 style="font-size: 3.5rem; font-weight: 900; color: white; margin: 0 0 0.75rem; line-height: 1.15;">${escapedTitle}</h1>
+        ${subtitle ? `<p style="font-size: 1.125rem; color: rgba(255,255,255,0.6); margin: 0;">${escapedSubtitle}</p>` : ''}
+      </div>
+    </div>`;
+  }
+
+  if (style === 'mesh') {
+    return `
+    <div style="background: #0f0c1a; padding: 4rem 3rem; margin-bottom: 2rem; border-radius: 0.75rem; position: relative; overflow: hidden;">
+      <div style="position: absolute; width: 300px; height: 300px; background: ${primaryColor}; border-radius: 50%; filter: blur(60px); opacity: 0.5; top: -80px; left: -80px; pointer-events: none;"></div>
+      <div style="position: absolute; width: 250px; height: 250px; background: ${darkened}; border-radius: 50%; filter: blur(60px); opacity: 0.5; bottom: -60px; right: -60px; pointer-events: none;"></div>
+      <div style="position: absolute; width: 200px; height: 200px; background: ${primaryColor}88; border-radius: 50%; filter: blur(60px); opacity: 0.5; top: 30%; right: 20%; pointer-events: none;"></div>
+      <div style="position: relative; z-index: 1;">
+        <h1 style="font-size: 3.5rem; font-weight: 700; color: white; margin: 0 0 0.75rem; line-height: 1.15;">${escapedTitle}</h1>
+        ${subtitle ? `<p style="font-size: 1.125rem; color: rgba(255,255,255,0.7); margin: 0;">${escapedSubtitle}</p>` : ''}
+      </div>
+    </div>`;
+  }
+
+  if (style === 'editorial') {
+    return `
+    <div style="background: #fffbf7; padding: 4rem 3rem; margin-bottom: 2rem; border-radius: 0.75rem; border-top: 4px solid ${primaryColor};">
+      <h1 style="font-family: 'DM Serif Display', Georgia, serif; font-size: 3.5rem; font-weight: 400; color: #1a1a1a; margin: 0 0 1rem; line-height: 1.15;">${escapedTitle}</h1>
+      ${subtitle ? `<p style="font-size: 0.875rem; font-weight: 600; color: ${primaryColor}; letter-spacing: 0.15em; text-transform: uppercase; margin: 0;">${escapedSubtitle}</p>` : ''}
+    </div>`;
+  }
+
+  return '';
+}
 
 /**
  * Extracts all CSS rules from the current document's stylesheets.
@@ -380,6 +476,35 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
         <div class="confetti-emoji">${emoji}</div>
         <div class="confetti-message">${escapeHtml(message)}</div>
       </div>
+    `;
+  });
+
+  // Transform background section blocks
+  doc.querySelectorAll('div[data-type="background-section"]').forEach((el) => {
+    const presetId = el.getAttribute('data-bg-preset') || 'light-gray';
+    const padding = el.getAttribute('data-padding') || 'md';
+    const radius = el.getAttribute('data-border-radius') || 'md';
+    const preset = getSectionBgPreset(presetId);
+
+    const paddingMap: Record<string, string> = { sm: '1rem', md: '2rem', lg: '3rem' };
+    const radiusMap: Record<string, string> = { none: '0', md: '0.75rem', lg: '1.5rem' };
+    const isDark = preset?.dark ?? false;
+
+    el.className = 'background-section';
+    el.removeAttribute('data-type');
+    el.removeAttribute('data-bg-preset');
+    el.removeAttribute('data-padding');
+    el.removeAttribute('data-border-radius');
+
+    if (presetId === 'brand-tint') el.setAttribute('data-text-color', 'brand');
+    else if (isDark) el.setAttribute('data-text-color', 'light');
+
+    const bgSizeStyle = preset?.backgroundSize ? ` background-size: ${preset.backgroundSize};` : '';
+    const bodyHTML = el.innerHTML;
+    el.setAttribute('style', `border-radius: ${radiusMap[radius] || '0.75rem'};`);
+    el.innerHTML = `
+      <div class="background-section-bg" style="background-color: ${preset?.backgroundColor || 'transparent'}; background-image: ${preset?.backgroundImage || 'none'};${bgSizeStyle} border-radius: inherit;"></div>
+      <div class="background-section-content" style="padding: ${paddingMap[padding] || '2rem'};">${bodyHTML}</div>
     `;
   });
 
@@ -830,10 +955,14 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${title || 'Untitled Guide'}</title>
+  ${theme?.hero?.style === 'editorial' ? `
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&display=swap">` : ''}
   <style>
     :root {
       --brand-primary: ${primaryColor};
       --brand-primary-rgb: ${primaryColorRgb};
+      --brand-text-color: ${hexToLuminance(primaryColor) > 0.179 ? '#111827' : '#f8fafc'};
     }
     
     /* Reset and base styles */
@@ -844,8 +973,8 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       background-color: #ffffff;
       color: #111827;
       line-height: 1.5;
+      position: relative;
     }
-    
     /* Target specific elements with the brand color */
     .guide-container a { color: var(--brand-primary); }
     .guide-container .copy-btn { background-color: var(--brand-primary); }
@@ -1965,6 +2094,22 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       color: #0f172a;
     }
 
+    /* Page Background Drift */
+    @keyframes page-bg-drift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* Background Section */
+    .background-section { position: relative; margin: 2rem 0; overflow: hidden; }
+    .background-section-bg { position: absolute; inset: 0; z-index: 0; }
+    .background-section-content { position: relative; z-index: 1; }
+    .background-section[data-text-color="light"],
+    .background-section[data-text-color="light"] * { color: #f8fafc; }
+    .background-section[data-text-color="brand"],
+    .background-section[data-text-color="brand"] * { color: var(--brand-text-color, #111827); }
+
     /* Per-element Scroll Reveal */
     .reveal-fade-up { opacity: 0; transform: translateY(24px); transition: opacity 0.65s ease-out, transform 0.65s ease-out; }
     .reveal-slide-left { opacity: 0; transform: translateX(-36px); transition: opacity 0.65s ease-out, transform 0.65s ease-out; }
@@ -1983,6 +2128,8 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       .reveal-fade-up, .reveal-slide-left, .reveal-slide-right, .reveal-zoom-in {
         opacity: 1 !important; transform: none !important; transition: none !important;
       }
+      body::before { animation: none !important; }
+      .background-section[data-bg-animated] .background-section-bg { animation: none !important; }
     }
 
     /* Mobile Responsive Overrides */
@@ -2129,9 +2276,11 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       .share-btn:hover { background: rgba(30, 41, 59, 1); color: var(--brand-primary); }
       .confetti-block { background: linear-gradient(to bottom, #1e293b, #0f172a); border-color: #334155; }
       .confetti-message { color: #f1f5f9; }
+      body::before { opacity: 0.1; }
     }
 
     html.dark body { background-color: #0f172a; color: #f1f5f9; }
+    html.dark body::before { opacity: 0.1; }
     html.dark .toc-sidebar { border-left-color: #1e293b; }
     html.dark .toc-sidebar h3 { color: #f8fafc; }
     html.dark .toc-link { color: #94a3b8; border-left-color: #334155; }
@@ -2318,6 +2467,8 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       }
       .image-effect-tilt-on-hover img { transform: none !important; }
       .image-effect-polaroid { transform: rotate(0deg); }
+      body::before { display: none !important; }
+      .background-section-bg { animation: none !important; }
     }
     ` : ''}
   </style>
@@ -2340,25 +2491,21 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       Print
     </button>
   </div>` : ''}
-  ${theme?.hero?.enabled ? `
-    <div class="hero-section" style="background-color: var(--brand-primary); color: white; padding: ${theme.hero.layout === 'full' ? '6rem 2rem' : '3rem 2rem'}; text-align: center; position: relative; overflow: hidden;">
-      ${theme.hero.coverImageBase64 ? `<img src="${theme.hero.coverImageBase64}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.3; z-index: 0;" alt="Hero Cover" />` : ''}
-      <div style="position: relative; z-index: 1; max-width: 800px; margin: 0 auto;">
-        <h1 style="font-size: ${theme.hero.layout === 'full' ? '3.5rem' : '2.5rem'}; font-weight: 800; margin-bottom: 1rem; line-height: 1.2;">${title || 'Untitled Guide'}</h1>
-        ${theme.hero.subtitle ? `<p style="font-size: 1.25rem; opacity: 0.9; max-width: 600px; margin: 0 auto;">${theme.hero.subtitle}</p>` : ''}
-      </div>
-    </div>
-  ` : ''}
+  ${(() => {
+    // Full-bleed styles sit outside the layout container (edge-to-edge)
+    const isFullBleed = theme?.hero?.enabled || (theme?.hero?.style && theme?.hero?.style !== 'none');
+    return isFullBleed ? renderHeroCover(title, theme) : '';
+  })()}
   ${theme?.features?.stickyHeader && theme?.logoBase64 ? `
     <div class="sticky-header" style="position: sticky; top: 0; z-index: 100; background: ${theme?.features?.darkModeSupport ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.9)'}; backdrop-filter: blur(8px); border-bottom: 1px solid ${theme?.features?.darkModeSupport ? '#1e293b' : '#f1f5f9'}; padding: 1rem 2rem; display: flex; align-items: center;">
       <img src="${theme.logoBase64}" alt="Brand Logo" style="max-height: 32px; object-fit: contain;" />
-      ${!theme?.hero?.enabled ? `<span style="margin-left: 1rem; font-weight: 600;">${title || 'Untitled Guide'}</span>` : ''}
+      ${theme?.hero?.enabled || (theme?.hero?.style && theme?.hero?.style !== 'none') ? '' : `<span style="margin-left: 1rem; font-weight: 600;">${title || 'Untitled Guide'}</span>`}
     </div>
   ` : ''}
   <div class="export-layout">
     <div class="guide-container prose prose-slate max-w-none">
-      ${theme?.logoBase64 && !theme?.features?.stickyHeader && !theme?.hero?.enabled ? `<div class="brand-header"><img src="${theme.logoBase64}" alt="Brand Logo" class="brand-logo" /></div>` : ''}
-      ${!theme?.hero?.enabled ? `<h1>${title || 'Untitled Guide'}</h1>` : ''}
+      ${theme?.logoBase64 && !theme?.features?.stickyHeader && !theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none') ? `<div class="brand-header"><img src="${theme.logoBase64}" alt="Brand Logo" class="brand-logo" /></div>` : ''}
+      ${!theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none') ? renderHeroCover(title, theme) : ''}
       ${processedHTML}
     </div>
     ${tocHTML}

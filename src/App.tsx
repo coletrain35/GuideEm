@@ -6,12 +6,13 @@ import { ExportModal } from './components/ExportModal';
 import { loadDocuments, saveDocument, deleteDocument, Document, ThemeConfig } from './utils/storage';
 import { generateHTML } from './utils/exporter';
 import { LandingPage } from './components/LandingPage';
-import { FileDown, FileText, Trash2, Loader2, Keyboard, HelpCircle, X, CheckCircle, AlertTriangle, Info, Menu, Plus, Settings, Upload, Palette, ArrowLeft } from 'lucide-react';
+import { FileDown, FileText, Trash2, Loader2, Keyboard, HelpCircle, X, CheckCircle, AlertTriangle, Info, Menu, Plus, Settings, Upload, Palette, ArrowLeft, Eye } from 'lucide-react';
 
 const DEFAULT_THEME: ThemeConfig = {
   primaryColor: '#2563eb', // Tailwind blue-600
   fontFamily: 'modern',
   hero: {
+    style: 'none',
     enabled: false,
     coverImageBase64: null,
     subtitle: '',
@@ -44,6 +45,8 @@ export default function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [isThemeDrawerOpen, setIsThemeDrawerOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState('');
   
   // Always-current mirror of documents state for use in callbacks.
   // Callbacks captured by useCallback only see the snapshot of state at the
@@ -152,7 +155,13 @@ export default function App() {
     });
   }, [currentDocId]);
 
-  const handleExportDownload = () => {
+  const handleOpenPreview = () => {
+    if (!currentDoc) return;
+    setPreviewHtml(generateHTML(currentDoc.title, currentDoc.htmlContent, currentDoc.theme || DEFAULT_THEME));
+    setIsPreviewOpen(true);
+  };
+
+  const handleExportDownload = (userFileName: string) => {
     if (!currentDoc) return;
 
     // 1. Compile the final HTML string using your engine
@@ -165,9 +174,9 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    
-    // 4. Set the downloaded file name securely
-    const safeFileName = (currentDoc.title || 'Untitled_Guide').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+    // 4. Set the downloaded file name, stripping characters invalid in filenames
+    const safeFileName = userFileName.replace(/[/\\:*?"<>|]/g, '').trim() || 'Untitled Guide';
     link.download = `${safeFileName}.html`;
 
     // 5. Fake a click to trigger the browser download, then clean up
@@ -227,12 +236,22 @@ export default function App() {
   return (
     <div 
       className="min-h-screen bg-slate-50 text-slate-900 font-sans flex h-screen overflow-hidden transition-colors duration-300"
-      style={{
-        '--brand-primary': currentDoc?.theme?.primaryColor || DEFAULT_THEME.primaryColor,
-        fontFamily: currentDoc?.theme?.fontFamily === 'editorial' ? 'Merriweather, serif' : 
-                    currentDoc?.theme?.fontFamily === 'technical' ? '"Fira Code", monospace' : 
-                    'Inter, system-ui, sans-serif'
-      } as React.CSSProperties}
+      style={(() => {
+        const hex = (currentDoc?.theme?.primaryColor || DEFAULT_THEME.primaryColor).replace('#', '');
+        const r = parseInt(hex.slice(0, 2), 16);
+        const g = parseInt(hex.slice(2, 4), 16);
+        const b = parseInt(hex.slice(4, 6), 16);
+        const toLinear = (c: number) => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
+        const luminance = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+        return {
+          '--brand-primary': `#${hex}`,
+          '--brand-primary-rgb': `${r}, ${g}, ${b}`,
+          '--brand-text-color': luminance > 0.179 ? '#111827' : '#f8fafc',
+          fontFamily: currentDoc?.theme?.fontFamily === 'editorial' ? 'Merriweather, serif' :
+                      currentDoc?.theme?.fontFamily === 'technical' ? '"Fira Code", monospace' :
+                      'Inter, system-ui, sans-serif',
+        } as React.CSSProperties;
+      })()}
     >
       
       {/* Sidebar */}
@@ -302,6 +321,14 @@ export default function App() {
                     <HelpCircle size={18} />
                     <span className="hidden sm:inline">Help</span>
                   </button>
+                  <button
+                    onClick={handleOpenPreview}
+                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                    title="Preview exported document"
+                  >
+                    <Eye size={18} />
+                    <span className="hidden sm:inline">Preview</span>
+                  </button>
                   <div className="w-px h-6 bg-slate-200 mx-1" />
                   <button
                     onClick={() => setIsExportModalOpen(true)}
@@ -321,7 +348,7 @@ export default function App() {
           {currentDoc ? (
             <>
               <div className={`transition-all duration-300 ease-in-out ${showHelp ? 'md:w-2/3 lg:w-3/4' : 'w-full'}`}>
-                <Editor key={currentDoc.id} initialContent={currentDoc.content} initialHtmlContent={currentDoc.htmlContent} initialTitle={currentDoc.title} onUpdate={handleUpdate} />
+                <Editor key={currentDoc.id} initialContent={currentDoc.content} initialHtmlContent={currentDoc.htmlContent} initialTitle={currentDoc.title} onUpdate={handleUpdate} theme={currentDoc.theme} onThemeChange={handleThemeChange} />
               </div>
 
               {/* Help Sidebar */}
@@ -438,6 +465,52 @@ export default function App() {
           theme={currentDoc.theme || DEFAULT_THEME}
           setTheme={handleThemeChange}
         />
+      )}
+
+      {/* Preview Modal */}
+      {isPreviewOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-slate-950">
+          {/* Toolbar */}
+          <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-800">
+            {/* Left: close + title */}
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                onClick={() => setIsPreviewOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-md transition-colors flex-shrink-0"
+                title="Close preview"
+              >
+                <X size={18} />
+              </button>
+              <span className="text-sm font-medium text-slate-300 truncate">{currentDoc?.title || 'Preview'}</span>
+            </div>
+
+            {/* Center: title */}
+            <span className="text-xs text-slate-500 font-mono hidden sm:block">
+              {currentDoc?.title ? `${currentDoc.title}.html` : 'exported-guide.html'}
+            </span>
+
+            {/* Right: export shortcut */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { setIsPreviewOpen(false); setIsExportModalOpen(true); }}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors"
+              >
+                <FileDown size={15} />
+                Export
+              </button>
+            </div>
+          </div>
+
+          {/* iframe */}
+          <div className="flex-1 overflow-hidden bg-white">
+            <iframe
+              srcDoc={previewHtml}
+              title="Document Preview"
+              className="w-full h-full border-none"
+              sandbox="allow-scripts allow-same-origin allow-presentation"
+            />
+          </div>
+        </div>
       )}
 
       {/* Export Modal */}

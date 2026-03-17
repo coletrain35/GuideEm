@@ -1,7 +1,13 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
-import React from 'react';
+import React, { useState } from 'react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
+
+const STAT_ICONS = [
+  '','🚀','⭐','💡','🔥','✅','📈','📉','💰','💎','🎯','⚡',
+  '🌍','👥','🏆','🔒','📦','🛠️','❤️','🎉','📊','⏱️','🌟','💬',
+  '🤝','📱','🔗','🧪','🌈','🎨','📝','🔔',
+];
 
 interface StatItem {
   value: string;
@@ -19,6 +25,7 @@ const DEFAULT_STATS: StatItem[] = [
 
 const StatRowNodeView = (props: any) => {
   const { node, updateAttributes, selected, deleteNode } = props;
+  const [openIconPicker, setOpenIconPicker] = useState<number | null>(null);
 
   let stats: StatItem[] = DEFAULT_STATS;
   try {
@@ -76,14 +83,29 @@ const StatRowNodeView = (props: any) => {
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Edit Stats</p>
             {stats.map((stat, i) => (
               <div key={i} className="flex gap-2 items-end p-3 bg-slate-50 rounded-lg border border-slate-200">
-                <div className="w-10">
+                <div className="relative">
                   <label className="text-xs font-medium text-slate-500 block mb-0.5">Icon</label>
-                  <input
-                    value={stat.icon}
-                    onChange={(e) => updateStat(i, 'icon', e.target.value)}
-                    placeholder="🚀"
-                    className="w-full px-2 py-1 text-sm border rounded border-slate-200 outline-none focus:border-blue-400 text-center"
-                  />
+                  <button
+                    onClick={() => setOpenIconPicker(openIconPicker === i ? null : i)}
+                    className="w-10 h-[30px] text-lg border rounded border-slate-200 hover:border-blue-400 bg-white flex items-center justify-center"
+                    title="Pick icon"
+                  >
+                    {stat.icon || <span className="text-slate-300 text-xs">+</span>}
+                  </button>
+                  {openIconPicker === i && (
+                    <div className="absolute top-full mt-1 left-0 z-50 bg-white border border-slate-200 rounded-lg shadow-xl p-2 grid grid-cols-8 gap-0.5" style={{ minWidth: '200px' }}>
+                      {STAT_ICONS.map((emoji, ei) => (
+                        <button
+                          key={ei}
+                          onClick={() => { updateStat(i, 'icon', emoji); setOpenIconPicker(null); }}
+                          className={`w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100 text-base ${stat.icon === emoji ? 'bg-blue-50 ring-1 ring-blue-400' : ''}`}
+                          title={emoji || 'None'}
+                        >
+                          {emoji || <span className="text-slate-300 text-xs">∅</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="w-12">
                   <label className="text-xs font-medium text-slate-500 block mb-0.5">Prefix</label>

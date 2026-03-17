@@ -4,12 +4,12 @@ export const REVEAL_TYPES = ['none', 'fade-up', 'slide-left', 'slide-right', 'zo
 export type RevealType = typeof REVEAL_TYPES[number];
 
 // Block-level node types that support per-element scroll reveal
-const BLOCK_TYPES = [
+export const BLOCK_TYPES = [
   'heading', 'paragraph', 'bulletList', 'orderedList', 'taskList',
   'blockquote', 'codeBlock', 'callout', 'grid', 'accordion', 'tabGroup',
   'sectionDivider', 'videoEmbed', 'timeline', 'cardGrid', 'counter',
   'testimonial', 'heroBanner', 'statRow', 'codeDiff', 'beforeAfter',
-  'annotatedImage', 'confetti',
+  'annotatedImage', 'confetti', 'backgroundSection',
 ];
 
 declare module '@tiptap/core' {
@@ -45,10 +45,12 @@ export const ScrollReveal = Extension.create({
     return {
       setScrollReveal:
         (reveal: RevealType) =>
-        ({ editor, commands }) => {
-          for (const type of BLOCK_TYPES) {
-            if (editor.isActive(type)) {
-              return commands.updateAttributes(type, { scrollReveal: reveal });
+        ({ state, commands }) => {
+          const { $from } = state.selection;
+          for (let depth = $from.depth; depth >= 0; depth--) {
+            const node = $from.node(depth);
+            if ((BLOCK_TYPES as readonly string[]).includes(node.type.name)) {
+              return commands.updateAttributes(node.type.name, { scrollReveal: reveal === 'none' ? null : reveal });
             }
           }
           return false;

@@ -1,7 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap/react';
 import React from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 // --- TimelineStep ---
@@ -76,24 +76,14 @@ const TimelineNodeView = (props: any) => {
   return (
     <NodeViewWrapper className={`group/block timeline-editor relative my-8 transition-all ${selected ? 'ring-2 ring-slate-200 rounded-xl p-3' : ''}`}>
       <BlockDeleteButton deleteNode={deleteNode} />
-      {selected && (
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-10 text-sm">
-          <button
-            onClick={addStep}
-            className="flex items-center gap-1 px-3 py-1 rounded-full hover:bg-slate-100 text-slate-600"
-          >
-            <Plus size={14} /> Add Step
-          </button>
-          <div className="w-px h-4 bg-slate-300 mx-1" />
-          <button
-            onClick={() => deleteNode()}
-            className="p-1.5 text-red-500 hover:bg-red-50 rounded-full transition-colors"
-            title="Delete Timeline"
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
-      )}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-10 text-sm opacity-0 group-hover/block:opacity-100 pointer-events-none group-hover/block:pointer-events-auto transition-opacity">
+        <button
+          onClick={addStep}
+          className="flex items-center gap-1 px-3 py-1 rounded-full hover:bg-slate-100 text-slate-600"
+        >
+          <Plus size={14} /> Add Step
+        </button>
+      </div>
       <NodeViewContent className="flex flex-col" />
     </NodeViewWrapper>
   );

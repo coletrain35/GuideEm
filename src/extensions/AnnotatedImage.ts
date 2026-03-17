@@ -30,6 +30,7 @@ export const AnnotatedImage = Node.create<AnnotatedImageOptions>({
     return {
       src: { default: null },
       alt: { default: null },
+      width: { default: 100 },
       effect: { default: 'none' },
       annotations: {
         default: [],
@@ -77,7 +78,12 @@ export const AnnotatedImage = Node.create<AnnotatedImageOptions>({
       'div',
       mergeAttributes(
         this.options.HTMLAttributes,
-        { 'data-type': 'annotated-image', class: `annotated-image-container${effectClass}`, 'data-effect': effect },
+        {
+          'data-type': 'annotated-image',
+          class: `annotated-image-container${effectClass}`,
+          'data-effect': effect,
+          style: `width: ${node?.attrs?.width ?? 100}%; margin-left: auto; margin-right: auto;`,
+        },
         annotations.length > 0 ? { 'data-annotations': JSON.stringify(annotations) } : {}
       ),
       ['img', { src: HTMLAttributes.src, alt: HTMLAttributes.alt }],

@@ -21,8 +21,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
       shareButtons: false,
     },
     hero: {
+      style: 'none',
       enabled: false,
-      subtitle: '',
+      subtitle: 'Interactive Documentation for Modern Teams',
       coverImageBase64: null,
       layout: 'full',
     },
@@ -174,6 +175,28 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
                 </div>
               </div>
               
+              <div className="pt-4 border-t border-slate-100">
+                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 block">Cover Style</label>
+                <div className="flex gap-1">
+                  {(['none', 'gradient', 'dark', 'mesh', 'editorial'] as const).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setTheme(prev => ({
+                        ...prev,
+                        hero: { ...prev.hero, style: s, enabled: s !== 'none' },
+                      }))}
+                      className={`px-2 py-1 text-xs font-medium rounded-full border capitalize transition-colors flex-1 text-center ${
+                        theme.hero.style === s
+                          ? 'bg-slate-900 text-white border-slate-900'
+                          : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      {s === 'none' ? 'Plain' : s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="pt-4 border-t border-slate-100 space-y-3">
                 <label onClick={toggleDarkMode} className="flex items-center justify-between cursor-pointer group">
                   <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">Dark Mode</span>
@@ -246,7 +269,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
 
               <div className="pt-4 border-t border-slate-100">
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Scroll the document to see all 19 sections — accordions, tabs, timelines, counters, hero banners, testimonials, code diffs, before/after sliders, scroll reveal, animated dividers, confetti, glass callouts, language-tinted inline code, image effects, and more.
+                  Scroll the document to see all 21 sections — accordions, tabs, timelines, counters, hero banners, testimonials, code diffs, before/after sliders, scroll reveal, animated dividers, confetti, glass callouts, language-tinted inline code, image effects, <strong className="text-slate-500">background sections</strong>, and <strong className="text-slate-500">5 document cover styles</strong>.
                 </p>
               </div>
             </div>

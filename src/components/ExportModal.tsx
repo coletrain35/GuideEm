@@ -1,18 +1,24 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ThemeConfig } from '../utils/storage';
 
 interface ExportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onExport: () => void;
+  onExport: (fileName: string) => void;
   theme: ThemeConfig;
   setTheme: (themeUpdates: Partial<ThemeConfig>) => void;
   documentTitle: string;
 }
 
-export const ExportModal: React.FC<ExportModalProps> = ({ 
-  isOpen, onClose, onExport, theme, setTheme, documentTitle 
+export const ExportModal: React.FC<ExportModalProps> = ({
+  isOpen, onClose, onExport, theme, setTheme, documentTitle
 }) => {
+  const [fileName, setFileName] = useState(documentTitle || 'Untitled Guide');
+
+  useEffect(() => {
+    if (isOpen) setFileName(documentTitle || 'Untitled Guide');
+  }, [isOpen, documentTitle]);
+
   if (!isOpen) return null;
 
   // Helper to toggle specific features
@@ -45,8 +51,18 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         {/* Body / Configuration */}
         <div className="p-6 space-y-6">
           <div>
-            <p className="text-sm font-medium text-slate-500 mb-1">Document Name</p>
-            <p className="text-base text-slate-900 font-semibold truncate">{documentTitle || 'Untitled Guide'}.html</p>
+            <label className="text-sm font-medium text-slate-500 mb-1 block" htmlFor="export-filename">File Name</label>
+            <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
+              <input
+                id="export-filename"
+                type="text"
+                value={fileName}
+                onChange={e => setFileName(e.target.value)}
+                className="flex-1 px-3 py-2 text-sm text-slate-900 font-medium outline-none bg-white"
+                spellCheck={false}
+              />
+              <span className="px-3 py-2 text-sm text-slate-400 bg-slate-50 border-l border-slate-300 select-none">.html</span>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -162,7 +178,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           </button>
           <button 
             onClick={() => {
-              onExport();
+              onExport(fileName.trim() || 'Untitled Guide');
               onClose();
             }}
             className="px-6 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors flex items-center gap-2"

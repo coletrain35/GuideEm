@@ -9,6 +9,7 @@ export interface ThemeConfig {
   primaryColor: string;
   fontFamily: 'modern' | 'editorial' | 'technical';
   hero: {
+    style?: 'none' | 'gradient' | 'dark' | 'mesh' | 'editorial';
     enabled: boolean;
     coverImageBase64: string | null;
     subtitle: string;
@@ -32,6 +33,7 @@ export interface ThemeConfig {
   codeTheme?: 'dark' | 'light' | 'solarized';
   logoBase64?: string; // Keeping logoBase64 for backward compatibility and existing functionality
   customCSS?: string;
+  pageBackground?: { preset: string | null };
 }
 
 export interface Document {

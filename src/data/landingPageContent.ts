@@ -310,5 +310,79 @@ setUsers(users);"></div>
   <img src="https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80" alt="Laptop on desk" style="margin:0;" />
 </div>
 
+<div data-type="section-divider" data-style="gradient" class="section-divider"></div>
+
+<h2>20. Background Sections</h2>
+<p>Wrap any block in a styled background container — solid fills, brand tints, dark panels, or geometric patterns. All patterns are pure CSS, so they add zero bytes to the exported file.</p>
+
+<div data-type="background-section" data-bg-preset="dots" data-padding="md" data-border-radius="md">
+  <h3 style="margin-top:0;">Dot Grid Pattern</h3>
+  <p>The <strong>Dots</strong> preset lays a radial-gradient dot grid over a white background — a clean neutral texture for feature callouts or highlighted tips. Swap the color picker to the left and the brand-tinted variant below updates instantly.</p>
+</div>
+
+<div data-type="background-section" data-bg-preset="dark-slate" data-padding="md" data-border-radius="md">
+  <h3 style="margin-top:0;">Dark Panel</h3>
+  <p>The <strong>Dark Slate</strong> preset flips text color automatically — no manual overrides needed. Use it for terminal output walkthroughs, night-mode callouts, or dramatic chapter separators.</p>
+  <pre><code class="language-bash"># Commands inside a dark-panel background section
+$ npm run export -- --output ./dist/guide.html
+✓ Exported to ./dist/guide.html (142 KB)</code></pre>
+</div>
+
+<div data-type="background-section" data-bg-preset="brand-tint" data-padding="md" data-border-radius="md">
+  <h3 style="margin-top:0;">Brand Tint</h3>
+  <p>The <strong>Brand</strong> preset fills the section with your primary color and adapts the text to stay legible — light or dark, depending on the luminance of the color you chose. Change the palette selector to see this section update live.</p>
+</div>
+
+<div data-type="background-section" data-bg-preset="grain" data-padding="md" data-border-radius="md">
+  <h3 style="margin-top:0;">Grain Texture</h3>
+  <p>A fractal-noise SVG overlay adds an analog, editorial quality to any section. Pairs especially well with serif typography, pull quotes, or the <strong>Editorial</strong> document cover style shown below.</p>
+</div>
+
+<div data-type="background-section" data-bg-preset="grid" data-padding="md" data-border-radius="md">
+  <h3 style="margin-top:0;">Graph Grid</h3>
+  <p>The <strong>Grid</strong> preset draws a faint ruled grid — a natural fit for code walkthroughs, architecture diagrams, or data-heavy content where the structure of the background reinforces the precision of the subject matter.</p>
+</div>
+
+<div data-type="section-divider" data-style="animated-gradient" class="section-divider"></div>
+
+<h2>21. Document Cover Styles</h2>
+<p>Every document gets a visual title treatment. Five styles replace the plain title input with a full-bleed cover header — fully WYSIWYG in the editor and exported identically to HTML. Use the <strong>Cover Style</strong> picker on the left to switch this document's cover live.</p>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;margin:1.5rem 0;">
+
+  <div style="border-left:4px solid var(--brand-primary);padding:1.25rem 1.25rem 1.25rem 1.125rem;background:#fff;border-radius:0 0.5rem 0.5rem 0;box-shadow:0 1px 4px rgba(0,0,0,0.07);">
+    <div style="font-size:1.375rem;font-weight:900;letter-spacing:-0.03em;color:#0f172a;line-height:1.2;margin-bottom:0.375rem;">Plain</div>
+    <p style="margin:0;font-size:0.8rem;color:#64748b;line-height:1.5;">A left accent border in your brand color. Zero visual noise — the content is the focus. Default for all new documents.</p>
+  </div>
+
+  <div style="background:linear-gradient(135deg,var(--brand-primary) 0%,#111827 100%);border-radius:0.5rem;padding:1.25rem;position:relative;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.2);">
+    <div style="font-size:1.375rem;font-weight:800;color:white;line-height:1.2;margin-bottom:0.375rem;">Gradient</div>
+    <p style="margin:0;font-size:0.8rem;color:rgba(255,255,255,0.8);line-height:1.5;">Full-bleed gradient using your brand color. Supports an optional cover image at 20% opacity.</p>
+  </div>
+
+  <div style="background:#0c0c11;border-radius:0.5rem;padding:1.25rem;position:relative;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.3);">
+    <div style="position:absolute;inset:0;display:flex;align-items:center;padding-left:1.25rem;pointer-events:none;overflow:hidden;"><span style="font-size:4rem;font-weight:900;color:var(--brand-primary);opacity:0.1;filter:blur(1px);white-space:nowrap;line-height:1;">Dark</span></div>
+    <div style="position:relative;z-index:1;">
+      <div style="font-size:1.375rem;font-weight:900;color:white;line-height:1.2;margin-bottom:0.375rem;">Dark</div>
+      <p style="margin:0;font-size:0.8rem;color:rgba(255,255,255,0.6);line-height:1.5;">Deep dark panel with a ghost glow of the title text behind — written in your brand color.</p>
+    </div>
+  </div>
+
+  <div style="background:#0f0c1a;border-radius:0.5rem;padding:1.25rem;position:relative;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.3);">
+    <div style="position:absolute;width:140px;height:140px;background:var(--brand-primary);border-radius:50%;filter:blur(50px);opacity:0.55;top:-40px;left:-40px;pointer-events:none;"></div>
+    <div style="position:absolute;width:100px;height:100px;background:var(--brand-primary);border-radius:50%;filter:blur(40px);opacity:0.4;bottom:-20px;right:-20px;pointer-events:none;"></div>
+    <div style="position:relative;z-index:1;">
+      <div style="font-size:1.375rem;font-weight:700;color:white;line-height:1.2;margin-bottom:0.375rem;">Mesh</div>
+      <p style="margin:0;font-size:0.8rem;color:rgba(255,255,255,0.7);line-height:1.5;">Three animated radial blobs behind a dark background — CSS keyframe animations that run in both the editor and the exported file.</p>
+    </div>
+  </div>
+
+  <div style="background:#fffbf7;border-top:4px solid var(--brand-primary);border-radius:0 0 0.5rem 0.5rem;padding:1.25rem;box-shadow:0 1px 4px rgba(0,0,0,0.07);">
+    <div style="font-family:'DM Serif Display',Georgia,serif;font-size:1.5rem;font-weight:400;color:#1a1a1a;line-height:1.15;margin-bottom:0.5rem;">Editorial</div>
+    <p style="margin:0;font-size:0.75rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--brand-primary);">DM Serif Display · Warm Paper</p>
+  </div>
+
+</div>
+
 <div data-type="confetti" data-message="You made it to the end!" data-emoji="🎉" data-colors='["#6366f1","#ec4899","#f59e0b","#10b981","#3b82f6"]'></div>
 `;

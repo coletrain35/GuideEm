@@ -354,7 +354,45 @@
     height: 0;
     pointer-events: none;
   }
+
+  /* Page background drift animation */
+  @keyframes page-bg-drift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* Background Section — editor styles */
+  .background-section {
+    position: relative;
+    margin: 2rem 0;
+    /* no overflow:hidden — let Tiptap content expand freely */
+  }
+  .background-section-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+  .background-section-content {
+    position: relative;
+    z-index: 1;
+  }
+  .background-section[data-text-color="light"] *,
+  .background-section[data-text-color="light"] { color: #f8fafc !important; }
+
+  .background-section[data-text-color="brand"] *,
+  .background-section[data-text-color="brand"] { color: var(--brand-text-color, #111827) !important; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .background-section .background-section-bg { animation: none !important; }
+  }
 }
+
 
 /* Scrollbar hide utility */
 .scrollbar-hide::-webkit-scrollbar { display: none; }
@@ -364,4 +402,24 @@
 @media (max-width: 640px) {
   .ProseMirror h1 { font-size: 1.75rem; }
   .ProseMirror h2 { font-size: 1.375rem; }
+}
+
+/* DocumentCover */
+@keyframes cover-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.cover-fade-in {
+  animation: cover-fade-in 0.3s ease-out;
+}
+
+.cover-editable-title:empty::before {
+  content: attr(data-placeholder);
+  color: rgba(148, 163, 184, 0.55);
+  pointer-events: none;
+}
+.cover-editable-subtitle:empty::before {
+  content: attr(data-placeholder);
+  color: rgba(148, 163, 184, 0.45);
+  pointer-events: none;
 }

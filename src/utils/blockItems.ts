@@ -5,7 +5,7 @@ import {
   Image as ImageIcon, Columns, ChevronsUpDown, Layers, GripHorizontal, Video,
   Milestone, LayoutGrid, Hash, MessageSquareQuote, PanelTop, BarChart3,
   GitCompare, SplitSquareHorizontal, PartyPopper, Info, AlertTriangle,
-  CheckCircle, Glasses, Minus,
+  CheckCircle, Glasses, Minus, PaintBucket,
 } from 'lucide-react';
 
 export type BlockCategory = 'Text' | 'Callouts' | 'Media' | 'Layout' | 'Data' | 'Showcase';
@@ -164,14 +164,11 @@ export const BLOCK_ITEMS: BlockItem[] = [
   {
     id: 'image',
     label: 'Image',
-    description: 'Insert image from URL',
+    description: 'Upload or drag in an image',
     icon: ImageIcon,
     category: 'Media',
-    keywords: ['image', 'picture', 'photo', 'img'],
-    action: (e) => {
-      const url = window.prompt('Image URL');
-      if (url) e.chain().focus().setAnnotatedImage({ src: url }).run();
-    },
+    keywords: ['image', 'picture', 'photo', 'img', 'upload'],
+    action: (e) => e.chain().focus().insertContent({ type: 'imagePlaceholder' }).run(),
   },
   {
     id: 'videoEmbed',
@@ -261,6 +258,19 @@ export const BLOCK_ITEMS: BlockItem[] = [
     category: 'Layout',
     keywords: ['divider', 'section', 'separator', 'break'],
     action: (e) => e.chain().focus().insertContent({ type: 'sectionDivider', attrs: { style: 'gradient' } }).run(),
+  },
+  {
+    id: 'backgroundSection',
+    label: 'Background Section',
+    description: 'Section with colored/gradient background',
+    icon: PaintBucket,
+    category: 'Layout',
+    keywords: ['background', 'section', 'gradient', 'color', 'wrapper', 'landing'],
+    action: (e) => e.chain().focus().insertContent({
+      type: 'backgroundSection',
+      attrs: { bgPreset: 'aurora', padding: 'md', borderRadius: 'md' },
+      content: [{ type: 'paragraph' }],
+    }).run(),
   },
 
   // ── Data ──
