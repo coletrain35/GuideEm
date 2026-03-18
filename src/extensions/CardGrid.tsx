@@ -89,7 +89,7 @@ const CardGridNodeView = (props: any) => {
 
   return (
     <NodeViewWrapper className={`group/block relative my-8 transition-all ${selected ? 'ring-2 ring-slate-200 rounded-xl p-2' : ''}`}>
-      <BlockDeleteButton deleteNode={deleteNode} />
+      <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-10 text-sm opacity-0 group-hover/block:opacity-100 pointer-events-none group-hover/block:pointer-events-auto transition-opacity">
         {[2, 3, 4].map((n) => (
           <button

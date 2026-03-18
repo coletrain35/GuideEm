@@ -134,7 +134,7 @@
       }
 
       th {
-        @apply font-semibold bg-slate-50 text-slate-900 border-slate-200;
+        font-weight: 600;
       }
 
       tr:hover td {
@@ -168,6 +168,7 @@
       padding: 1rem 0;
       overflow-x: auto;
     }
+
 
     /* Highlight */
     mark {
@@ -393,6 +394,81 @@
   }
 }
 
+/* ── Table style variants ─────────────────────────────────────────────────────
+   Intentionally outside @layer so unlayered author !important beats all layered
+   styles (including Tailwind Typography prose-slate which runs in a later layer).
+   ─────────────────────────────────────────────────────────────────────────── */
+
+table[data-table-style="bordered"]       { border: 1px solid #cbd5e1; }
+table[data-table-style="bordered"] td    { border: 1px solid #cbd5e1; }
+table[data-table-style="bordered"] tr:hover td { background-color: #f8fafc; }
+
+table[data-table-style="minimal"] td     { border-top: none; border-left: none; border-right: none; border-bottom: 1px solid #e2e8f0; padding-left: 0.25rem; padding-right: 0.25rem; }
+table[data-table-style="minimal"] tr:hover td { background-color: transparent; }
+
+
+/* Block Palette drop target indicator */
+.ProseMirror [data-drop-target] {
+  position: relative;
+}
+.ProseMirror [data-drop-target]::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  right: -8px;
+  height: 3px;
+  background: #3b82f6;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+}
+.ProseMirror [data-drop-target]::after {
+  content: '';
+  position: absolute;
+  left: -12px;
+  width: 8px;
+  height: 8px;
+  background: #3b82f6;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.5);
+}
+/* "before" — line + dot at the top edge */
+.ProseMirror [data-drop-target="before"]::before { top: -2px; }
+.ProseMirror [data-drop-target="before"]::after  { top: -5px; }
+/* "after" — line + dot at the bottom edge */
+.ProseMirror [data-drop-target="after"]::before  { bottom: -2px; }
+.ProseMirror [data-drop-target="after"]::after   { bottom: -5px; }
+/* Subtle highlight on the target block */
+.ProseMirror [data-drop-target] {
+  background: rgba(59, 130, 246, 0.04);
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+/* Drag Handle (tiptap-extension-global-drag-handle) */
+.drag-handle {
+  position: fixed;
+  opacity: 1;
+  transition: opacity 0.15s ease;
+  border-radius: 0.25rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 16'%3E%3Ccircle cx='2' cy='2' r='1.5' fill='%2394a3b8'/%3E%3Ccircle cx='8' cy='2' r='1.5' fill='%2394a3b8'/%3E%3Ccircle cx='2' cy='8' r='1.5' fill='%2394a3b8'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='%2394a3b8'/%3E%3Ccircle cx='2' cy='14' r='1.5' fill='%2394a3b8'/%3E%3Ccircle cx='8' cy='14' r='1.5' fill='%2394a3b8'/%3E%3C/svg%3E");
+  background-size: 10px 16px;
+  background-repeat: no-repeat;
+  background-position: center;
+  width: 20px;
+  height: 24px;
+  z-index: 50;
+  cursor: grab;
+}
+.drag-handle:hover {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 16'%3E%3Ccircle cx='2' cy='2' r='1.5' fill='%236366f1'/%3E%3Ccircle cx='8' cy='2' r='1.5' fill='%236366f1'/%3E%3Ccircle cx='2' cy='8' r='1.5' fill='%236366f1'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='%236366f1'/%3E%3Ccircle cx='2' cy='14' r='1.5' fill='%236366f1'/%3E%3Ccircle cx='8' cy='14' r='1.5' fill='%236366f1'/%3E%3C/svg%3E");
+  background-color: #f1f5f9;
+}
+.drag-handle:active { cursor: grabbing; }
+.drag-handle.hidden { opacity: 0; pointer-events: none; }
 
 /* Scrollbar hide utility */
 .scrollbar-hide::-webkit-scrollbar { display: none; }
@@ -422,4 +498,17 @@
   content: attr(data-placeholder);
   color: rgba(148, 163, 184, 0.45);
   pointer-events: none;
+}
+
+/* ── Find & Replace highlights ─────────────────────────────── */
+.search-match {
+  background-color: rgba(250, 204, 21, 0.35); /* yellow-300 @ 35% */
+  border-radius: 2px;
+}
+
+.search-match-current {
+  background-color: rgba(234, 88, 12, 0.45); /* orange-600 @ 45% */
+  border-radius: 2px;
+  outline: 2px solid rgba(234, 88, 12, 0.7);
+  outline-offset: 1px;
 }

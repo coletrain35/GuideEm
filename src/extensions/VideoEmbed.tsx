@@ -17,7 +17,7 @@ export const parseVideoURL = (url: string): { type: 'youtube' | 'vimeo' | 'html5
 };
 
 const VideoEmbedNodeView = (props: any) => {
-  const { node, updateAttributes, selected, deleteNode } = props;
+  const { node, updateAttributes, selected, deleteNode, getPos, editor } = props;
   const { src } = node.attrs;
   const [inputUrl, setInputUrl] = useState('');
   const [isEditing, setIsEditing] = useState(!src);
@@ -33,7 +33,7 @@ const VideoEmbedNodeView = (props: any) => {
 
   return (
     <NodeViewWrapper className={`group/block relative my-8 transition-all ${selected ? 'ring-2 ring-slate-200 rounded-xl' : ''}`}>
-      {!selected && <BlockDeleteButton deleteNode={deleteNode} />}
+      {!selected && <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />}
       {selected && src && (
         <div className="absolute top-2 right-2 flex items-center gap-1 z-10">
           <button

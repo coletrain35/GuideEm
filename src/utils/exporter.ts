@@ -629,7 +629,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       lightbox.appendChild(img);
       document.body.appendChild(lightbox);
 
-      document.querySelectorAll('.guide-container img:not(.annotated-image-container img)').forEach(image => {
+      document.querySelectorAll('.guide-container img:not(.annotated-image-container[data-annotations] img)').forEach(image => {
         image.style.cursor = 'zoom-in';
         image.onclick = (e) => {
           e.stopPropagation();
@@ -1811,6 +1811,15 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       padding: 1rem 0;
       overflow-x: auto;
     }
+
+    /* Table style variants */
+    table[data-table-style="bordered"] { border: 1px solid #cbd5e1; }
+    table[data-table-style="bordered"] td, table[data-table-style="bordered"] th { border: 1px solid #cbd5e1; }
+    table[data-table-style="bordered"] th { background-color: #f1f5f9 !important; color: #1e293b !important; }
+
+    table[data-table-style="minimal"] td, table[data-table-style="minimal"] th { border-top: none; border-left: none; border-right: none; border-bottom: 1px solid #e2e8f0; padding-left: 0.25rem; padding-right: 0.25rem; }
+    table[data-table-style="minimal"] th { background-color: transparent !important; color: #94a3b8 !important; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    table[data-table-style="minimal"] tr:hover td { background-color: transparent; }
 
     /* Highlight */
     mark {

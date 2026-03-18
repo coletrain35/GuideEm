@@ -57,7 +57,7 @@ const DividerPreview = ({ style }: { style: DividerStyle }) => {
 };
 
 const SectionDividerNodeView = (props: any) => {
-  const { node, updateAttributes, selected, deleteNode } = props;
+  const { node, updateAttributes, selected, deleteNode, getPos, editor } = props;
   const { style } = node.attrs as { style: DividerStyle };
 
   return (
@@ -65,7 +65,7 @@ const SectionDividerNodeView = (props: any) => {
       className={`group/block relative my-8 transition-all ${selected ? 'ring-2 ring-slate-200 rounded p-2' : ''}`}
       contentEditable={false}
     >
-      <BlockDeleteButton deleteNode={deleteNode} />
+      <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
       {selected && (
         <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-10 text-sm">
           {STYLES.map((s) => (

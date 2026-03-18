@@ -3,10 +3,15 @@ import { Editor } from './components/Editor';
 import { ThemeDrawer } from './components/ThemeDrawer';
 import { Sidebar } from './components/Sidebar';
 import { ExportModal } from './components/ExportModal';
+import { ConfirmDialog } from './components/ConfirmDialog';
+import { TemplatePickerModal } from './components/TemplatePickerModal';
 import { loadDocuments, saveDocument, deleteDocument, Document, ThemeConfig } from './utils/storage';
 import { generateHTML } from './utils/exporter';
+import { tiptapJsonToMarkdown } from './utils/markdownExporter';
 import { LandingPage } from './components/LandingPage';
-import { FileDown, FileText, Trash2, Loader2, Keyboard, HelpCircle, X, CheckCircle, AlertTriangle, Info, Menu, Plus, Settings, Upload, Palette, ArrowLeft, Eye } from 'lucide-react';
+import { markdownToHtml } from './utils/markdownImporter';
+import type { TemplateDefinition } from './data/templates';
+import { FileDown, FileText, Trash2, Loader2, Keyboard, HelpCircle, X, CheckCircle, AlertTriangle, Info, Menu, Plus, Settings, Upload, Palette, ArrowLeft, Eye, Maximize2, Minimize2, LayoutGrid } from 'lucide-react';
 
 const DEFAULT_THEME: ThemeConfig = {
   primaryColor: '#2563eb', // Tailwind blue-600
@@ -47,6 +52,12 @@ export default function App() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [isZenMode, setIsZenMode] = useState(false);
+  const [showBlockPalette, setShowBlockPalette] = useState(true);
+  const markdownImportRef = useRef<HTMLInputElement>(null);
   
   // Always-current mirror of documents state for use in callbacks.
   // Callbacks captured by useCallback only see the snapshot of state at the
@@ -73,6 +84,29 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
+  // Keyboard shortcuts: Ctrl+/ → help panel, Ctrl+Shift+F → zen mode, Esc → exit zen
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === '/') {
+        e.preventDefault();
+        setShowHelp(v => !v);
+      }
+      if (e.ctrlKey && e.shiftKey && e.key === 'F') {
+        e.preventDefault();
+        setIsZenMode(v => !v);
+      }
+      if (e.ctrlKey && e.shiftKey && e.key === 'B') {
+        e.preventDefault();
+        setShowBlockPalette(v => !v);
+      }
+      if (e.key === 'Escape') {
+        setIsZenMode(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   useEffect(() => {
     const init = async () => {
       const docs = await loadDocuments();
@@ -86,27 +120,43 @@ export default function App() {
     init();
   }, []);
 
-  const createNewDocument = async () => {
+  const createNewDocument = (template?: TemplateDefinition) => {
+    setShowTemplatePicker(false);
+    const tpl = template ?? {
+      defaultTitle: 'Untitled Guide',
+      content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Start writing here…' }] }] },
+    };
     const newDoc: Document = {
       id: crypto.randomUUID(),
-      title: 'Untitled Guide',
-      content: {
-        type: 'doc',
-        content: [
-          {
-            type: 'paragraph',
-            content: [{ type: 'text', text: 'Start writing here...' }],
-          }
-        ],
-      },
-      htmlContent: '<p>Start writing here...</p>',
+      title: tpl.defaultTitle,
+      content: tpl.content,
+      htmlContent: '',
       lastEdited: Date.now(),
-      theme: { ...DEFAULT_THEME }
+      theme: { ...DEFAULT_THEME },
     };
+    setDocuments(prev => [newDoc, ...prev]);
+    setCurrentDocId(newDoc.id);
+    saveDocument(newDoc);
+  };
 
+  const handleMarkdownImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    const html = markdownToHtml(text);
+    const title = file.name.replace(/\.md$/i, '').trim() || 'Imported Document';
+    const newDoc: Document = {
+      id: crypto.randomUUID(),
+      title,
+      content: html, // Tiptap parses HTML string as content on init
+      htmlContent: html,
+      lastEdited: Date.now(),
+      theme: { ...DEFAULT_THEME },
+    };
     setDocuments(prev => [newDoc, ...prev]);
     setCurrentDocId(newDoc.id);
     await saveDocument(newDoc);
+    e.target.value = '';
   };
 
   const handleUpdate = useCallback((html: string, json: any, newTitle: string) => {
@@ -130,8 +180,10 @@ export default function App() {
 
     // Persist asynchronously outside the state updater.
     hasPendingSaveRef.current = true;
+    setSaveStatus('saving');
     saveDocument(updatedDoc).then(() => {
       hasPendingSaveRef.current = false;
+      setSaveStatus('saved');
     });
   }, [currentDocId]);
 
@@ -150,8 +202,10 @@ export default function App() {
     setDocuments(prev => prev.map(d => d.id === currentDocId ? updatedDoc : d));
 
     hasPendingSaveRef.current = true;
+    setSaveStatus('saving');
     saveDocument(updatedDoc).then(() => {
       hasPendingSaveRef.current = false;
+      setSaveStatus('saved');
     });
   }, [currentDocId]);
 
@@ -186,17 +240,57 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
+  const handleMarkdownExport = (userFileName: string) => {
+    if (!currentDoc) return;
+    const markdown = tiptapJsonToMarkdown(currentDoc.content);
+    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const safeFileName = userFileName.replace(/[/\\:*?"<>|]/g, '').trim() || 'Untitled Guide';
+    link.download = `${safeFileName}.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleTagsChange = useCallback((id: string, tags: string[]) => {
+    const existing = documentsRef.current.find(d => d.id === id);
+    if (!existing) return;
+    const updatedDoc = { ...existing, tags };
+    setDocuments(prev => prev.map(d => d.id === id ? updatedDoc : d));
+    saveDocument(updatedDoc);
+  }, []);
+
+  const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (window.confirm('Are you sure you want to delete this document? This cannot be undone.')) {
-      await deleteDocument(id);
-      
-      const docs = await loadDocuments();
-      setDocuments(docs);
-      if (currentDocId === id) {
-        setCurrentDocId(docs.length > 0 ? docs[0].id : null);
-      }
+    setConfirmDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!confirmDeleteId) return;
+    await deleteDocument(confirmDeleteId);
+    const docs = await loadDocuments();
+    setDocuments(docs);
+    if (currentDocId === confirmDeleteId) {
+      setCurrentDocId(docs.length > 0 ? docs[0].id : null);
     }
+    setConfirmDeleteId(null);
+  };
+
+  const handleDuplicate = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const existing = documentsRef.current.find(d => d.id === id);
+    if (!existing) return;
+    const newDoc: Document = {
+      ...existing,
+      id: crypto.randomUUID(),
+      title: `${existing.title} (copy)`,
+      lastEdited: Date.now(),
+    };
+    setDocuments(prev => [newDoc, ...prev]);
+    await saveDocument(newDoc);
   };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -271,8 +365,10 @@ export default function App() {
                 // Auto-close sidebar on mobile
                 if (window.innerWidth < 768) setShowSidebar(false);
               }}
-              onCreateDoc={createNewDocument}
+              onCreateDoc={() => setShowTemplatePicker(true)}
               onDeleteDoc={handleDelete}
+              onDuplicateDoc={handleDuplicate}
+              onTagsChange={handleTagsChange}
               onClose={() => setShowSidebar(false)}
             />
           </div>
@@ -281,8 +377,8 @@ export default function App() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-white">
-        {/* Header */}
-        <header className="bg-white border-b border-slate-100 flex-shrink-0 z-10">
+        {/* Header — hidden in zen mode */}
+        <header className={`bg-white border-b border-slate-100 flex-shrink-0 z-10 transition-all duration-300 ${isZenMode ? 'hidden' : ''}`}>
           <div className="px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <button 
@@ -305,6 +401,26 @@ export default function App() {
             <div className="flex items-center gap-2 sm:gap-3">
               {currentDoc && (
                 <>
+                  {/* Auto-save status chip */}
+                  <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-300 ${
+                    saveStatus === 'saving'
+                      ? 'bg-amber-50 text-amber-600'
+                      : 'bg-emerald-50 text-emerald-600'
+                  }`}>
+                    {saveStatus === 'saving' ? (
+                      <><Loader2 size={12} className="animate-spin" />Saving…</>
+                    ) : (
+                      <><CheckCircle size={12} />Saved</>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setShowBlockPalette(v => !v)}
+                    className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${showBlockPalette ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}`}
+                    title="Toggle Block Palette (Ctrl+Shift+B)"
+                  >
+                    <LayoutGrid size={18} />
+                    <span className="hidden sm:inline">Blocks</span>
+                  </button>
                   <button
                     onClick={() => setIsThemeDrawerOpen(true)}
                     className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
@@ -316,7 +432,7 @@ export default function App() {
                   <button
                     onClick={() => setShowHelp(!showHelp)}
                     className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${showHelp ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}`}
-                    title="Toggle Help & Shortcuts"
+                    title="Toggle Help & Shortcuts (Ctrl+/)"
                   >
                     <HelpCircle size={18} />
                     <span className="hidden sm:inline">Help</span>
@@ -328,6 +444,30 @@ export default function App() {
                   >
                     <Eye size={18} />
                     <span className="hidden sm:inline">Preview</span>
+                  </button>
+                  {/* Hidden markdown import input */}
+                  <input
+                    ref={markdownImportRef}
+                    type="file"
+                    accept=".md,text/markdown"
+                    className="hidden"
+                    onChange={handleMarkdownImport}
+                  />
+                  <button
+                    onClick={() => markdownImportRef.current?.click()}
+                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                    title="Import Markdown file"
+                  >
+                    <Upload size={18} />
+                    <span className="hidden sm:inline">Import</span>
+                  </button>
+                  <button
+                    onClick={() => setIsZenMode(v => !v)}
+                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                    title="Focus / Zen Mode (Ctrl+Shift+F)"
+                  >
+                    <Maximize2 size={18} />
+                    <span className="hidden sm:inline">Focus</span>
                   </button>
                   <div className="w-px h-6 bg-slate-200 mx-1" />
                   <button
@@ -347,8 +487,8 @@ export default function App() {
         <main className="flex-1 overflow-y-auto relative flex flex-col md:flex-row gap-6 px-2 py-4 sm:px-4 sm:py-8">
           {currentDoc ? (
             <>
-              <div className={`transition-all duration-300 ease-in-out ${showHelp ? 'md:w-2/3 lg:w-3/4' : 'w-full'}`}>
-                <Editor key={currentDoc.id} initialContent={currentDoc.content} initialHtmlContent={currentDoc.htmlContent} initialTitle={currentDoc.title} onUpdate={handleUpdate} theme={currentDoc.theme} onThemeChange={handleThemeChange} />
+              <div className={`transition-all duration-300 ease-in-out ${showHelp && !isZenMode ? 'md:w-2/3 lg:w-3/4' : 'w-full'}`}>
+                <Editor key={currentDoc.id} initialContent={currentDoc.content} initialHtmlContent={currentDoc.htmlContent} initialTitle={currentDoc.title} onUpdate={handleUpdate} theme={currentDoc.theme} onThemeChange={handleThemeChange} zenMode={isZenMode} showBlockPalette={showBlockPalette && !isZenMode} onCloseBlockPalette={() => setShowBlockPalette(false)} />
               </div>
 
               {/* Help Sidebar */}
@@ -360,9 +500,12 @@ export default function App() {
                         <Keyboard size={18} className="text-blue-600" />
                         Editor Guide
                       </h3>
-                      <button onClick={() => setShowHelp(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-100">
-                        <X size={16} />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <kbd className="text-[10px] text-slate-400 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 font-mono">Ctrl+/</kbd>
+                        <button onClick={() => setShowHelp(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-100">
+                          <X size={16} />
+                        </button>
+                      </div>
                     </div>
 
                     <div className="space-y-4 max-h-[calc(100vh-12rem)] overflow-y-auto pr-1">
@@ -446,7 +589,7 @@ export default function App() {
               <h2 className="text-2xl font-semibold text-slate-700 mb-2">No Document Selected</h2>
               <p className="mb-6">Create a new guide to get started.</p>
               <button 
-                onClick={createNewDocument} 
+                onClick={() => setShowTemplatePicker(true)}
                 className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-medium"
               >
                 <Plus size={20} />
@@ -515,15 +658,45 @@ export default function App() {
 
       {/* Export Modal */}
       {currentDoc && (
-        <ExportModal 
+        <ExportModal
           isOpen={isExportModalOpen}
           onClose={() => setIsExportModalOpen(false)}
           onExport={handleExportDownload}
+          onExportMarkdown={handleMarkdownExport}
           theme={currentDoc.theme || DEFAULT_THEME}
           setTheme={handleThemeChange}
           documentTitle={currentDoc.title}
         />
       )}
+
+      {/* Zen Mode Exit Button */}
+      {isZenMode && (
+        <button
+          onClick={() => setIsZenMode(false)}
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-2 bg-slate-900/80 backdrop-blur-sm text-white text-sm font-medium rounded-full shadow-lg hover:bg-slate-900 transition-colors"
+          title="Exit Focus Mode (Esc)"
+        >
+          <Minimize2 size={15} />
+          Exit Focus
+        </button>
+      )}
+
+      {/* Template Picker */}
+      <TemplatePickerModal
+        isOpen={showTemplatePicker}
+        onClose={() => setShowTemplatePicker(false)}
+        onSelect={createNewDocument}
+      />
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        isOpen={confirmDeleteId !== null}
+        title="Delete document?"
+        message="This document will be permanently deleted. This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </div>
   );
 }

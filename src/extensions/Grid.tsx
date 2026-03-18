@@ -6,12 +6,12 @@ import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 // 1. The React Component (What the author sees)
 const GridNodeView = (props: any) => {
-  const { node, updateAttributes, selected, deleteNode } = props;
+  const { node, updateAttributes, selected, deleteNode, getPos, editor } = props;
   const { layout } = node.attrs; // '50-50', '40-60', or '60-40'
 
   return (
     <NodeViewWrapper className={`group/block relative my-8 transition-all ${selected ? 'ring-2 ring-slate-200 rounded-lg p-2' : ''}`}>
-      <BlockDeleteButton deleteNode={deleteNode} />
+      <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
       
       {/* Contextual Menu: Only visible when the grid is clicked */}
       {selected && (

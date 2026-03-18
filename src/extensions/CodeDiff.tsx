@@ -55,14 +55,14 @@ const lineStyle = (type: DiffLine['type']): React.CSSProperties => {
 };
 
 const CodeDiffNodeView = (props: any) => {
-  const { node, updateAttributes, selected, deleteNode } = props;
+  const { node, updateAttributes, selected, deleteNode, getPos, editor } = props;
   const { codeBefore, codeAfter, language } = node.attrs;
 
   const { beforeLines, afterLines } = computeDiff(codeBefore, codeAfter);
 
   return (
     <NodeViewWrapper className="group/block code-diff-editor-wrapper my-6 relative">
-      <BlockDeleteButton deleteNode={deleteNode} />
+      <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
       <div
         className={`rounded-xl overflow-hidden border transition-all ${
           selected ? 'border-blue-400 ring-2 ring-blue-200' : 'border-slate-200'

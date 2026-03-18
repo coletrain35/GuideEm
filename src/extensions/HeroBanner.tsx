@@ -4,12 +4,12 @@ import React from 'react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 const HeroBannerNodeView = (props: any) => {
-  const { node, updateAttributes, selected, deleteNode } = props;
+  const { node, updateAttributes, selected, deleteNode, getPos, editor } = props;
   const { gradientFrom, gradientTo, title, subtitle, ctaText, ctaUrl } = node.attrs;
 
   return (
     <NodeViewWrapper className="group/block hero-banner-editor-wrapper my-6 relative">
-      <BlockDeleteButton deleteNode={deleteNode} />
+      <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
       <div
         className={`rounded-2xl overflow-hidden border-2 transition-all ${
           selected ? 'border-blue-400 ring-2 ring-blue-200' : 'border-transparent'

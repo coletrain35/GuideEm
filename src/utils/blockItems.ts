@@ -5,7 +5,7 @@ import {
   Image as ImageIcon, Columns, ChevronsUpDown, Layers, GripHorizontal, Video,
   Milestone, LayoutGrid, Hash, MessageSquareQuote, PanelTop, BarChart3,
   GitCompare, SplitSquareHorizontal, PartyPopper, Info, AlertTriangle,
-  CheckCircle, Glasses, Minus, PaintBucket,
+  CheckCircle, Glasses, Minus, PaintBucket, Table2,
 } from 'lucide-react';
 
 export type BlockCategory = 'Text' | 'Callouts' | 'Media' | 'Layout' | 'Data' | 'Showcase';
@@ -274,6 +274,17 @@ export const BLOCK_ITEMS: BlockItem[] = [
   },
 
   // ── Data ──
+  {
+    id: 'table',
+    label: 'Table',
+    description: 'Structured data in rows and columns',
+    icon: Table2,
+    category: 'Data',
+    keywords: ['table', 'rows', 'columns', 'grid', 'data'],
+    action: (_e) => {
+      window.dispatchEvent(new CustomEvent('tiptap:open-table-modal'));
+    },
+  },
   {
     id: 'timeline',
     label: 'Timeline',

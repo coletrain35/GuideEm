@@ -29,7 +29,7 @@ export const ThemeDrawer: React.FC<ThemeDrawerProps> = ({ isOpen, onClose, theme
         </div>
 
         <div className="p-6 space-y-8 overflow-y-auto h-[calc(100vh-64px)]">
-          
+
           {/* 1. Brand Color Picker */}
           <div className="space-y-3">
             <label className="block text-sm font-medium text-slate-700">Brand Primary Color</label>

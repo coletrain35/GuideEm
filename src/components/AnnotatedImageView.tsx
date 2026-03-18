@@ -10,7 +10,7 @@ const GripIcon = () => (
   </div>
 );
 
-export const AnnotatedImageView = ({ node, updateAttributes, selected, editor, deleteNode }: any) => {
+export const AnnotatedImageView = ({ node, updateAttributes, selected, editor, deleteNode, getPos }: any) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isResizing, setIsResizing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -75,7 +75,7 @@ export const AnnotatedImageView = ({ node, updateAttributes, selected, editor, d
 
   return (
     <NodeViewWrapper className={`group/block relative block my-8 ${selected ? 'ring-4 ring-blue-500/50 rounded-lg' : ''}`}>
-      <BlockDeleteButton deleteNode={deleteNode} />
+      <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
 
       {selected && editor.isEditable && (
         <div className="absolute -top-16 left-0 bg-slate-800 text-white text-sm px-4 py-2 rounded-lg shadow-lg z-10 flex items-center justify-between gap-4 w-full animate-in fade-in slide-in-from-bottom-2">

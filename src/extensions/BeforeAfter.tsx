@@ -5,7 +5,7 @@ import { compressImageToWebP } from '../utils/imageCompressor';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 const BeforeAfterNodeView = (props: any) => {
-  const { node, updateAttributes, selected, deleteNode } = props;
+  const { node, updateAttributes, selected, deleteNode, getPos, editor } = props;
   const { beforeImage, afterImage, sliderPosition, beforeLabel, afterLabel } = node.attrs;
 
   const [sliderPos, setSliderPos] = useState<number>(sliderPosition);
@@ -74,7 +74,7 @@ const BeforeAfterNodeView = (props: any) => {
 
   return (
     <NodeViewWrapper className="group/block before-after-editor-wrapper my-6 relative">
-      <BlockDeleteButton deleteNode={deleteNode} />
+      <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
       <div
         className={`rounded-xl overflow-hidden border transition-all ${
           selected ? 'border-blue-400 ring-2 ring-blue-200' : 'border-slate-200'

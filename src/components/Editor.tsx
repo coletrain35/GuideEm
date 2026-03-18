@@ -7,7 +7,7 @@ import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { common, createLowlight } from 'lowlight';
 import 'highlight.js/styles/github-dark.css';
 import { Link } from '@tiptap/extension-link';
-import { Table } from '@tiptap/extension-table';
+import { Table, TableView } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
@@ -37,19 +37,90 @@ import { BackgroundSection } from '../extensions/BackgroundSection';
 import { ScrollReveal, REVEAL_TYPES, BLOCK_TYPES } from '../extensions/ScrollReveal';
 import { InlineCode, type InlineCodeLanguage } from '../extensions/InlineCode';
 import { SlashCommand } from '../extensions/SlashCommand';
+import { SearchReplace } from '../extensions/SearchReplace';
+import GlobalDragHandle from 'tiptap-extension-global-drag-handle';
+import type { Node as PmNode } from 'prosemirror-model';
+import { TextSelection } from 'prosemirror-state';
 import { PlusMenu } from './PlusMenu';
+import { BlockPalette } from './BlockPalette';
 import { compressImageToWebP } from '../utils/imageCompressor';
+import { BLOCK_ITEMS } from '../utils/blockItems';
 import { SECTION_BG_PRESETS } from '../utils/backgroundPresets';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { DocumentCover } from './DocumentCover';
 import type { ThemeConfig } from '../utils/storage';
 import {
-  Link as LinkIcon, Highlighter, AlignLeft, AlignCenter, AlignRight, Table as TableIcon,
+  Link as LinkIcon, Highlighter, AlignLeft, AlignCenter, AlignRight,
   Minus, Undo, Redo, Bold, Italic, Strikethrough, Columns,
-  Sparkles
+  Sparkles, Rows3, Columns3, Trash2, Palette,
+  Search, X as XIcon, ChevronUp, ChevronDown, List,
 } from 'lucide-react';
+import { TableInsertModal } from './TableInsertModal';
 
 const lowlight = createLowlight(common);
+
+// Inline style definitions per table style variant applied directly to <th> elements.
+// Inline styles have absolute highest priority — no CSS rule can override them.
+// This is the only reliable way to beat Tailwind Typography's prose color overrides.
+interface ThStyles {
+  color: string;
+  backgroundColor: string;
+  borderColor: string;
+  fontSize?: string;
+  textTransform?: string;
+  letterSpacing?: string;
+}
+
+const TABLE_TH_STYLES: Record<string, ThStyles> = {
+  default:  { backgroundColor: '#f8fafc', color: '#0f172a', borderColor: '#e2e8f0' },
+  bordered: { backgroundColor: '#f1f5f9', color: '#1e293b', borderColor: '#cbd5e1' },
+  minimal:  {
+    backgroundColor: 'transparent', color: '#94a3b8', borderColor: '#e2e8f0',
+    fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.06em',
+  },
+};
+
+// Subclass of the Tiptap TableView that stamps data-table-style directly on
+// the <table> DOM element (this.table) and applies inline styles to every <th>.
+// Inline styles are the only way to reliably override Tailwind Typography's
+// prose-slate color rules which win the cascade over any @layer'd CSS.
+class StyledTableView extends TableView {
+  private currentStyle: string = 'default';
+
+  constructor(node: PmNode, cellMinWidth: number) {
+    super(node, cellMinWidth);
+    this.applyStyle(node);
+  }
+
+  update(node: PmNode) {
+    const ok = super.update(node);
+    if (ok !== false) this.applyStyle(node);
+    return ok;
+  }
+
+  private applyStyle(node: PmNode) {
+    this.currentStyle = (node.attrs as any).tableStyle || 'default';
+    this.table.setAttribute('data-table-style', this.currentStyle);
+
+    const styles: ThStyles = TABLE_TH_STYLES[this.currentStyle] || TABLE_TH_STYLES['default'];
+
+    this.table.querySelectorAll('th').forEach((th) => {
+      const el = th as HTMLElement;
+      el.style.backgroundColor = styles.backgroundColor;
+      el.style.color = styles.color;
+      el.style.borderColor = styles.borderColor;
+      el.style.fontSize = styles.fontSize || '';
+      el.style.textTransform = styles.textTransform || '';
+      el.style.letterSpacing = styles.letterSpacing || '';
+    });
+  }
+}
+
+const TABLE_STYLES = [
+  { id: 'default',  label: 'Default',  swatch: 'bg-slate-100' },
+  { id: 'bordered', label: 'Bordered', swatch: 'border-2 border-slate-400 bg-white' },
+  { id: 'minimal',  label: 'Minimal',  swatch: 'border-b-2 border-slate-400 bg-white' },
+] as const;
 
 interface EditorProps {
   initialContent: any;
@@ -58,13 +129,17 @@ interface EditorProps {
   onUpdate: (html: string, json: any, newTitle: string) => void;
   theme?: ThemeConfig;
   onThemeChange?: (updates: Partial<ThemeConfig>) => void;
+  zenMode?: boolean;
+  showBlockPalette?: boolean;
+  onCloseBlockPalette?: () => void;
 }
 
-export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpdate, theme, onThemeChange }: EditorProps) => {
+export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpdate, theme, onThemeChange, zenMode, showBlockPalette, onCloseBlockPalette }: EditorProps) => {
   const [content, setContent] = useState<any>(initialContent);
   const [htmlContent, setHtmlContent] = useState<string>(initialHtmlContent || '');
   const [title, setTitle] = useState(initialTitle);
   const [headings, setHeadings] = useState<{ text: string; level: number; id: string }[]>([]);
+  const [wordCount, setWordCount] = useState(0);
 
   const [hasSelection, setHasSelection] = useState(false);
   const [, setSelectionVersion] = useState(0);
@@ -76,8 +151,19 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
   const [showBadgePop, setShowBadgePop] = useState(false);
   const [showAnimPop, setShowAnimPop] = useState(false);
   const [showBgPop, setShowBgPop] = useState(false);
+  const [showTableModal, setShowTableModal] = useState(false);
+  const [showTableStylePop, setShowTableStylePop] = useState(false);
+
+  const [showFindReplace, setShowFindReplace] = useState(false);
+  const [findTerm, setFindTerm] = useState('');
+  const [replaceTerm, setReplaceTerm] = useState('');
+  const [caseSensitive, setCaseSensitive] = useState(false);
+  const [showReplaceLine, setShowReplaceLine] = useState(false);
+  const [showOutline, setShowOutline] = useState(true);
+  const [activeHeadingText, setActiveHeadingText] = useState<string | null>(null);
 
   const isFirstRender = useRef(true);
+  const editorRef = useRef<import('@tiptap/core').Editor | null>(null);
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -92,10 +178,22 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
     return () => clearTimeout(timeoutId);
   }, [content, htmlContent, title, onUpdate]);
 
+  useEffect(() => {
+    const handler = () => setShowTableModal(true);
+    window.addEventListener('tiptap:open-table-modal', handler);
+    return () => window.removeEventListener('tiptap:open-table-modal', handler);
+  }, []);
+
+  const countWords = (editor: any) => {
+    const text = editor.state.doc.textContent;
+    const count = text.trim() ? text.trim().split(/\s+/).length : 0;
+    setWordCount(count);
+  };
+
   const extractHeadings = (editor: any) => {
     const newHeadings: { text: string; level: number; id: string }[] = [];
     editor.state.doc.descendants((node: any, pos: number) => {
-      if (node.type.name === 'heading' && (node.attrs.level === 1 || node.attrs.level === 2)) {
+      if (node.type.name === 'heading' && node.attrs.level <= 3) {
         newHeadings.push({
           level: node.attrs.level,
           text: node.textContent,
@@ -130,8 +228,20 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
         openOnClick: false,
         autolink: true,
       }),
-      Table.configure({
+      Table.extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            tableStyle: {
+              default: 'default',
+              parseHTML: element => element.getAttribute('data-table-style') || 'default',
+              renderHTML: attrs => ({ 'data-table-style': attrs.tableStyle }),
+            },
+          };
+        },
+      }).configure({
         resizable: true,
+        View: StyledTableView,
       }),
       TableRow,
       TableHeader,
@@ -166,16 +276,76 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       BackgroundSection,
       ScrollReveal,
       SlashCommand,
+      SearchReplace,
+      GlobalDragHandle.configure({ dragHandleWidth: 20, scrollTreshold: 100 }),
     ],
     content: initialContent || '',
     editorProps: {
       attributes: {
         class: 'prose prose-slate prose-lg max-w-none focus:outline-none prose-headings:font-bold prose-headings:tracking-tight prose-h1:text-4xl prose-h2:text-2xl prose-p:text-slate-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-img:shadow-md min-h-[500px] pb-32',
       },
+      handleKeyDown: (_view, event) => {
+        if (event.ctrlKey && event.key === 'f') {
+          event.preventDefault();
+          setShowFindReplace(true);
+          return true;
+        }
+        return false;
+      },
       handleDrop: (view, event, slice, moved) => {
+        // Block palette drop — check first
+        const blockId = event.dataTransfer?.getData('application/x-block-palette');
+        if (blockId) {
+          event.preventDefault();
+          const ed = editorRef.current;
+          if (!ed) return true;
+
+          const mouseY = event.clientY;
+          const dom = view.dom;
+          const children = Array.from(dom.children) as HTMLElement[];
+
+          // Find the insertion position by matching the same before/after logic as dragover
+          let insertPos: number | null = null;
+
+          for (let i = 0; i < children.length; i++) {
+            const rect = children[i].getBoundingClientRect();
+            const midY = rect.top + rect.height / 2;
+
+            if (mouseY < midY || i === children.length - 1) {
+              // Resolve the ProseMirror position for this DOM child
+              const pmPos = view.posAtDOM(children[i], 0);
+              const $resolved = view.state.doc.resolve(pmPos);
+
+              if (mouseY < midY) {
+                // Insert before this block
+                insertPos = $resolved.before(1);
+              } else {
+                // Insert after this block (last block, bottom half)
+                insertPos = $resolved.after(1);
+              }
+              break;
+            }
+          }
+
+          if (insertPos != null) {
+            // Insert an empty paragraph at the target position, then place cursor in it
+            const tr = view.state.tr.insert(insertPos, view.state.schema.nodes.paragraph.create());
+            view.dispatch(tr);
+            // The new paragraph is at insertPos; set selection inside it
+            const $newPos = view.state.doc.resolve(insertPos + 1);
+            const sel = TextSelection.near($newPos);
+            ed.chain().focus().setTextSelection(sel.from).run();
+          }
+
+          const item = BLOCK_ITEMS.find(b => b.id === blockId);
+          item?.action(ed);
+          return true;
+        }
+
+        // Image file drop
         if (!moved && event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]) {
           const file = event.dataTransfer.files[0];
-          
+
           if (file.type.startsWith('image/')) {
             event.preventDefault();
 
@@ -200,10 +370,18 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
         }
         return false;
       },
+      transformPastedHTML: (html: string) => {
+        // ProseMirror collapses whitespace around block/inline boundaries, dropping spaces
+        // between words. Inject a space before closing block tags so adjacent text nodes
+        // always have a word boundary when the HTML is flattened into a text run.
+        return html
+          .replace(/(<\/(p|div|li|h[1-6]|td|th|blockquote|pre)>)/gi, ' $1')
+          .replace(/(<br\s*\/?>)/gi, ' $1');
+      },
       handlePaste: (view, event, slice) => {
         if (event.clipboardData && event.clipboardData.files && event.clipboardData.files[0]) {
           const file = event.clipboardData.files[0];
-          
+
           if (file.type.startsWith('image/')) {
             event.preventDefault();
 
@@ -228,19 +406,193 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
       const json = editor.getJSON();
-      
+
       setContent(json);
       setHtmlContent(html);
       extractHeadings(editor);
+      countWords(editor);
     },
     onCreate: ({ editor }) => {
       extractHeadings(editor);
+      countWords(editor);
     },
     onSelectionUpdate: ({ editor }) => {
       setHasSelection(!editor.state.selection.empty);
       setSelectionVersion(v => v + 1);
+
+      // Track active heading based on cursor position
+      const { from } = editor.state.selection;
+      let currentHeadingText: string | null = null;
+      editor.state.doc.descendants((node: any, pos: number) => {
+        if (node.type.name === 'heading' && pos <= from) {
+          currentHeadingText = node.textContent;
+        }
+      });
+      setActiveHeadingText(currentHeadingText);
     },
   });
+
+  // Keep ref in sync for use in drop handler
+  editorRef.current = editor;
+
+  // Clear all drop-target indicators from the editor DOM
+  const clearDropTargets = useCallback(() => {
+    editor?.view.dom.querySelectorAll('[data-drop-target]').forEach(el => el.removeAttribute('data-drop-target'));
+  }, [editor]);
+
+  // Dragover handler — finds nearest top-level block and shows before/after indicator
+  const handleEditorDragOver = useCallback((e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes('application/x-block-palette')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+
+    if (!editor?.view) return;
+
+    clearDropTargets();
+
+    // Walk top-level children and find the closest block boundary
+    const dom = editor.view.dom;
+    const children = Array.from(dom.children) as HTMLElement[];
+    if (children.length === 0) return;
+
+    const mouseY = e.clientY;
+    let closest: HTMLElement | null = null;
+    let position: 'before' | 'after' = 'before';
+    let minDist = Infinity;
+
+    for (const child of children) {
+      const rect = child.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+
+      // Distance to top edge of this block
+      const distTop = Math.abs(mouseY - rect.top);
+      // Distance to bottom edge of this block
+      const distBottom = Math.abs(mouseY - rect.bottom);
+
+      if (distTop < minDist) {
+        minDist = distTop;
+        closest = child;
+        position = 'before';
+      }
+      if (distBottom < minDist) {
+        minDist = distBottom;
+        closest = child;
+        position = 'after';
+      }
+
+      // If mouse is inside this block, pick top/bottom half
+      if (mouseY >= rect.top && mouseY <= rect.bottom) {
+        closest = child;
+        position = mouseY < midY ? 'before' : 'after';
+        break;
+      }
+    }
+
+    if (closest) {
+      closest.setAttribute('data-drop-target', position);
+    }
+  }, [editor, clearDropTargets]);
+
+  const handleEditorDragLeave = useCallback((e: React.DragEvent) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    clearDropTargets();
+  }, [clearDropTargets]);
+
+  const handleEditorDrop = useCallback(() => {
+    clearDropTargets();
+  }, [clearDropTargets]);
+
+  // Find & Replace helper functions
+  const getSearchStorage = () => (editor as any)?.storage?.searchReplace;
+
+  const triggerSearch = (term: string, caseSens: boolean) => {
+    if (!editor) return;
+    const s = getSearchStorage();
+    if (!s) return;
+    s.searchTerm = term;
+    s.caseSensitive = caseSens;
+    s.currentMatchIndex = 0;
+    editor.view.dispatch(editor.state.tr);
+  };
+
+  const findNext = () => {
+    if (!editor) return;
+    const storage = getSearchStorage();
+    const { matches } = storage;
+    if (!matches.length) return;
+    const nextIdx = (storage.currentMatchIndex + 1) % matches.length;
+    storage.currentMatchIndex = nextIdx;
+    const match = matches[nextIdx];
+    editor.view.dispatch(
+      editor.state.tr.setSelection(
+        // @ts-ignore
+        TextSelection.create(editor.state.doc, match.from, match.to)
+      ).scrollIntoView()
+    );
+    editor.view.dispatch(editor.state.tr); // re-render decorations
+  };
+
+  const findPrev = () => {
+    if (!editor) return;
+    const storage = getSearchStorage();
+    const { matches } = storage;
+    if (!matches.length) return;
+    const prevIdx = (storage.currentMatchIndex - 1 + matches.length) % matches.length;
+    storage.currentMatchIndex = prevIdx;
+    const match = matches[prevIdx];
+    editor.view.dispatch(
+      editor.state.tr.setSelection(
+        // @ts-ignore
+        TextSelection.create(editor.state.doc, match.from, match.to)
+      ).scrollIntoView()
+    );
+    editor.view.dispatch(editor.state.tr);
+  };
+
+  const replaceCurrentMatch = () => {
+    if (!editor) return;
+    const storage = getSearchStorage();
+    const { matches, currentMatchIndex, replaceTerm: replTerm } = storage;
+    if (!matches.length) return;
+    const match = matches[currentMatchIndex];
+    const { tr } = editor.state;
+    if (replTerm) {
+      tr.replaceWith(match.from, match.to, editor.state.schema.text(replTerm));
+    } else {
+      tr.delete(match.from, match.to);
+    }
+    editor.view.dispatch(tr);
+    editor.view.dispatch(editor.state.tr);
+  };
+
+  const replaceAllMatches = () => {
+    if (!editor) return;
+    const storage = getSearchStorage();
+    const { matches } = storage;
+    if (!matches.length) return;
+    const replTerm = storage.replaceTerm;
+    const { tr } = editor.state;
+    [...matches].reverse().forEach(({ from, to }) => {
+      if (replTerm) {
+        tr.replaceWith(from, to, editor.state.schema.text(replTerm));
+      } else {
+        tr.delete(from, to);
+      }
+    });
+    editor.view.dispatch(tr);
+    editor.view.dispatch(editor.state.tr);
+  };
+
+  const closeFindReplace = () => {
+    setShowFindReplace(false);
+    setFindTerm('');
+    setReplaceTerm('');
+    if (editor) {
+      const s = getSearchStorage();
+      if (s) s.searchTerm = '';
+      editor.view.dispatch(editor.state.tr);
+    }
+  };
 
   if (!editor) {
     return null;
@@ -258,14 +610,70 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
   }
 
   return (
-    <div className="flex flex-col max-w-3xl px-4 mx-auto mt-4 sm:mt-8 lg:mt-12 sm:px-6 lg:px-8 w-full">
+    <div className="flex h-full">
+      {showBlockPalette && onCloseBlockPalette && (
+        <BlockPalette editor={editor} onClose={onCloseBlockPalette} />
+      )}
+    <div
+      className="flex flex-col max-w-3xl px-4 mx-auto mt-4 sm:mt-8 lg:mt-12 sm:px-6 lg:px-8 w-full flex-1 min-w-0"
+      onDragOver={handleEditorDragOver}
+      onDragLeave={handleEditorDragLeave}
+      onDrop={handleEditorDrop}
+    >
       {/* The Floating Toolbar (The "Hovering Pill") */}
-      <div className="sticky top-4 z-40 flex items-center justify-center w-full mb-8 pointer-events-none">
+      <div className={`sticky top-4 z-40 flex items-center justify-center w-full mb-8 pointer-events-none transition-all duration-300 ${zenMode ? 'opacity-0 pointer-events-none' : ''}`}>
         {/* Outer pill — no overflow clipping so popups can escape */}
         <div
-          className="flex items-center bg-white/80 backdrop-blur-md border border-slate-200 rounded-full shadow-sm pointer-events-auto transition-all duration-150"
+          className={`flex flex-col bg-white/80 backdrop-blur-md border border-slate-200 shadow-sm pointer-events-auto transition-all duration-150 ${editor.isActive('table') ? 'rounded-xl' : 'rounded-full'}`}
           onMouseDown={e => e.preventDefault()}
         >
+          {/* Table editing toolbar — shown only when cursor is inside a table */}
+          {editor.isActive('table') && (
+            <div className="flex items-center gap-0.5 px-2 sm:px-3 py-1.5 border-b border-slate-100">
+              <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider border-l-2 border-blue-400 pl-2 mr-1">Table</span>
+              <div className="w-px h-4 bg-slate-200 mx-0.5" />
+              <button onClick={() => editor.chain().focus().addRowBefore().run()} className="p-1.5 rounded hover:bg-slate-200 text-slate-600" title="Add row above"><Rows3 size={14} /></button>
+              <button onClick={() => editor.chain().focus().addRowAfter().run()} className="p-1.5 rounded hover:bg-slate-200 text-slate-600" title="Add row below"><Rows3 size={14} /></button>
+              <button onClick={() => editor.chain().focus().deleteRow().run()} className="p-1.5 rounded hover:bg-red-50 text-red-400" title="Delete row"><Rows3 size={14} /></button>
+              <div className="w-px h-4 bg-slate-200 mx-0.5" />
+              <button onClick={() => editor.chain().focus().addColumnBefore().run()} className="p-1.5 rounded hover:bg-slate-200 text-slate-600" title="Add column left"><Columns3 size={14} /></button>
+              <button onClick={() => editor.chain().focus().addColumnAfter().run()} className="p-1.5 rounded hover:bg-slate-200 text-slate-600" title="Add column right"><Columns3 size={14} /></button>
+              <button onClick={() => editor.chain().focus().deleteColumn().run()} className="p-1.5 rounded hover:bg-red-50 text-red-400" title="Delete column"><Columns3 size={14} /></button>
+              <div className="w-px h-4 bg-slate-200 mx-0.5" />
+              {/* Style picker */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowTableStylePop(v => !v)}
+                  className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium hover:bg-slate-200 ${showTableStylePop ? 'bg-slate-200 text-blue-600' : 'text-slate-600'}`}
+                  title="Table style"
+                >
+                  <Palette size={13} />
+                  <span>Style</span>
+                </button>
+                {showTableStylePop && (
+                  <div className="absolute top-full mt-2 left-0 bg-white rounded-lg shadow-xl border border-slate-200 p-1.5 z-50 flex flex-col gap-0.5 min-w-[130px]">
+                    {TABLE_STYLES.map(({ id, label, swatch }) => {
+                      const active = (editor.getAttributes('table').tableStyle || 'default') === id;
+                      return (
+                        <button
+                          key={id}
+                          onClick={() => { editor.chain().focus().updateAttributes('table', { tableStyle: id }).run(); setShowTableStylePop(false); }}
+                          className={`text-xs text-left px-2 py-1.5 rounded flex items-center gap-2 ${active ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-700 hover:bg-slate-100'}`}
+                        >
+                          <span className={`w-3.5 h-3.5 rounded-sm flex-shrink-0 ${swatch}`} />
+                          <span className="flex-1">{label}</span>
+                          {active && <span className="text-blue-500 text-[10px]">✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <div className="w-px h-4 bg-slate-200 mx-0.5" />
+              <button onClick={() => editor.chain().focus().deleteTable().run()} className="p-1.5 rounded hover:bg-red-50 text-red-500" title="Delete table"><Trash2 size={14} /></button>
+            </div>
+          )}
+          <div className="flex items-center">
           {hasSelection ? (
             <>
               {/* Scrollable simple buttons */}
@@ -475,7 +883,6 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
                 <button onClick={() => editor.chain().focus().setTextAlign('center').run()} className={`p-2 rounded hover:bg-slate-200 ${editor.isActive({ textAlign: 'center' }) ? 'bg-slate-200 text-blue-600' : 'text-slate-600'}`} title="Align Center"><AlignCenter size={16} /></button>
                 <button onClick={() => editor.chain().focus().setTextAlign('right').run()} className={`p-2 rounded hover:bg-slate-200 ${editor.isActive({ textAlign: 'right' }) ? 'bg-slate-200 text-blue-600' : 'text-slate-600'}`} title="Align Right"><AlignRight size={16} /></button>
                 <div className="w-px h-5 bg-slate-300 mx-1" />
-                <button onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} className="p-2 rounded hover:bg-slate-200 text-slate-600" title="Insert Table"><TableIcon size={16} /></button>
                 <button onClick={() => editor.chain().focus().insertContent('<div data-type="grid"><div data-type="grid-column"><p></p></div><div data-type="grid-column"><p></p></div></div>').run()} className="p-2 rounded hover:bg-slate-200 text-slate-600" title="Insert 2-Column Grid"><Columns size={16} /></button>
                 <button onClick={() => editor.chain().focus().setHorizontalRule().run()} className="p-2 rounded hover:bg-slate-200 text-slate-600" title="Horizontal Rule"><Minus size={16} /></button>
               </div>
@@ -518,13 +925,113 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
                         </div>
                       )}
                     </div>
+                    <div className="w-px h-5 bg-slate-300 mx-1" />
+                    <button
+                      onClick={() => setShowOutline(v => !v)}
+                      className={`p-2 rounded hover:bg-slate-200 flex items-center gap-1 ${showOutline ? 'bg-slate-200 text-blue-600' : 'text-slate-600'}`}
+                      title="Toggle Document Outline"
+                    >
+                      <List size={16} />
+                    </button>
                   </div>
                 );
               })()}
             </>
           )}
+          </div>
         </div>
       </div>
+
+      {/* Find & Replace Bar */}
+      {showFindReplace && (
+        <div className="mb-4 rounded-xl border border-slate-200 bg-white shadow-md overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-100">
+            <Search size={14} className="text-slate-400 flex-shrink-0" />
+            <input
+              type="text"
+              value={findTerm}
+              autoFocus
+              onChange={e => {
+                setFindTerm(e.target.value);
+                triggerSearch(e.target.value, caseSensitive);
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') { e.shiftKey ? findPrev() : findNext(); }
+                if (e.key === 'Escape') closeFindReplace();
+              }}
+              placeholder="Find…"
+              className="flex-1 text-sm bg-transparent outline-none text-slate-800 placeholder-slate-400"
+            />
+            {/* Match count */}
+            {findTerm && (
+              <span className="text-xs text-slate-400 flex-shrink-0 tabular-nums">
+                {(() => {
+                  const s = getSearchStorage();
+                  return s?.matches?.length
+                    ? `${(s.currentMatchIndex ?? 0) + 1}/${s.matches.length}`
+                    : '0/0';
+                })()}
+              </span>
+            )}
+            {/* Case sensitive */}
+            <button
+              onClick={() => {
+                const next = !caseSensitive;
+                setCaseSensitive(next);
+                triggerSearch(findTerm, next);
+              }}
+              className={`px-1.5 py-0.5 text-xs rounded font-mono border transition-colors ${caseSensitive ? 'bg-blue-100 text-blue-700 border-blue-300' : 'text-slate-500 border-slate-300 hover:border-slate-400'}`}
+              title="Case sensitive"
+            >
+              Aa
+            </button>
+            {/* Nav */}
+            <button onClick={findPrev} className="p-1 rounded hover:bg-slate-200 text-slate-500" title="Previous (Shift+Enter)"><ChevronUp size={14} /></button>
+            <button onClick={findNext} className="p-1 rounded hover:bg-slate-200 text-slate-500" title="Next (Enter)"><ChevronDown size={14} /></button>
+            {/* Toggle replace */}
+            <button
+              onClick={() => setShowReplaceLine(v => !v)}
+              className={`px-2 py-0.5 text-xs rounded border transition-colors ${showReplaceLine ? 'bg-blue-100 text-blue-700 border-blue-300' : 'text-slate-500 border-slate-300 hover:border-slate-400'}`}
+            >Replace</button>
+            {/* Close */}
+            <button onClick={closeFindReplace} className="p-1 rounded hover:bg-slate-200 text-slate-500" title="Close (Esc)">
+              <XIcon size={14} />
+            </button>
+          </div>
+
+          {showReplaceLine && (
+            <div className="flex items-center gap-2 px-3 py-2">
+              <div className="w-3.5 flex-shrink-0" />
+              <input
+                type="text"
+                value={replaceTerm}
+                onChange={e => {
+                  setReplaceTerm(e.target.value);
+                  if (editor) { const s = getSearchStorage(); if (s) s.replaceTerm = e.target.value; }
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') replaceCurrentMatch();
+                  if (e.key === 'Escape') closeFindReplace();
+                }}
+                placeholder="Replace with…"
+                className="flex-1 text-sm bg-transparent outline-none text-slate-800 placeholder-slate-400"
+              />
+              <button
+                onClick={replaceCurrentMatch}
+                className="px-2 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-200 transition-colors"
+              >
+                Replace
+              </button>
+              <button
+                onClick={replaceAllMatches}
+                className="px-2 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-200 transition-colors"
+              >
+                Replace All
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <DocumentCover
         title={title}
@@ -540,34 +1047,64 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
         <EditorContent editor={editor} className="prose prose-slate prose-lg max-w-none focus:outline-none" />
       </div>
 
-      {/* Internal Table of Contents (Editor View Only) */}
-      {headings.length > 0 && (
-        <div className="fixed right-8 top-32 w-64 hidden xl:block">
-          <div className="sticky top-32 p-6 bg-slate-50 border border-slate-200 rounded-xl shadow-sm">
-            <h3 className="font-semibold text-slate-900 mb-4 text-xs uppercase tracking-wider">Document Outline</h3>
-            <nav className="flex flex-col gap-2 max-h-[calc(100vh-16rem)] overflow-y-auto pr-2">
-              {headings.map((heading) => (
-                <button
-                  key={heading.id}
-                  onClick={() => {
-                    // Tiptap doesn't render actual IDs in its DOM easily, so we scroll to the roughly matched text
-                    const elements = document.querySelectorAll('.ProseMirror h1, .ProseMirror h2');
-                    const element = Array.from(elements).find(el => el.textContent === heading.text);
-                    if (element) {
-                      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
-                  }}
-                  className={`text-left text-sm hover:text-blue-600 transition-colors truncate ${
-                    heading.level === 1 ? 'text-slate-700 font-medium' : 'text-slate-500 pl-4'
-                  }`}
-                >
-                  {heading.text}
-                </button>
-              ))}
+      {/* Word count & reading time */}
+      <div className="flex justify-end pt-2 pb-8 text-xs text-slate-400 select-none">
+        <span>{wordCount.toLocaleString()} {wordCount === 1 ? 'word' : 'words'} · {Math.max(1, Math.ceil(wordCount / 200))} min read</span>
+      </div>
+
+      {/* Document Outline — toggled via outline button in toolbar */}
+      {showOutline && headings.length > 0 && (
+        <div className="fixed right-4 top-28 w-56 z-30 flex flex-col" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
+          <div className="bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden flex flex-col min-h-0">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 bg-slate-50 flex-shrink-0">
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Outline</h3>
+              <button
+                onClick={() => setShowOutline(false)}
+                className="p-0.5 text-slate-400 hover:text-slate-600 rounded"
+              >
+                <XIcon size={13} />
+              </button>
+            </div>
+            <nav className="flex flex-col py-2 overflow-y-auto flex-1 min-h-0">
+              {headings.map((heading) => {
+                const isActive = activeHeadingText === heading.text;
+                return (
+                  <button
+                    key={heading.id}
+                    onClick={() => {
+                      const selector = heading.level === 1 ? '.ProseMirror h1' :
+                                       heading.level === 2 ? '.ProseMirror h2' : '.ProseMirror h3';
+                      const elements = document.querySelectorAll(selector);
+                      const element = Array.from(elements).find(el => el.textContent === heading.text);
+                      if (element) element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
+                    className={`text-left px-4 py-1 text-sm transition-colors truncate flex items-center gap-1.5 ${
+                      isActive
+                        ? 'text-blue-600 bg-blue-50 font-medium'
+                        : 'hover:text-blue-600 hover:bg-slate-50 text-slate-600'
+                    } ${
+                      heading.level === 2 ? 'pl-6 text-xs' : heading.level === 3 ? 'pl-9 text-xs' : ''
+                    }`}
+                  >
+                    {isActive && <span className="w-1 h-1 rounded-full bg-blue-500 flex-shrink-0" />}
+                    <span className="truncate">{heading.text}</span>
+                  </button>
+                );
+              })}
             </nav>
           </div>
         </div>
       )}
+
+      <TableInsertModal
+        isOpen={showTableModal}
+        onClose={() => setShowTableModal(false)}
+        onInsert={(rows, cols, withHeaderRow) => {
+          editor.chain().focus().insertTable({ rows, cols, withHeaderRow }).run();
+          setShowTableModal(false);
+        }}
+      />
+    </div>
     </div>
   );
 };

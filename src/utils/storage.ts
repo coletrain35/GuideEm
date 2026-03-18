@@ -43,6 +43,7 @@ export interface Document {
   htmlContent: string;
   lastEdited: number;
   theme?: ThemeConfig;
+  tags?: string[];
 }
 
 // Initialize localforage instance

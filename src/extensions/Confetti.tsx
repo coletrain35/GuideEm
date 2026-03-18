@@ -7,7 +7,7 @@ import { BlockDeleteButton } from '../components/BlockDeleteButton';
 const DEFAULT_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'];
 
 const ConfettiNodeView = (props: any) => {
-  const { node, updateAttributes, selected, deleteNode } = props;
+  const { node, updateAttributes, selected, deleteNode, getPos, editor } = props;
   const { message, emoji, colors } = node.attrs;
 
   let parsedColors: string[] = DEFAULT_COLORS;
@@ -29,7 +29,7 @@ const ConfettiNodeView = (props: any) => {
       className={`group/block relative my-6 transition-all ${selected ? 'ring-2 ring-slate-200 rounded-xl' : ''}`}
       contentEditable={false}
     >
-      <BlockDeleteButton deleteNode={deleteNode} />
+      <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
       <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-8 text-center" style={{ minHeight: '140px' }}>
         {/* Static confetti decoration */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">

@@ -36,10 +36,10 @@ export const PlusMenu = ({ editor }: PlusMenuProps) => {
       const rect = node.getBoundingClientRect();
       const editorRect = editor.view.dom.getBoundingClientRect();
 
-      // Position to the left of the editor content
+      // Position to the left of the editor content, clear of the drag handle (20px wide at editorLeft - 20)
       const isMobile = window.innerWidth < 640;
       const top = rect.top;
-      const left = isMobile ? editorRect.left : editorRect.left - 40;
+      const left = isMobile ? editorRect.left - 28 : editorRect.left - 56;
 
       setBtnPos({ top, left });
       setVisible(true);

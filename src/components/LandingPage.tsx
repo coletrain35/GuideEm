@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { generateHTML } from '../utils/exporter';
 import { ThemeConfig } from '../utils/storage';
 import { landingPageTitle, landingPageHtmlContent } from '../data/landingPageContent';
+
 
 interface LandingPageProps {
   onStartWriting: () => void;
@@ -40,6 +41,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
   });
 
   const [generatedHtml, setGeneratedHtml] = useState<string>('');
+
+  const demoWordCount = useMemo(() => {
+    const text = landingPageHtmlContent.replace(/<[^>]+>/g, ' ');
+    return text.trim() ? text.trim().split(/\s+/).length : 0;
+  }, []);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [iframeScale, setIframeScale] = useState(1);
   const iframeContainerRef = useRef<HTMLDivElement>(null);
@@ -107,7 +113,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button 
+            <button
               onClick={onStartWriting}
               className="w-full sm:w-auto px-8 py-4 bg-slate-900 text-white rounded-full font-semibold shadow-[0_0_40px_-10px_rgba(15,23,42,0.5)] hover:shadow-[0_0_60px_-15px_rgba(15,23,42,0.7)] hover:-translate-y-0.5 transition-all duration-300"
             >
@@ -122,6 +128,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
               View Source on GitHub
             </a>
           </div>
+          <p className="mt-5 text-sm text-slate-400">
+            Start from a <button onClick={onStartWriting} className="underline underline-offset-2 hover:text-slate-600 transition-colors">template</button> — Product Docs, API Reference, Tutorial, Changelog, Onboarding, or Blank.
+          </p>
         </div>
       </section>
 
@@ -151,27 +160,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
             <div className="space-y-6">
               <div>
                 <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 block">Color Palette</label>
-                <div className="flex gap-3">
-                  <button 
-                    onClick={() => handleColorChange('#2563eb')}
-                    className={`w-10 h-10 rounded-full bg-blue-600 shadow-sm transition-transform hover:scale-110 ${theme.primaryColor === '#2563eb' ? 'ring-4 ring-blue-600/30 ring-offset-2' : ''}`}
-                    title="Blue"
-                  />
-                  <button 
-                    onClick={() => handleColorChange('#10b981')}
-                    className={`w-10 h-10 rounded-full bg-emerald-500 shadow-sm transition-transform hover:scale-110 ${theme.primaryColor === '#10b981' ? 'ring-4 ring-emerald-500/30 ring-offset-2' : ''}`}
-                    title="Emerald"
-                  />
-                  <button 
-                    onClick={() => handleColorChange('#8b5cf6')}
-                    className={`w-10 h-10 rounded-full bg-violet-500 shadow-sm transition-transform hover:scale-110 ${theme.primaryColor === '#8b5cf6' ? 'ring-4 ring-violet-500/30 ring-offset-2' : ''}`}
-                    title="Violet"
-                  />
-                  <button 
-                    onClick={() => handleColorChange('#f97316')}
-                    className={`w-10 h-10 rounded-full bg-orange-500 shadow-sm transition-transform hover:scale-110 ${theme.primaryColor === '#f97316' ? 'ring-4 ring-orange-500/30 ring-offset-2' : ''}`}
-                    title="Orange"
-                  />
+                <div className="flex gap-2">
+                  {[
+                    { color: '#2563eb', label: 'Blue' },
+                    { color: '#10b981', label: 'Emerald' },
+                    { color: '#8b5cf6', label: 'Violet' },
+                    { color: '#f97316', label: 'Orange' },
+                  ].map(({ color, label }) => (
+                    <button
+                      key={color}
+                      onClick={() => handleColorChange(color)}
+                      title={label}
+                      className={`w-10 h-10 rounded-full shadow-sm transition-all hover:scale-110 ${
+                        theme.primaryColor === color ? 'ring-2 ring-offset-2 ring-slate-700' : ''
+                      }`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
                 </div>
               </div>
               
@@ -268,9 +273,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
               </div>
 
               <div className="pt-4 border-t border-slate-100">
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Scroll the document to see all 21 sections — accordions, tabs, timelines, counters, hero banners, testimonials, code diffs, before/after sliders, scroll reveal, animated dividers, confetti, glass callouts, language-tinted inline code, image effects, <strong className="text-slate-500">background sections</strong>, and <strong className="text-slate-500">5 document cover styles</strong>.
+                <p className="text-xs text-slate-400 leading-relaxed mb-4">
+                  Scroll the document to see all 21 sections — accordions, tabs, timelines, counters, hero banners, testimonials, code diffs, before/after sliders, scroll reveal, animated dividers, confetti, glass callouts, language-tinted inline code, image effects, <strong className="text-slate-500">background sections</strong>, and <strong className="text-slate-500">5 document cover styles</strong>. The editor also supports <strong className="text-slate-500">document templates</strong>, <strong className="text-slate-500">Markdown import</strong>, drag-to-reorder blocks, and a <strong className="text-slate-500">Focus / Zen mode</strong> (Ctrl+Shift+F).
                 </p>
+                <div className="flex items-center justify-between px-3 py-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                  <span className="text-xs text-slate-500 font-medium">This demo doc</span>
+                  <span className="text-xs font-semibold text-slate-700">{demoWordCount.toLocaleString()} words · {Math.max(1, Math.ceil(demoWordCount / 200))} min read</span>
+                </div>
               </div>
             </div>
           </div>

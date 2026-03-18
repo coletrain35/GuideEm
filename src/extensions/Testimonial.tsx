@@ -4,14 +4,14 @@ import React from 'react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 const TestimonialNodeView = (props: any) => {
-  const { node, updateAttributes, selected, deleteNode } = props;
+  const { node, updateAttributes, selected, deleteNode, getPos, editor } = props;
   const { quote, authorName, authorRole, avatarColor } = node.attrs;
 
   const initial = authorName ? authorName[0].toUpperCase() : '?';
 
   return (
     <NodeViewWrapper className="group/block testimonial-editor-wrapper my-6 relative">
-      <BlockDeleteButton deleteNode={deleteNode} />
+      <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
       <div
         className={`relative bg-white rounded-2xl border transition-all ${
           selected ? 'border-blue-400 ring-2 ring-blue-200' : 'border-slate-200'

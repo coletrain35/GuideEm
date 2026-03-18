@@ -24,7 +24,7 @@ const DEFAULT_STATS: StatItem[] = [
 ];
 
 const StatRowNodeView = (props: any) => {
-  const { node, updateAttributes, selected, deleteNode } = props;
+  const { node, updateAttributes, selected, deleteNode, getPos, editor } = props;
   const [openIconPicker, setOpenIconPicker] = useState<number | null>(null);
 
   let stats: StatItem[] = DEFAULT_STATS;
@@ -52,7 +52,7 @@ const StatRowNodeView = (props: any) => {
 
   return (
     <NodeViewWrapper className="group/block stat-row-editor-wrapper my-6 relative">
-      <BlockDeleteButton deleteNode={deleteNode} />
+      <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
       <div
         className={`rounded-xl border transition-all ${
           selected ? 'border-blue-400 ring-2 ring-blue-200' : 'border-slate-200'
