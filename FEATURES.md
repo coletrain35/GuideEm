@@ -108,32 +108,32 @@ Portfolio-focused features for users building personal sites, project showcases,
 
 ### Portfolio Blocks
 
-- [ ] **17. Project Card Block**
+- [x] **17. Project Card Block**
   - Thumbnail, title, description, tech stack tags, live URL + repo URL links
   - React node view with editable fields; renders as a polished card in export
   - **Files:** New `src/extensions/ProjectCard.tsx`, `src/utils/blockItems.ts`, `src/utils/exporter.ts`
 
-- [ ] **18. Project Gallery Block**
+- [x] **18. Project Gallery Block**
   - Grid of Project Cards — 2 or 3 columns, responsive
   - Wraps multiple ProjectCard nodes in a container node
   - **Files:** New `src/extensions/ProjectGallery.tsx`
 
-- [ ] **19. About Me / Bio Block**
+- [x] **19. About Me / Bio Block**
   - Avatar image + name + role + bio paragraph in a clean split layout
   - Supports circular avatar crop; editable inline
   - **Files:** New `src/extensions/AboutMe.tsx`
 
-- [ ] **20. Tech Stack / Tools Grid**
+- [x] **20. Tech Stack / Tools Grid**
   - Icon + label tiles for languages, frameworks, and tools
   - Editable list of entries; renders as a compact icon grid in export
   - **Files:** New `src/extensions/TechStack.tsx`
 
-- [ ] **21. Social Links Bar**
+- [x] **21. Social Links Bar**
   - Row of icon links — GitHub, LinkedIn, Dribbble, Twitter/X, email
   - Configurable set of links via node attributes
   - **Files:** New `src/extensions/SocialLinks.tsx`
 
-- [ ] **22. Portfolio Hero Block**
+- [x] **22. Portfolio Hero Block**
   - Full-width hero: name, tagline, "View Work" + "Contact" CTA buttons
   - Extends/replaces the existing HeroBanner for personal branding use case
   - **Files:** New `src/extensions/PortfolioHero.tsx` or extend `src/extensions/HeroBanner.tsx`

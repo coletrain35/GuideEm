@@ -273,9 +273,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
               </div>
 
               <div className="pt-4 border-t border-slate-100">
-                <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                  Scroll the document to see all 21 sections — accordions, tabs, timelines, counters, hero banners, testimonials, code diffs, before/after sliders, scroll reveal, animated dividers, confetti, glass callouts, language-tinted inline code, image effects, <strong className="text-slate-500">background sections</strong>, and <strong className="text-slate-500">5 document cover styles</strong>. The editor also supports <strong className="text-slate-500">document templates</strong>, <strong className="text-slate-500">Markdown import</strong>, drag-to-reorder blocks, and a <strong className="text-slate-500">Focus / Zen mode</strong> (Ctrl+Shift+F).
-                </p>
                 <div className="flex items-center justify-between px-3 py-2.5 bg-slate-50 rounded-lg border border-slate-100">
                   <span className="text-xs text-slate-500 font-medium">This demo doc</span>
                   <span className="text-xs font-semibold text-slate-700">{demoWordCount.toLocaleString()} words · {Math.max(1, Math.ceil(demoWordCount / 200))} min read</span>

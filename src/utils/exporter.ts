@@ -400,6 +400,219 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     `;
   });
 
+  // Transform project card blocks
+  doc.querySelectorAll('div[data-type="project-card"]').forEach((el) => {
+    const thumbnail = el.getAttribute('data-thumbnail') || '';
+    const title = el.getAttribute('data-title') || 'Project Title';
+    const description = el.getAttribute('data-description') || '';
+    const liveUrl = el.getAttribute('data-live-url') || '';
+    const repoUrl = el.getAttribute('data-repo-url') || '';
+    const accentColor = el.getAttribute('data-accent-color') || '#6366f1';
+    let tags: string[] = [];
+    try { tags = JSON.parse(el.getAttribute('data-tags') || '[]'); } catch { /* empty */ }
+
+    el.className = 'project-card';
+    el.removeAttribute('data-type');
+    ['data-thumbnail', 'data-title', 'data-description', 'data-tags', 'data-live-url', 'data-repo-url', 'data-accent-color'].forEach((a) => el.removeAttribute(a));
+
+    const tagsHtml = tags.length
+      ? `<div class="project-card-tags">${tags.map((t) => `<span class="project-card-tag" style="background-color:${accentColor}18;color:${accentColor}">${escapeHtml(t)}</span>`).join('')}</div>`
+      : '';
+    const linksHtml = (liveUrl || repoUrl)
+      ? `<div class="project-card-links">
+          ${liveUrl ? `<a href="${liveUrl}" class="project-card-link-live" style="color:${accentColor}" target="_blank" rel="noopener">Live Demo ↗</a>` : ''}
+          ${repoUrl ? `<a href="${repoUrl}" class="project-card-link-repo" target="_blank" rel="noopener">Repository ↗</a>` : ''}
+        </div>`
+      : '';
+
+    el.innerHTML = `
+      ${thumbnail ? `<div class="project-card-thumbnail"><img src="${thumbnail}" alt="${escapeHtml(title)}" /></div>` : `<div class="project-card-thumbnail project-card-thumbnail--placeholder" style="background:linear-gradient(135deg,${accentColor}22,${accentColor}0a)"></div>`}
+      <div class="project-card-body">
+        <h3 class="project-card-title">${escapeHtml(title)}</h3>
+        ${description ? `<p class="project-card-description">${escapeHtml(description)}</p>` : ''}
+        ${tagsHtml}
+        ${linksHtml}
+      </div>
+    `;
+  });
+
+  // Transform project gallery blocks
+  doc.querySelectorAll('div[data-type="project-gallery"]').forEach((el) => {
+    const cols = parseInt(el.getAttribute('data-cols') || '2', 10);
+    let cards: any[] = [];
+    try { cards = JSON.parse(el.getAttribute('data-cards') || '[]'); } catch { /* empty */ }
+
+    el.className = 'project-gallery';
+    el.setAttribute('data-cols', String(cols));
+    el.removeAttribute('data-type');
+    el.removeAttribute('data-cards');
+
+    el.innerHTML = cards.map((card: any) => {
+      const tags: string[] = Array.isArray(card.tags) ? card.tags : [];
+      const accentColor = card.accentColor || '#6366f1';
+      const tagsHtml = tags.length
+        ? `<div class="project-card-tags">${tags.map((t: string) => `<span class="project-card-tag" style="background-color:${accentColor}18;color:${accentColor}">${escapeHtml(t)}</span>`).join('')}</div>`
+        : '';
+      const linksHtml = (card.liveUrl || card.repoUrl)
+        ? `<div class="project-card-links">
+            ${card.liveUrl ? `<a href="${card.liveUrl}" class="project-card-link-live" style="color:${accentColor}" target="_blank" rel="noopener">Live Demo ↗</a>` : ''}
+            ${card.repoUrl ? `<a href="${card.repoUrl}" class="project-card-link-repo" target="_blank" rel="noopener">Repository ↗</a>` : ''}
+          </div>`
+        : '';
+      return `
+        <div class="project-card">
+          ${card.thumbnail ? `<div class="project-card-thumbnail"><img src="${card.thumbnail}" alt="${escapeHtml(card.title || '')}" /></div>` : `<div class="project-card-thumbnail project-card-thumbnail--placeholder" style="background:linear-gradient(135deg,${accentColor}22,${accentColor}0a)"></div>`}
+          <div class="project-card-body">
+            <h3 class="project-card-title">${escapeHtml(card.title || 'Project Title')}</h3>
+            ${card.description ? `<p class="project-card-description">${escapeHtml(card.description)}</p>` : ''}
+            ${tagsHtml}
+            ${linksHtml}
+          </div>
+        </div>`;
+    }).join('');
+  });
+
+  // Transform about-me blocks
+  doc.querySelectorAll('div[data-type="about-me"]').forEach((el) => {
+    const avatar = el.getAttribute('data-avatar') || '';
+    const name = el.getAttribute('data-name') || 'Your Name';
+    const role = el.getAttribute('data-role') || '';
+    const bio = el.getAttribute('data-bio') || '';
+    const accentColor = el.getAttribute('data-accent-color') || '#6366f1';
+    const layout = el.getAttribute('data-layout') || 'left';
+
+    el.className = 'about-me';
+    el.removeAttribute('data-type');
+    ['data-avatar', 'data-name', 'data-role', 'data-bio', 'data-accent-color', 'data-layout'].forEach((a) => el.removeAttribute(a));
+
+    const initials = name.split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+    const avatarHtml = avatar
+      ? `<img src="${avatar}" alt="${escapeHtml(name)}" class="about-me-avatar-img" />`
+      : `<div class="about-me-avatar-placeholder" style="background:${accentColor};color:#fff;">${escapeHtml(initials)}</div>`;
+
+    const avatarCol = `<div class="about-me-avatar-col">${avatarHtml}</div>`;
+    const textCol = `<div class="about-me-text-col">
+      <div class="about-me-name" style="color:${accentColor}">${escapeHtml(name)}</div>
+      ${role ? `<div class="about-me-role">${escapeHtml(role)}</div>` : ''}
+      ${bio ? `<p class="about-me-bio">${escapeHtml(bio)}</p>` : ''}
+    </div>`;
+
+    el.innerHTML = layout === 'right'
+      ? `${textCol}${avatarCol}`
+      : `${avatarCol}${textCol}`;
+  });
+
+  // Transform tech stack blocks
+  doc.querySelectorAll('div[data-type="tech-stack"]').forEach((el) => {
+    const cols = parseInt(el.getAttribute('data-cols') || '4', 10);
+    const accentColor = el.getAttribute('data-accent-color') || '#6366f1';
+    let items: { icon: string; label: string }[] = [];
+    try { items = JSON.parse(el.getAttribute('data-items') || '[]'); } catch { /* empty */ }
+
+    el.removeAttribute('data-type');
+    ['data-items', 'data-cols', 'data-accent-color'].forEach((a) => el.removeAttribute(a));
+    (el as HTMLElement).style.cssText = `display:grid;grid-template-columns:repeat(${cols},minmax(0,1fr));gap:0.75rem;margin:2rem 0;`;
+
+    el.innerHTML = items.map((item) => `
+      <div class="tech-item" style="border-color:${accentColor}30;background:${accentColor}08;">
+        <span class="tech-item-icon">${escapeHtml(item.icon)}</span>
+        <span class="tech-item-label">${escapeHtml(item.label)}</span>
+      </div>
+    `).join('');
+  });
+
+  // Transform social links blocks
+  doc.querySelectorAll('div[data-type="social-links"]').forEach((el) => {
+    const style = el.getAttribute('data-style') || 'pills';
+    const alignment = el.getAttribute('data-alignment') || 'center';
+    let links: { platform: string; url: string; label: string }[] = [];
+    try { links = JSON.parse(el.getAttribute('data-links') || '[]'); } catch { /* empty */ }
+
+    el.className = 'social-links';
+    el.setAttribute('data-alignment', alignment);
+    el.setAttribute('data-style', style);
+    el.removeAttribute('data-type');
+    el.removeAttribute('data-links');
+
+    const PLATFORM_SVG: Record<string, string> = {
+      'GitHub': '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>',
+      'LinkedIn': '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>',
+      'Twitter/X': '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.732-8.859L2.059 2.25H8.28l4.313 5.701zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>',
+      'Dribbble': '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 24C5.385 24 0 18.615 0 12S5.385 0 12 0s12 5.385 12 12-5.385 12-12 12zm10.12-10.358c-.35-.11-3.17-.953-6.384-.438 1.34 3.684 1.887 6.684 1.992 7.308 2.3-1.555 3.936-4.02 4.395-6.87zm-6.115 7.808c-.153-.9-.75-4.032-2.19-7.77l-.066.02c-5.79 2.015-7.86 6.025-8.04 6.4 1.73 1.358 3.92 2.166 6.29 2.166 1.42 0 2.77-.29 4-.814zm-11.62-2.858c.232-.4 3.045-5.055 8.332-6.765.135-.045.27-.084.405-.12-.26-.585-.54-1.167-.832-1.74C7.17 11.775 2.206 11.71 1.756 11.7l-.004.312c0 2.633.998 5.037 2.634 6.855zm-2.42-8.955c.46.008 4.683.026 9.477-1.248-1.698-3.018-3.53-5.558-3.8-5.928-2.868 1.35-5.01 3.99-5.676 7.18zM9.6 2.052c.282.38 2.145 2.914 3.822 6 3.645-1.365 5.19-3.44 5.373-3.702-1.81-1.61-4.19-2.586-6.795-2.586-.846 0-1.669.1-2.4.285zm10.335 3.483c-.218.29-1.935 2.493-5.724 4.04.24.49.47.985.68 1.486.08.18.15.36.217.544 3.397-.43 6.77.258 7.1.332-.05-2.32-.88-4.452-2.273-6.402z"/></svg>',
+      'Email': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>',
+      'Website': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>',
+      'YouTube': '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>',
+      'Instagram': '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg>',
+      'Behance': '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M6.938 4.503c.702 0 1.34.06 1.92.188.577.13 1.07.33 1.485.61.41.28.733.65.96 1.12.225.47.34 1.05.34 1.73 0 .74-.17 1.36-.507 1.86-.338.5-.837.9-1.502 1.22.906.26 1.576.72 2.022 1.37.448.66.665 1.45.665 2.36 0 .75-.13 1.39-.41 1.93-.28.55-.67 1-.17 1.35-.5.35-1.07.61-1.72.78-.65.17-1.34.25-2.07.25H0V4.503h6.938zm-.41 5.936c.59 0 1.06-.14 1.41-.42.35-.28.52-.7.52-1.26 0-.31-.05-.57-.17-.78-.11-.21-.27-.38-.46-.5-.19-.12-.41-.21-.66-.26-.25-.05-.51-.08-.79-.08H2.86v3.3h3.67zm.27 6.19c.31 0 .6-.03.87-.09.27-.06.51-.16.71-.31.2-.15.36-.35.48-.59.12-.24.17-.55.17-.93 0-.74-.21-1.28-.63-1.61-.42-.33-.99-.49-1.71-.49H2.86v4.02h3.94zm10.08-8.11c-.97 0-1.74.27-2.3.8-.57.54-.92 1.26-1.07 2.17h6.58c-.08-1-.41-1.74-.97-2.19-.56-.45-1.37-.78-2.24-.78zm5.32 9.55c-.26.16-.54.29-.83.39-.3.1-.6.17-.92.22-.32.05-.64.08-.97.08-1.69 0-3-.47-3.94-1.4-.94-.94-1.41-2.3-1.41-4.07 0-1.72.47-3.07 1.42-4.05.95-.98 2.24-1.47 3.87-1.47.97 0 1.82.18 2.55.54.73.36 1.33.84 1.81 1.45.47.61.82 1.32 1.04 2.12.22.8.31 1.65.27 2.54h-8.9c.05.98.35 1.73.89 2.26.54.53 1.3.79 2.28.79.53 0 1.01-.11 1.44-.34.43-.23.76-.56 1-.99l2.44.62c-.38 1.02-1.04 1.77-1.96 2.31h-.12zM16.49 6.6h6.24V7.6h-6.24V6.6z"/></svg>',
+    };
+
+    const PLATFORM_COLORS: Record<string, { color: string; bg: string }> = {
+      'GitHub': { color: '#171515', bg: '#f6f8fa' },
+      'LinkedIn': { color: '#0a66c2', bg: '#e8f0fb' },
+      'Twitter/X': { color: '#000000', bg: '#f5f5f5' },
+      'Dribbble': { color: '#ea4c89', bg: '#fdf0f5' },
+      'Email': { color: '#6366f1', bg: '#eef2ff' },
+      'Website': { color: '#0ea5e9', bg: '#e0f2fe' },
+      'YouTube': { color: '#ff0000', bg: '#fff1f0' },
+      'Instagram': { color: '#e1306c', bg: '#fdf2f8' },
+      'Behance': { color: '#1769ff', bg: '#e8efff' },
+    };
+
+    el.innerHTML = links.map((link) => {
+      const meta = PLATFORM_COLORS[link.platform] || { color: '#6366f1', bg: '#eef2ff' };
+      const svg = PLATFORM_SVG[link.platform] || '';
+      const label = link.label || link.platform;
+      const href = link.url || '#';
+
+      if (style === 'icons') {
+        return `<a href="${href}" class="social-link social-link--icon" style="background:${meta.bg};color:${meta.color};" target="_blank" rel="noopener" title="${escapeHtml(label)}">${svg}</a>`;
+      }
+      if (style === 'pills') {
+        return `<a href="${href}" class="social-link social-link--pill" style="background:${meta.bg};color:${meta.color};" target="_blank" rel="noopener">${svg}<span>${escapeHtml(label)}</span></a>`;
+      }
+      // buttons
+      return `<a href="${href}" class="social-link social-link--button" style="border-color:${meta.color}40;color:${meta.color};background:${meta.bg};" target="_blank" rel="noopener">${svg}<span>${escapeHtml(label)}</span></a>`;
+    }).join('');
+  });
+
+  // Transform portfolio hero blocks
+  doc.querySelectorAll('div[data-type="portfolio-hero"]').forEach((el) => {
+    const name = el.getAttribute('data-name') || 'Your Name';
+    const tagline = el.getAttribute('data-tagline') || '';
+    const badgeText = el.getAttribute('data-badge-text') || '';
+    const ctaText = el.getAttribute('data-cta-text') || '';
+    const ctaUrl = el.getAttribute('data-cta-url') || '#';
+    const ctaSecondaryText = el.getAttribute('data-cta-secondary-text') || '';
+    const ctaSecondaryUrl = el.getAttribute('data-cta-secondary-url') || '#';
+    const gradFrom = el.getAttribute('data-gradient-from') || '#6366f1';
+    const gradTo = el.getAttribute('data-gradient-to') || '#ec4899';
+    const alignment = el.getAttribute('data-alignment') || 'center';
+
+    el.className = 'portfolio-hero';
+    el.setAttribute('data-alignment', alignment);
+    el.removeAttribute('data-type');
+    ['data-name','data-tagline','data-badge-text','data-cta-text','data-cta-url','data-cta-secondary-text','data-cta-secondary-url','data-gradient-from','data-gradient-to'].forEach((a) => el.removeAttribute(a));
+
+    const badgeHtml = badgeText
+      ? `<div class="portfolio-hero-badge"><span class="portfolio-hero-badge-dot"></span>${escapeHtml(badgeText)}</div>`
+      : '';
+    const ctaHtml = (ctaText || ctaSecondaryText)
+      ? `<div class="portfolio-hero-ctas">
+          ${ctaText ? `<a href="${ctaUrl}" class="portfolio-hero-cta-primary" style="color:${gradFrom};">${escapeHtml(ctaText)}</a>` : ''}
+          ${ctaSecondaryText ? `<a href="${ctaSecondaryUrl}" class="portfolio-hero-cta-secondary">${escapeHtml(ctaSecondaryText)}</a>` : ''}
+        </div>`
+      : '';
+
+    el.innerHTML = `
+      <div class="portfolio-hero-inner" style="background:linear-gradient(135deg,${gradFrom},${gradTo});">
+        ${badgeHtml}
+        <h1 class="portfolio-hero-name">${escapeHtml(name)}</h1>
+        ${tagline ? `<p class="portfolio-hero-tagline">${escapeHtml(tagline)}</p>` : ''}
+        ${ctaHtml}
+      </div>
+    `;
+  });
+
   // Transform stat row blocks
   doc.querySelectorAll('div[data-type="stat-row"]').forEach((el) => {
     let stats: any[] = [];
@@ -1577,6 +1790,74 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     .hero-banner-subtitle { font-size: 1.125rem; color: rgba(255,255,255,0.9); margin: 0 0 2rem; max-width: 600px; margin-left: auto; margin-right: auto; }
     .hero-banner-cta { display: inline-block; padding: 0.75rem 2rem; background: rgba(255,255,255,0.2); color: white; border-radius: 9999px; text-decoration: none; font-weight: 600; border: 2px solid rgba(255,255,255,0.5); transition: background 0.2s; }
     .hero-banner-cta:hover { background: rgba(255,255,255,0.3); }
+
+    /* Project Card */
+    .project-card { margin: 1.5rem 0; border-radius: 1rem; overflow: hidden; border: 1px solid #e2e8f0; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.06); max-width: 400px; }
+    .project-card-thumbnail { height: 12rem; overflow: hidden; }
+    .project-card-thumbnail img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .project-card-thumbnail--placeholder { height: 12rem; }
+    .project-card-body { padding: 1.25rem; }
+    .project-card-title { font-size: 1.125rem; font-weight: 700; color: #0f172a; margin: 0 0 0.375rem; line-height: 1.3; }
+    .project-card-description { font-size: 0.875rem; color: #64748b; margin: 0 0 0.875rem; line-height: 1.6; }
+    .project-card-tags { display: flex; flex-wrap: wrap; gap: 0.375rem; margin-bottom: 0.875rem; }
+    .project-card-tag { padding: 0.2rem 0.625rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; }
+    .project-card-links { display: flex; align-items: center; gap: 1rem; }
+    .project-card-link-live { font-size: 0.875rem; font-weight: 600; text-decoration: none; transition: opacity 0.2s; }
+    .project-card-link-live:hover { opacity: 0.75; }
+    .project-card-link-repo { font-size: 0.875rem; font-weight: 600; color: #64748b; text-decoration: none; transition: color 0.2s; }
+    .project-card-link-repo:hover { color: #334155; }
+
+    /* Project Gallery */
+    .project-gallery { display: grid; gap: 1.5rem; margin: 2rem 0; }
+    .project-gallery[data-cols="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .project-gallery[data-cols="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    @media (max-width: 768px) { .project-gallery { grid-template-columns: 1fr !important; } }
+    .project-gallery .project-card { max-width: none; margin: 0; }
+
+    /* About Me */
+    .about-me { display: flex; align-items: center; gap: 2rem; margin: 2rem 0; padding: 1.5rem; border-radius: 1rem; background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+    .about-me-avatar-col { flex-shrink: 0; }
+    .about-me-avatar-img { width: 7rem; height: 7rem; border-radius: 50%; object-fit: cover; display: block; }
+    .about-me-avatar-placeholder { width: 7rem; height: 7rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
+    .about-me-text-col { flex: 1; min-width: 0; }
+    .about-me-name { font-size: 1.375rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 0.25rem; }
+    .about-me-role { font-size: 0.875rem; font-weight: 500; color: #64748b; margin-bottom: 0.75rem; }
+    .about-me-bio { font-size: 0.9375rem; color: #475569; line-height: 1.7; margin: 0; }
+    @media (max-width: 640px) { .about-me { flex-direction: column; text-align: center; } }
+
+    /* Tech Stack */
+    .tech-item { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 1rem 0.75rem; border-radius: 0.75rem; border: 1px solid; text-align: center; }
+    .tech-item-icon { font-size: 1.5rem; line-height: 1; display: block; }
+    .tech-item-label { font-size: 0.75rem; font-weight: 600; color: #374151; line-height: 1.2; }
+    @media (max-width: 640px) { [style*="grid-template-columns: repeat("] { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; } }
+
+    /* Social Links */
+    .social-links { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 1.5rem 0; }
+    .social-links[data-alignment="center"] { justify-content: center; }
+    .social-links[data-alignment="right"] { justify-content: flex-end; }
+    .social-link { display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; transition: opacity 0.2s; font-weight: 600; }
+    .social-link:hover { opacity: 0.72; }
+    .social-link--icon { width: 2.5rem; height: 2.5rem; border-radius: 9999px; justify-content: center; flex-shrink: 0; }
+    .social-link--pill { padding: 0.375rem 0.875rem; border-radius: 9999px; font-size: 0.875rem; }
+    .social-link--button { padding: 0.5rem 1rem; border-radius: 0.5rem; font-size: 0.875rem; border: 1px solid; }
+    .social-link svg { flex-shrink: 0; }
+
+    /* Portfolio Hero */
+    .portfolio-hero { margin: 2rem 0; border-radius: 1rem; overflow: hidden; }
+    .portfolio-hero-inner { padding: 4rem 3rem; display: flex; flex-direction: column; gap: 1.25rem; }
+    .portfolio-hero[data-alignment="center"] .portfolio-hero-inner { align-items: center; text-align: center; }
+    .portfolio-hero[data-alignment="left"] .portfolio-hero-inner { align-items: flex-start; text-align: left; }
+    .portfolio-hero-badge { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.875rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; background: rgba(255,255,255,0.18); color: #fff; backdrop-filter: blur(6px); }
+    .portfolio-hero-badge-dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: #34d399; flex-shrink: 0; display: inline-block; }
+    .portfolio-hero-name { font-size: clamp(2rem, 5vw, 3rem); font-weight: 900; letter-spacing: -0.03em; color: #fff; line-height: 1.1; margin: 0; text-shadow: 0 2px 12px rgba(0,0,0,0.2); }
+    .portfolio-hero-tagline { font-size: 1.125rem; color: rgba(255,255,255,0.82); margin: 0; max-width: 36rem; line-height: 1.7; }
+    .portfolio-hero-ctas { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    .portfolio-hero[data-alignment="center"] .portfolio-hero-ctas { justify-content: center; }
+    .portfolio-hero-cta-primary { display: inline-flex; align-items: center; padding: 0.625rem 1.5rem; border-radius: 0.75rem; font-weight: 700; font-size: 0.9375rem; background: #fff; text-decoration: none; box-shadow: 0 2px 8px rgba(0,0,0,0.12); transition: opacity 0.2s; }
+    .portfolio-hero-cta-primary:hover { opacity: 0.88; }
+    .portfolio-hero-cta-secondary { display: inline-flex; align-items: center; padding: 0.625rem 1.5rem; border-radius: 0.75rem; font-weight: 700; font-size: 0.9375rem; color: #fff; border: 2px solid rgba(255,255,255,0.45); text-decoration: none; transition: background 0.2s; }
+    .portfolio-hero-cta-secondary:hover { background: rgba(255,255,255,0.12); }
+    @media (max-width: 640px) { .portfolio-hero-inner { padding: 2.5rem 1.5rem; } }
 
     /* Stat Row */
     .stat-row { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; margin: 2rem 0; }

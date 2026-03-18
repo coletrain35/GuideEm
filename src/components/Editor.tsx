@@ -29,6 +29,12 @@ import { CardGrid, Card } from '../extensions/CardGrid';
 import { Counter } from '../extensions/Counter';
 import { Testimonial } from '../extensions/Testimonial';
 import { HeroBanner } from '../extensions/HeroBanner';
+import { ProjectCard } from '../extensions/ProjectCard';
+import { ProjectGallery } from '../extensions/ProjectGallery';
+import { AboutMe } from '../extensions/AboutMe';
+import { TechStack } from '../extensions/TechStack';
+import { SocialLinks } from '../extensions/SocialLinks';
+import { PortfolioHero } from '../extensions/PortfolioHero';
 import { StatRow } from '../extensions/StatRow';
 import { CodeDiff } from '../extensions/CodeDiff';
 import { BeforeAfter } from '../extensions/BeforeAfter';
@@ -269,6 +275,12 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       Counter,
       Testimonial,
       HeroBanner,
+      ProjectCard,
+      ProjectGallery,
+      AboutMe,
+      TechStack,
+      SocialLinks,
+      PortfolioHero,
       StatRow,
       CodeDiff,
       BeforeAfter,
