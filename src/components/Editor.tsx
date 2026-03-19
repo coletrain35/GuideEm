@@ -48,7 +48,6 @@ import GlobalDragHandle from 'tiptap-extension-global-drag-handle';
 import type { Node as PmNode } from 'prosemirror-model';
 import { TextSelection } from 'prosemirror-state';
 import { PlusMenu } from './PlusMenu';
-import { BlockPalette } from './BlockPalette';
 import { compressImageToWebP } from '../utils/imageCompressor';
 import { BLOCK_ITEMS } from '../utils/blockItems';
 import { SECTION_BG_PRESETS } from '../utils/backgroundPresets';
@@ -136,11 +135,10 @@ interface EditorProps {
   theme?: ThemeConfig;
   onThemeChange?: (updates: Partial<ThemeConfig>) => void;
   zenMode?: boolean;
-  showBlockPalette?: boolean;
-  onCloseBlockPalette?: () => void;
+  onEditorReady?: (editor: import('@tiptap/core').Editor) => void;
 }
 
-export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpdate, theme, onThemeChange, zenMode, showBlockPalette, onCloseBlockPalette }: EditorProps) => {
+export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpdate, theme, onThemeChange, zenMode, onEditorReady }: EditorProps) => {
   const [content, setContent] = useState<any>(initialContent);
   const [htmlContent, setHtmlContent] = useState<string>(initialHtmlContent || '');
   const [title, setTitle] = useState(initialTitle);
@@ -427,25 +425,53 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
     onCreate: ({ editor }) => {
       extractHeadings(editor);
       countWords(editor);
+      onEditorReady?.(editor);
     },
     onSelectionUpdate: ({ editor }) => {
       setHasSelection(!editor.state.selection.empty);
       setSelectionVersion(v => v + 1);
-
-      // Track active heading based on cursor position
-      const { from } = editor.state.selection;
-      let currentHeadingText: string | null = null;
-      editor.state.doc.descendants((node: any, pos: number) => {
-        if (node.type.name === 'heading' && pos <= from) {
-          currentHeadingText = node.textContent;
-        }
-      });
-      setActiveHeadingText(currentHeadingText);
     },
   });
 
   // Keep ref in sync for use in drop handler
   editorRef.current = editor;
+
+  // Scroll-spy: update active heading based on scroll position, not just cursor
+  useEffect(() => {
+    if (!showOutline || !editor) return;
+
+    const getScrollContainer = (): Element | null => {
+      let el = editor.view.dom.parentElement;
+      while (el) {
+        const { overflowY } = window.getComputedStyle(el);
+        if (overflowY === 'auto' || overflowY === 'scroll') return el;
+        el = el.parentElement;
+      }
+      return null;
+    };
+
+    const updateActiveHeading = () => {
+      const headingEls = Array.from(
+        editor.view.dom.querySelectorAll('h1, h2, h3')
+      ) as HTMLElement[];
+      if (!headingEls.length) return;
+
+      // Last heading whose top is at or above 40% of the viewport height
+      const threshold = window.innerHeight * 0.4;
+      let active: HTMLElement | null = null;
+      for (const el of headingEls) {
+        if (el.getBoundingClientRect().top <= threshold) active = el;
+        else break;
+      }
+      setActiveHeadingText(active ? (active.textContent ?? null) : null);
+    };
+
+    const container = getScrollContainer();
+    const target = container ?? window;
+    target.addEventListener('scroll', updateActiveHeading, { passive: true });
+    updateActiveHeading();
+    return () => target.removeEventListener('scroll', updateActiveHeading);
+  }, [showOutline, editor]);
 
   // Clear all drop-target indicators from the editor DOM
   const clearDropTargets = useCallback(() => {
@@ -622,12 +648,8 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
   }
 
   return (
-    <div className="flex h-full">
-      {showBlockPalette && onCloseBlockPalette && (
-        <BlockPalette editor={editor} onClose={onCloseBlockPalette} />
-      )}
     <div
-      className="flex flex-col max-w-3xl px-4 mx-auto mt-4 sm:mt-8 lg:mt-12 sm:px-6 lg:px-8 w-full flex-1 min-w-0"
+      className="flex flex-col max-w-4xl px-6 mx-auto mt-4 sm:mt-8 lg:mt-12 w-full"
       onDragOver={handleEditorDragOver}
       onDragLeave={handleEditorDragLeave}
       onDrop={handleEditorDrop}
@@ -1116,7 +1138,6 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
           setShowTableModal(false);
         }}
       />
-    </div>
     </div>
   );
 };

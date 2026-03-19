@@ -12,6 +12,7 @@ import { LandingPage } from './components/LandingPage';
 import { markdownToHtml } from './utils/markdownImporter';
 import type { TemplateDefinition } from './data/templates';
 import { FileDown, FileText, Trash2, Loader2, Keyboard, HelpCircle, X, CheckCircle, AlertTriangle, Info, Menu, Plus, Settings, Upload, Palette, ArrowLeft, Eye, Maximize2, Minimize2, LayoutGrid } from 'lucide-react';
+import { BlockPalette } from './components/BlockPalette';
 
 const DEFAULT_THEME: ThemeConfig = {
   primaryColor: '#2563eb', // Tailwind blue-600
@@ -57,6 +58,7 @@ export default function App() {
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [isZenMode, setIsZenMode] = useState(false);
   const [showBlockPalette, setShowBlockPalette] = useState(true);
+  const [editorInstance, setEditorInstance] = useState<import('@tiptap/core').Editor | null>(null);
   const markdownImportRef = useRef<HTMLInputElement>(null);
   
   // Always-current mirror of documents state for use in callbacks.
@@ -484,11 +486,15 @@ export default function App() {
         </header>
 
         {/* Main Workspace */}
+        <div className="flex flex-1 overflow-hidden">
+        {showBlockPalette && !isZenMode && editorInstance && (
+          <BlockPalette editor={editorInstance} onClose={() => setShowBlockPalette(false)} />
+        )}
         <main className="flex-1 overflow-y-auto relative flex flex-col md:flex-row gap-6 px-2 py-4 sm:px-4 sm:py-8">
           {currentDoc ? (
             <>
               <div className={`transition-all duration-300 ease-in-out ${showHelp && !isZenMode ? 'md:w-2/3 lg:w-3/4' : 'w-full'}`}>
-                <Editor key={currentDoc.id} initialContent={currentDoc.content} initialHtmlContent={currentDoc.htmlContent} initialTitle={currentDoc.title} onUpdate={handleUpdate} theme={currentDoc.theme} onThemeChange={handleThemeChange} zenMode={isZenMode} showBlockPalette={showBlockPalette && !isZenMode} onCloseBlockPalette={() => setShowBlockPalette(false)} />
+                <Editor key={currentDoc.id} initialContent={currentDoc.content} initialHtmlContent={currentDoc.htmlContent} initialTitle={currentDoc.title} onUpdate={handleUpdate} theme={currentDoc.theme} onThemeChange={handleThemeChange} zenMode={isZenMode} onEditorReady={setEditorInstance} />
               </div>
 
               {/* Help Sidebar */}
@@ -598,6 +604,7 @@ export default function App() {
             </div>
           )}
         </main>
+        </div>
       </div>
 
       {/* Theme Drawer */}
