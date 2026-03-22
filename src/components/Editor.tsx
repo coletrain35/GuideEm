@@ -24,7 +24,8 @@ import { Accordion, AccordionItem } from '../extensions/Accordion';
 import { TabGroup, TabPanel } from '../extensions/Tabs';
 import { SectionDivider } from '../extensions/SectionDivider';
 import { VideoEmbed } from '../extensions/VideoEmbed';
-import { Timeline, TimelineStep } from '../extensions/Timeline';
+import { Timeline, TimelineStep, TimelineStepTitle } from '../extensions/Timeline';
+import { Workflow, WorkflowStep } from '../extensions/Workflow';
 import { CardGrid, Card } from '../extensions/CardGrid';
 import { Counter } from '../extensions/Counter';
 import { Testimonial } from '../extensions/Testimonial';
@@ -268,6 +269,9 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       VideoEmbed,
       Timeline,
       TimelineStep,
+      TimelineStepTitle,
+      Workflow,
+      WorkflowStep,
       CardGrid,
       Card,
       Counter,
@@ -857,6 +861,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
                 {/* Section Background */}
                 <div className="relative">
                   <button
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => { setShowBgPop(v => !v); setShowGradientPop(false); setShowBadgePop(false); setShowAnimPop(false); }}
                     className={`px-2 py-1.5 text-xs font-medium rounded hover:bg-slate-200 ${editor.isActive('backgroundSection') ? 'bg-slate-200 text-blue-600' : 'text-slate-600'}`}
                   >Section BG</button>
@@ -869,6 +874,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
                         {SECTION_BG_PRESETS.map((p) => (
                           <div key={p.id} className="flex flex-col items-center gap-0.5">
                             <button
+                              onMouseDown={(e) => e.preventDefault()}
                               onClick={() => {
                                 if (editor.isActive('backgroundSection')) {
                                   editor.chain().focus().updateAttributes('backgroundSection', { bgPreset: p.id }).run();
@@ -895,6 +901,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
                       </div>
                       {editor.isActive('backgroundSection') && (
                         <button
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => { editor.chain().focus().lift('backgroundSection').run(); setShowBgPop(false); }}
                           className="w-full py-1.5 text-xs text-red-500 hover:bg-red-50 rounded-lg border border-red-100 transition-colors"
                         >

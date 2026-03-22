@@ -2,6 +2,7 @@ import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap/react';
 import React, { useState, useEffect, useRef } from 'react';
 import { Paintbrush, Trash2 } from 'lucide-react';
+import { findWrapping } from 'prosemirror-transform';
 import { SECTION_BG_PRESETS, getSectionBgPreset } from '../utils/backgroundPresets';
 
 const BackgroundSectionNodeView = (props: any) => {
@@ -186,7 +187,17 @@ export const BackgroundSection = Node.create({
   addCommands() {
     return {
       setBackgroundSection: (attrs: Record<string, any> = {}) =>
-        ({ commands }: any) => commands.wrapIn(this.name, attrs),
+        ({ state, dispatch }: any) => {
+          const type = state.schema.nodes.backgroundSection;
+          if (!type) return false;
+          const { $from, $to } = state.selection;
+          const range = $from.blockRange($to);
+          if (!range) return false;
+          const wrapping = findWrapping(range, type, attrs);
+          if (!wrapping) return false;
+          if (dispatch) dispatch(state.tr.wrap(range, wrapping).scrollIntoView());
+          return true;
+        },
     } as any;
   },
 

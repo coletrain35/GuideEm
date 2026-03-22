@@ -269,7 +269,7 @@ export const BLOCK_ITEMS: BlockItem[] = [
     keywords: ['background', 'section', 'gradient', 'color', 'wrapper', 'landing'],
     action: (e) => e.chain().focus().insertContent({
       type: 'backgroundSection',
-      attrs: { bgPreset: 'aurora', padding: 'md', borderRadius: 'md' },
+      attrs: { bgPreset: 'dots', padding: 'md', borderRadius: 'md' },
       content: [{ type: 'paragraph' }],
     }).run(),
   },
@@ -296,8 +296,30 @@ export const BLOCK_ITEMS: BlockItem[] = [
     action: (e) => e.chain().focus().insertContent({
       type: 'timeline',
       content: [
-        { type: 'timelineStep', attrs: { title: 'Step 1' }, content: [{ type: 'paragraph' }] },
-        { type: 'timelineStep', attrs: { title: 'Step 2' }, content: [{ type: 'paragraph' }] },
+        { type: 'timelineStep', attrs: { date: '' }, content: [
+          { type: 'timelineStepTitle', content: [{ type: 'text', text: 'Step 1' }] },
+          { type: 'paragraph' },
+        ]},
+        { type: 'timelineStep', attrs: { date: '' }, content: [
+          { type: 'timelineStepTitle', content: [{ type: 'text', text: 'Step 2' }] },
+          { type: 'paragraph' },
+        ]},
+      ],
+    }).run(),
+  },
+  {
+    id: 'workflow',
+    label: 'Workflow',
+    description: 'Rich process cards with icons',
+    icon: GitCompare,
+    category: 'Data',
+    keywords: ['workflow', 'process', 'steps', 'flow', 'how it works'],
+    action: (e) => e.chain().focus().insertContent({
+      type: 'workflow',
+      content: [
+        { type: 'workflowStep', attrs: { title: 'Step 1', icon: 'circle-dot' }, content: [{ type: 'paragraph' }] },
+        { type: 'workflowStep', attrs: { title: 'Step 2', icon: 'zap' }, content: [{ type: 'paragraph' }] },
+        { type: 'workflowStep', attrs: { title: 'Step 3', icon: 'check-circle' }, content: [{ type: 'paragraph' }] },
       ],
     }).run(),
   },

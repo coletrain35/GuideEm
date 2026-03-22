@@ -432,5 +432,55 @@ $ npm run export -- --output ./dist/guide.html
 <p>Buttons style (left-aligned):</p>
 <div data-type="social-links" data-style="buttons" data-alignment="left" data-links='[{"platform":"GitHub","url":"https://github.com","label":"View Source"},{"platform":"LinkedIn","url":"https://linkedin.com","label":"Connect"},{"platform":"Twitter/X","url":"https://x.com","label":"Follow"},{"platform":"YouTube","url":"https://youtube.com","label":"Subscribe"}]'></div>
 
+<div data-type="section-divider" data-style="gradient" class="section-divider"></div>
+
+<h2>27. Workflow Cards</h2>
+<p>Turn any multi-step process into a polished vertical flow. Workflow blocks support seven accent colors, ten card background presets — including gradients and animated effects — and per-step background overrides. Each step has an icon picker, a rich-text body, and an optional image. All of it exports as a single self-contained HTML block.</p>
+
+<h3>Emerald · Frost gradient background</h3>
+
+<div data-type="workflow" data-accent-color="emerald" data-card-bg="frost">
+  <div data-type="workflow-step" data-title="Write in the Block Editor" data-icon="edit">
+    <p>Use the slash menu to insert any block — callouts, code, tables, grids, timelines, and more. The editor is distraction-free and fully keyboard-navigable.</p>
+  </div>
+  <div data-type="workflow-step" data-title="Style Your Workflow" data-icon="settings">
+    <p>Pick an accent color and card background from the hover toolbar. Override individual step backgrounds independently — mix light and dark cards in the same flow.</p>
+  </div>
+  <div data-type="workflow-step" data-title="Export to HTML" data-icon="download">
+    <p>Click Export. GuideEm bundles your content, images, styles, and all interactive JavaScript into one <code>.html</code> file. No build step, no server.</p>
+  </div>
+  <div data-type="workflow-step" data-title="Share Anywhere" data-icon="send">
+    <p>Email the file, drop it in Slack, or host it on any static server. Readers get a fully interactive document — no apps to install, no account required.</p>
+  </div>
+</div>
+
+<h3>Violet · Dark card background</h3>
+
+<div data-type="workflow" data-accent-color="violet" data-card-bg="charcoal">
+  <div data-type="workflow-step" data-title="Authenticate" data-icon="lock">
+    <p>Generate an API token from your dashboard. All requests must include the <code>Authorization: Bearer &lt;token&gt;</code> header. Tokens expire after 90 days and can be rotated at any time.</p>
+  </div>
+  <div data-type="workflow-step" data-title="Fetch Your Data" data-icon="database">
+    <p>Call the <code>/v2/documents</code> endpoint with your workspace ID. The response is paginated — pass <code>?cursor=</code> from the previous page to continue.</p>
+  </div>
+  <div data-type="workflow-step" data-title="Transform &amp; Publish" data-icon="zap">
+    <p>Apply your business logic, then POST the result to <code>/v2/publish</code>. The engine validates the payload, generates the standalone HTML, and returns a signed download URL valid for 24 hours.</p>
+  </div>
+</div>
+
+<h3>Rose · Per-step background overrides</h3>
+
+<div data-type="workflow" data-accent-color="rose" data-card-bg="white">
+  <div data-type="workflow-step" data-title="Plan" data-icon="target" data-card-bg-override="frost">
+    <p>Define scope, success criteria, and stakeholders before writing a single line. A documented plan cuts revision cycles in half.</p>
+  </div>
+  <div data-type="workflow-step" data-title="Build" data-icon="code" data-card-bg-override="mint">
+    <p>Develop against the spec. Use the Workflow block to keep implementation steps visible to the whole team — not buried in a Notion page no one opens.</p>
+  </div>
+  <div data-type="workflow-step" data-title="Ship" data-icon="rocket" data-card-bg-override="dusk">
+    <p>Export your release notes as a standalone HTML file. Attach it to the Jira ticket, the Slack announcement, and the customer email — one file, everywhere.</p>
+  </div>
+</div>
+
 <div data-type="confetti" data-message="You made it to the end!" data-emoji="🎉" data-colors='["#6366f1","#ec4899","#f59e0b","#10b981","#3b82f6"]'></div>
 `;

@@ -1,6 +1,72 @@
 import { ThemeConfig } from './storage';
 import { getSectionBgPreset } from './backgroundPresets';
 
+// SVG icon map for workflow export (Lucide icons, stroke="currentColor")
+const WORKFLOW_ICON_SVGS: Record<string, string> = {
+  'circle-dot': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="1"/></svg>',
+  'rocket': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>',
+  'settings': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>',
+  'users': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  'code': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+  'zap': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>',
+  'check-circle': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>',
+  'search': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+  'send': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg>',
+  'shield': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>',
+  'database': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>',
+  'globe': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>',
+  'mail': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>',
+  'file-text': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>',
+  'bar-chart': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></svg>',
+  'lock': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+  'unlock': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>',
+  'edit': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>',
+  'eye': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>',
+  'download': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>',
+  'upload': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>',
+  'play': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>',
+  'flag': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>',
+  'target': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
+  'lightbulb': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>',
+};
+
+const CHEVRON_DOWN_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+
+const TIMELINE_COLORS: Record<string, { 500: string; rgb: string }> = {
+  blue:    { 500: '#3b82f6', rgb: '59, 130, 246' },
+  indigo:  { 500: '#6366f1', rgb: '99, 102, 241' },
+  emerald: { 500: '#10b981', rgb: '16, 185, 129' },
+  amber:   { 500: '#f59e0b', rgb: '245, 158, 11' },
+  rose:    { 500: '#f43f5e', rgb: '244, 63, 94' },
+  violet:  { 500: '#8b5cf6', rgb: '139, 92, 246' },
+  slate:   { 500: '#64748b', rgb: '100, 116, 139' },
+};
+
+const TIMELINE_CHECK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+const WORKFLOW_COLORS: Record<string, { 50: string; 100: string; 500: string; 600: string }> = {
+  indigo:  { 50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5' },
+  emerald: { 50: '#ecfdf5', 100: '#d1fae5', 500: '#10b981', 600: '#059669' },
+  amber:   { 50: '#fffbeb', 100: '#fef3c7', 500: '#f59e0b', 600: '#d97706' },
+  rose:    { 50: '#fff1f2', 100: '#ffe4e6', 500: '#f43f5e', 600: '#e11d48' },
+  sky:     { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7' },
+  violet:  { 50: '#f5f3ff', 100: '#ede9fe', 500: '#8b5cf6', 600: '#7c3aed' },
+  slate:   { 50: '#f8fafc', 100: '#f1f5f9', 500: '#64748b', 600: '#475569' },
+};
+
+const WORKFLOW_CARD_BG: Record<string, { bg?: string; bgImage?: string; animated: false | string; dark: boolean }> = {
+  'white':      { bg: '#ffffff',  animated: false, dark: false },
+  'light-gray': { bg: '#f8fafc',  animated: false, dark: false },
+  'warm-cream': { bg: '#fefce8',  animated: false, dark: false },
+  'dark-slate': { bg: '#1e293b',  animated: false, dark: true  },
+  'frost':      { bgImage: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', animated: false, dark: false },
+  'dusk':       { bgImage: 'linear-gradient(135deg, #faf5ff 0%, #fce7f3 100%)', animated: false, dark: false },
+  'mint':       { bgImage: 'linear-gradient(135deg, #ecfdf5 0%, #f0fdfa 100%)', animated: false, dark: false },
+  'charcoal':   { bgImage: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)', animated: false, dark: true  },
+  'shimmer':    { bg: '#ffffff', bgImage: 'linear-gradient(110deg, transparent 33%, rgba(99,102,241,0.05) 50%, transparent 67%)', animated: 'shimmer', dark: false },
+  'pulse-glow': { bg: '#ffffff', animated: 'pulse-glow', dark: false },
+};
+
 const hexToRgb = (hex: string) => {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : '37, 99, 235';
@@ -287,22 +353,126 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
 
   // Transform timeline blocks
   doc.querySelectorAll('div[data-type="timeline"]').forEach((timeline) => {
+    const accentName = timeline.getAttribute('data-accent-color') || 'blue';
+    const markerStyle = timeline.getAttribute('data-marker-style') || 'number';
+    const accent = TIMELINE_COLORS[accentName] || TIMELINE_COLORS.blue;
+
     timeline.className = 'timeline';
     timeline.removeAttribute('data-type');
+    timeline.removeAttribute('data-accent-color');
+    timeline.removeAttribute('data-marker-style');
+    (timeline as HTMLElement).style.setProperty('--tl-accent', accent[500]);
+    (timeline as HTMLElement).style.setProperty('--tl-accent-rgb', accent.rgb);
+
     let stepIndex = 0;
     timeline.querySelectorAll('div[data-type="timeline-step"]').forEach((step) => {
-      stepIndex++;
-      const title = step.getAttribute('data-title') || '';
+      const date = step.getAttribute('data-date') || '';
+      const titleEl = step.querySelector('div[data-type="timeline-step-title"]');
+      const titleHTML = titleEl ? titleEl.innerHTML : '';
+      if (titleEl) titleEl.remove();
       const bodyHTML = step.innerHTML;
       step.className = 'timeline-step';
       step.removeAttribute('data-type');
-      step.removeAttribute('data-title');
+      step.removeAttribute('data-date');
+      step.setAttribute('data-tl-index', String(stepIndex));
+
+      const markerContent = markerStyle === 'check'
+        ? TIMELINE_CHECK_SVG
+        : markerStyle === 'dot'
+        ? ''
+        : String(stepIndex + 1);
+
       step.innerHTML = `
-        <div class="timeline-step-marker">${stepIndex}</div>
+        <div class="timeline-step-marker">${markerContent}</div>
         <div class="timeline-step-content">
-          ${title ? `<h4 class="timeline-step-title">${title}</h4>` : ''}
+          ${date ? `<span class="timeline-step-date">${escapeHtml(date)}</span>` : ''}
+          ${titleHTML ? `<h4 class="timeline-step-title">${titleHTML}</h4>` : ''}
           <div class="timeline-step-body">${bodyHTML}</div>
         </div>
+      `;
+      stepIndex++;
+    });
+  });
+
+  // Transform workflow blocks
+  doc.querySelectorAll('div[data-type="workflow"]').forEach((workflow) => {
+    const accentColorName = workflow.getAttribute('data-accent-color') || 'indigo';
+    const workflowCardBgId = workflow.getAttribute('data-card-bg') || 'white';
+    const accent = WORKFLOW_COLORS[accentColorName] || WORKFLOW_COLORS.indigo;
+    const defaultCardBg = WORKFLOW_CARD_BG[workflowCardBgId] || WORKFLOW_CARD_BG['white'];
+
+    workflow.className = 'workflow';
+    workflow.removeAttribute('data-type');
+    workflow.removeAttribute('data-accent-color');
+    workflow.removeAttribute('data-card-bg');
+
+    let stepIndex = 0;
+    const steps = workflow.querySelectorAll('div[data-type="workflow-step"]');
+    const totalSteps = steps.length;
+    steps.forEach((step) => {
+      stepIndex++;
+      const title = step.getAttribute('data-title') || '';
+      const iconName = step.getAttribute('data-icon') || 'circle-dot';
+      const iconSvg = WORKFLOW_ICON_SVGS[iconName] || WORKFLOW_ICON_SVGS['circle-dot'];
+      const image = step.getAttribute('data-image') || null;
+      const cardBgOverrideId = step.getAttribute('data-card-bg-override') || null;
+
+      // Resolve card background: step override or workflow default
+      const resolvedBg = cardBgOverrideId && WORKFLOW_CARD_BG[cardBgOverrideId]
+        ? WORKFLOW_CARD_BG[cardBgOverrideId]
+        : defaultCardBg;
+
+      const isDark = resolvedBg.dark;
+      const cardBgStyle = [
+        resolvedBg.bg ? `background-color:${resolvedBg.bg}` : '',
+        resolvedBg.bgImage ? `background-image:${resolvedBg.bgImage}` : '',
+        resolvedBg.animated === 'shimmer' ? 'background-size:200% 100%' : '',
+      ].filter(Boolean).join(';');
+      const animClass = resolvedBg.animated === 'shimmer' ? ' wf-card-shimmer' : resolvedBg.animated === 'pulse-glow' ? ' wf-card-pulse-glow' : '';
+      const darkAttr = isDark ? ' data-dark="true"' : '';
+      const titleColor = isDark ? 'color:#f1f5f9' : 'color:#0f172a';
+      const bodyTextClass = isDark ? ' workflow-step-body-dark' : '';
+
+      // For dark cards, rewrite the body HTML to apply inline light colors
+      // on p/li/h*/strong so prose-slate cascade cannot override them.
+      let bodyHTML = step.innerHTML;
+      if (isDark) {
+        const tempDiv = doc.createElement('div');
+        tempDiv.innerHTML = bodyHTML;
+        tempDiv.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6, strong, blockquote').forEach((el) => {
+          (el as HTMLElement).style.color = '#cbd5e1';
+        });
+        tempDiv.querySelectorAll('a').forEach((el) => {
+          (el as HTMLElement).style.color = '#93c5fd';
+        });
+        tempDiv.querySelectorAll('code').forEach((el) => {
+          (el as HTMLElement).style.color = '#e2e8f0';
+          (el as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.1)';
+        });
+        bodyHTML = tempDiv.innerHTML;
+      }
+
+      const imageHTML = image
+        ? `<div class="workflow-step-image"><img src="${image}" alt="" style="max-height:160px;width:100%;object-fit:cover;border-radius:0.5rem;" /></div>`
+        : '';
+
+      step.className = 'workflow-step';
+      step.removeAttribute('data-type');
+      step.removeAttribute('data-title');
+      step.removeAttribute('data-icon');
+      step.removeAttribute('data-image');
+      step.removeAttribute('data-card-bg-override');
+      step.innerHTML = `
+        <div class="workflow-card${animClass}" style="border-left-color:${accent[500]};${cardBgStyle}"${darkAttr}>
+          <div class="workflow-step-header">
+            <div class="workflow-step-icon" style="background:linear-gradient(to bottom right,${accent[50]},${accent[100]});color:${accent[600]}">${iconSvg}</div>
+            <span class="workflow-step-badge" style="background-color:${accent[50]};color:${accent[600]}">STEP ${stepIndex}</span>
+            ${title ? `<h4 class="workflow-step-title" style="${titleColor}">${title}</h4>` : ''}
+          </div>
+          ${imageHTML}
+          <div class="workflow-step-body${bodyTextClass}">${bodyHTML}</div>
+        </div>
+        ${stepIndex < totalSteps ? `<div class="workflow-arrow">${CHEVRON_DOWN_SVG}</div>` : ''}
       `;
     });
   });
@@ -1107,6 +1277,23 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
         confettiBlocks.forEach(el => confettiObserver.observe(el));
       }
 
+      // --- TIMELINE STEP ANIMATIONS ---
+      const timelineSteps = document.querySelectorAll('.timeline-step');
+      if (timelineSteps.length > 0) {
+        const tlObserver = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              const el = entry.target;
+              const idx = parseInt(el.getAttribute('data-tl-index') || '0', 10);
+              el.style.transitionDelay = (idx * 100) + 'ms';
+              el.classList.add('visible');
+              tlObserver.unobserve(el);
+            }
+          });
+        }, { threshold: 0.15 });
+        timelineSteps.forEach(el => tlObserver.observe(el));
+      }
+
       // --- IMAGE TILT ON HOVER ---
       document.querySelectorAll('.image-effect-tilt-on-hover').forEach(container => {
         const img = container.querySelector('img');
@@ -1489,21 +1676,31 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       display: flex;
       gap: 1.25rem;
       position: relative;
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.45s ease, transform 0.45s ease;
+    }
+    .timeline-step.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .timeline-step { opacity: 1 !important; transform: none !important; transition: none !important; }
     }
     .timeline-step:not(:last-child)::after {
       content: '';
       position: absolute;
-      left: 0.9375rem;
-      top: 2rem;
+      left: 1.1875rem;
+      top: 2.5rem;
       bottom: 0;
-      width: 2px;
-      background-color: #e2e8f0;
+      width: 3px;
+      background: linear-gradient(to bottom, var(--tl-accent, var(--brand-primary)), #e2e8f0);
     }
     .timeline-step-marker {
-      width: 2rem;
-      height: 2rem;
+      width: 2.5rem;
+      height: 2.5rem;
       border-radius: 9999px;
-      background-color: var(--brand-primary);
+      background-color: var(--tl-accent, var(--brand-primary));
       color: white;
       display: flex;
       align-items: center;
@@ -1511,27 +1708,131 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       font-size: 0.8125rem;
       font-weight: 700;
       flex-shrink: 0;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), 0 0 0 4px rgba(var(--tl-accent-rgb, var(--brand-primary-rgb, 99, 102, 241)), 0.15);
       z-index: 1;
       position: relative;
     }
     .timeline-step-content {
       flex: 1;
       min-width: 0;
-      padding-bottom: 2rem;
+      padding-bottom: 2.5rem;
     }
     .timeline-step:last-child .timeline-step-content {
       padding-bottom: 0;
     }
+    .timeline-step-date {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      display: block;
+      margin-bottom: 0.25rem;
+    }
     .timeline-step-title {
-      font-size: 1rem;
+      font-size: 1.125rem;
       font-weight: 600;
       color: #0f172a;
       margin: 0 0 0.5rem;
-      line-height: 2rem;
+      line-height: 1.4;
     }
     .timeline-step-body > *:first-child { margin-top: 0; }
     .timeline-step-body > *:last-child { margin-bottom: 0; }
+
+    /* Workflow */
+    .workflow {
+      margin: 2rem 0;
+    }
+    .workflow-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .workflow-card {
+      width: 100%;
+      border: 1px solid #e2e8f0;
+      border-left: 3px solid #6366f1;
+      border-radius: 0.75rem;
+      background: white;
+      padding: 1.25rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+      transition: box-shadow 0.2s ease;
+    }
+    .workflow-card:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .workflow-step-image {
+      margin-top: 0.75rem;
+    }
+    .workflow-step-body-dark,
+    .workflow-step-body-dark p,
+    .workflow-step-body-dark li,
+    .workflow-step-body-dark h1,
+    .workflow-step-body-dark h2,
+    .workflow-step-body-dark h3,
+    .workflow-step-body-dark h4,
+    .workflow-step-body-dark strong,
+    .workflow-step-body-dark blockquote { color: #cbd5e1; }
+    .workflow-step-body-dark a { color: #93c5fd; }
+    .workflow-step-body-dark code { color: #e2e8f0; background-color: rgba(255,255,255,0.1); }
+    @keyframes wf-shimmer {
+      0% { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
+    @keyframes wf-pulse-glow {
+      0%, 100% { box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 0 0 0 rgba(99,102,241,0); }
+      50% { box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 0 20px 4px rgba(99,102,241,0.08); }
+    }
+    .wf-card-shimmer { background-size: 200% 100%; animation: wf-shimmer 2.5s ease-in-out infinite; }
+    .wf-card-pulse-glow { animation: wf-pulse-glow 3s ease-in-out infinite; }
+    .workflow-step-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .workflow-step-icon {
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 9999px;
+      background: color-mix(in srgb, var(--brand-primary) 10%, transparent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--brand-primary);
+    }
+    .workflow-step-badge {
+      display: inline-block;
+      padding: 0.125rem 0.625rem;
+      border-radius: 9999px;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: color-mix(in srgb, var(--brand-primary) 10%, transparent);
+      color: var(--brand-primary);
+      flex-shrink: 0;
+    }
+    .workflow-step-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #0f172a;
+      margin: 0;
+      line-height: 1.4;
+    }
+    .workflow-step-body > *:first-child { margin-top: 0; }
+    .workflow-step-body > *:last-child { margin-bottom: 0; }
+    .workflow-arrow {
+      display: flex;
+      justify-content: center;
+      padding: 0.375rem 0;
+      color: #cbd5e1;
+    }
+    .workflow-arrow svg {
+      width: 1.5rem;
+      height: 1.5rem;
+    }
 
     /* Card Grid */
     .card-grid {
@@ -2542,8 +2843,14 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       .guide-container blockquote { color: #94a3b8; border-left-color: #334155; }
       .export-layout { background-color: #0f172a; }
       mark { background-color: #713f12; color: #fef3c7; }
-      .timeline-step::after { background-color: #334155; }
+      .timeline-step::after { background: linear-gradient(to bottom, var(--tl-accent, var(--brand-primary)), #334155); }
       .timeline-step-title { color: #f1f5f9; }
+      .timeline-step-date { color: #64748b; }
+      .workflow-card:not([data-dark]) { background-color: #1e293b; border-color: #334155; }
+      .workflow-card:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
+      .workflow-step-title { color: #f1f5f9; }
+      .workflow-step-body { color: #cbd5e1; }
+      .workflow-arrow { color: #475569; }
       .card { background-color: #1e293b; border-color: #334155; }
       .card:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
       .card-title { color: #f1f5f9; }
@@ -2613,8 +2920,14 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     html.dark .guide-container blockquote { color: #94a3b8; border-left-color: #334155; }
     html.dark .export-layout { background-color: #0f172a; }
     html.dark mark { background-color: #713f12; color: #fef3c7; }
-    html.dark .timeline-step::after { background-color: #334155; }
+    html.dark .timeline-step::after { background: linear-gradient(to bottom, var(--tl-accent, var(--brand-primary)), #334155); }
     html.dark .timeline-step-title { color: #f1f5f9; }
+    html.dark .timeline-step-date { color: #64748b; }
+    html.dark .workflow-card:not([data-dark]) { background-color: #1e293b; border-color: #334155; }
+    html.dark .workflow-card:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
+    html.dark .workflow-step-title { color: #f1f5f9; }
+    html.dark .workflow-step-body { color: #cbd5e1; }
+    html.dark .workflow-arrow { color: #475569; }
     html.dark .card { background-color: #1e293b; border-color: #334155; }
     html.dark .card:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
     html.dark .card-title { color: #f1f5f9; }
@@ -2742,7 +3055,10 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       .tab-panel + .tab-panel { border-top: 1px solid #e2e8f0; padding-top: 1rem !important; }
       .card-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 0.75rem !important; }
       .card { break-inside: avoid; box-shadow: none !important; transform: none !important; border: 1px solid #e2e8f0 !important; }
-      .timeline-step::after { background-color: #e2e8f0 !important; }
+      .timeline-step { opacity: 1 !important; transform: none !important; }
+      .timeline-step::after { background: #e2e8f0 !important; }
+      .workflow-card { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
+      .workflow-arrow { color: #94a3b8 !important; }
       .video-embed-wrapper { display: none; }
       .video-embed video { display: none; }
       .before-after-container { display: flex; flex-direction: column; }
@@ -2782,9 +3098,11 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     </button>
   </div>` : ''}
   ${(() => {
-    // Full-bleed styles sit outside the layout container (edge-to-edge)
-    const isFullBleed = theme?.hero?.enabled || (theme?.hero?.style && theme?.hero?.style !== 'none');
-    return isFullBleed ? renderHeroCover(title, theme) : '';
+    // Only the legacy hero (enabled=true, no explicit style) renders full-bleed outside the layout.
+    // New named cover styles (gradient/dark/mesh/editorial) render inside the guide-container
+    // so they stay contained within the content width, matching the editor view.
+    const isLegacyFullBleed = !!(theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none'));
+    return isLegacyFullBleed ? renderHeroCover(title, theme) : '';
   })()}
   ${theme?.features?.stickyHeader && theme?.logoBase64 ? `
     <div class="sticky-header" style="position: sticky; top: 0; z-index: 100; background: ${theme?.features?.darkModeSupport ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.9)'}; backdrop-filter: blur(8px); border-bottom: 1px solid ${theme?.features?.darkModeSupport ? '#1e293b' : '#f1f5f9'}; padding: 1rem 2rem; display: flex; align-items: center;">
@@ -2795,7 +3113,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
   <div class="export-layout">
     <div class="guide-container prose prose-slate max-w-none">
       ${theme?.logoBase64 && !theme?.features?.stickyHeader && !theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none') ? `<div class="brand-header"><img src="${theme.logoBase64}" alt="Brand Logo" class="brand-logo" /></div>` : ''}
-      ${!theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none') ? renderHeroCover(title, theme) : ''}
+      ${!(theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none')) ? renderHeroCover(title, theme) : ''}
       ${processedHTML}
     </div>
     ${tocHTML}
