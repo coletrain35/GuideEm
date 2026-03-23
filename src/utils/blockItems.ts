@@ -6,7 +6,7 @@ import {
   Milestone, LayoutGrid, Hash, MessageSquareQuote, PanelTop, BarChart3,
   GitCompare, SplitSquareHorizontal, PartyPopper, Info, AlertTriangle,
   CheckCircle, Glasses, Minus, PaintBucket, Table2, Briefcase, GalleryHorizontal, UserCircle2,
-  Cpu, Share2, Star,
+  Cpu, Share2, Star, Monitor, Smartphone, SquareCode, Sparkles, ScrollText, PanelLeft, AppWindow,
 } from 'lucide-react';
 
 export type BlockCategory = 'Text' | 'Callouts' | 'Media' | 'Layout' | 'Data' | 'Showcase';
@@ -475,6 +475,71 @@ export const BLOCK_ITEMS: BlockItem[] = [
     category: 'Showcase',
     keywords: ['hero', 'portfolio', 'banner', 'name', 'tagline', 'cta', 'personal', 'branding'],
     action: (e) => e.chain().focus().insertContent({ type: 'portfolioHero', attrs: {} }).run(),
+  },
+
+  // ── Premium ──
+  {
+    id: 'bentoGrid',
+    label: 'Bento Grid',
+    description: 'Asymmetric card grid (Apple/Linear style)',
+    icon: AppWindow,
+    category: 'Layout',
+    keywords: ['bento', 'grid', 'cards', 'asymmetric', 'apple', 'linear', 'layout'],
+    action: (e) => e.chain().focus().insertContent({ type: 'bentoGrid', attrs: {} }).run(),
+  },
+  {
+    id: 'featureSpotlight',
+    label: 'Feature Spotlight',
+    description: 'Large visual + title, description, and bullet points',
+    icon: Sparkles,
+    category: 'Showcase',
+    keywords: ['feature', 'spotlight', 'highlight', 'split', 'hero', 'image'],
+    action: (e) => e.chain().focus().insertContent({ type: 'featureSpotlight', attrs: {} }).run(),
+  },
+  {
+    id: 'stickyScroll',
+    label: 'Sticky Scroll',
+    description: 'Pinned panel with scrolling steps (Stripe-style)',
+    icon: PanelLeft,
+    category: 'Layout',
+    keywords: ['sticky', 'scroll', 'steps', 'how it works', 'stripe', 'tutorial'],
+    action: (e) => e.chain().focus().insertContent({ type: 'stickyScroll', attrs: {} }).run(),
+  },
+  {
+    id: 'codeWindow',
+    label: 'Code Window',
+    description: 'macOS-style code block with traffic light dots',
+    icon: SquareCode,
+    category: 'Media',
+    keywords: ['code', 'window', 'macos', 'terminal', 'snippet', 'syntax'],
+    action: (e) => e.chain().focus().insertContent({ type: 'codeWindow', attrs: {} }).run(),
+  },
+  {
+    id: 'changelogTimeline',
+    label: 'Changelog',
+    description: 'Polished vertical timeline with version badges',
+    icon: ScrollText,
+    category: 'Data',
+    keywords: ['changelog', 'timeline', 'versions', 'releases', 'history', 'updates'],
+    action: (e) => e.chain().focus().insertContent({ type: 'changelogTimeline', attrs: {} }).run(),
+  },
+  {
+    id: 'browserMockup',
+    label: 'Browser Mockup',
+    description: 'Screenshot inside a realistic browser chrome',
+    icon: Monitor,
+    category: 'Media',
+    keywords: ['browser', 'mockup', 'screenshot', 'frame', 'chrome', 'window'],
+    action: (e) => e.chain().focus().insertContent({ type: 'browserMockup', attrs: {} }).run(),
+  },
+  {
+    id: 'phoneMockup',
+    label: 'Phone Mockup',
+    description: 'Screenshot inside an iPhone-style phone frame',
+    icon: Smartphone,
+    category: 'Media',
+    keywords: ['phone', 'mockup', 'iphone', 'mobile', 'screenshot', 'device', 'frame'],
+    action: (e) => e.chain().focus().insertContent({ type: 'phoneMockup', attrs: {} }).run(),
   },
 ];
 

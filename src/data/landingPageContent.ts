@@ -482,5 +482,80 @@ $ npm run export -- --output ./dist/guide.html
   </div>
 </div>
 
+<h2>28. Bento Grid</h2>
+<p>An asymmetric card grid inspired by Apple's product pages. Each cell can span multiple columns and rows, with three visual variants — default, accent (brand-tinted), and dark. Great for feature overviews, capability matrices, and product highlights.</p>
+
+<div data-type="bento-grid" data-cells='[{"icon":"🚀","title":"Lightning Fast","description":"Sub-second exports with zero server round-trips. Everything runs locally in the browser.","variant":"accent","colSpan":2,"rowSpan":1},{"icon":"📦","title":"Self-Contained","description":"One HTML file. No external dependencies.","variant":"default","colSpan":1,"rowSpan":1},{"icon":"🎨","title":"Fully Themeable","description":"Colors, fonts, and layouts adapt to your brand.","variant":"dark","colSpan":1,"rowSpan":2},{"icon":"🔒","title":"Private by Default","description":"No telemetry, no analytics, no server. Your data never leaves your device.","variant":"default","colSpan":1,"rowSpan":1},{"icon":"🧩","title":"30+ Block Types","description":"From callouts to code diffs, timelines to bento grids — every block exports perfectly.","variant":"accent","colSpan":1,"rowSpan":1}]'></div>
+
+<div data-type="section-divider" data-style="gradient" class="section-divider"></div>
+
+<h2>29. Feature Spotlight</h2>
+<p>A split-panel layout for showcasing a key feature with a visual on one side and descriptive content on the other. Supports bullet points, gradient backgrounds, layout direction toggle, and accent color customization.</p>
+
+<div data-type="feature-spotlight" data-title="Export Anywhere" data-description="Generate a fully self-contained HTML file that works everywhere — email attachments, S3 buckets, USB drives, or any static host. No build step, no server, no account." data-bullets='["Zero external dependencies","Works offline out of the box","Under 200 KB per export"]' data-layout="image-left" data-gradient="linear-gradient(135deg, #6366f1 0%, #a855f7 100%)" data-accent-color="#6366f1" data-icon="📄"></div>
+
+<div data-type="feature-spotlight" data-title="Block-Based Editing" data-description="Drop in any of 30+ block types with the slash menu. Each block is self-contained — drag to reorder, click to configure, and export with pixel-perfect fidelity." data-bullets='["Drag-and-drop reordering","Inline configuration panels","What you see is what exports"]' data-layout="image-right" data-gradient="linear-gradient(135deg, #10b981 0%, #059669 100%)" data-accent-color="#10b981" data-icon="🧩"></div>
+
+<div data-type="section-divider" data-style="dots" class="section-divider"></div>
+
+<h2>30. Sticky Scroll Sections</h2>
+<p>A Stripe-style two-panel layout with a sticky navigation on the left and content panels on the right. Perfect for step-by-step guides, onboarding flows, and API walkthroughs. Click the steps on the left to switch panels.</p>
+
+<div data-type="sticky-scroll" data-sticky-title="Getting Started" data-sticky-description="Go from zero to a published document in three steps." data-accent-color="#6366f1" data-steps='[{"title":"Install the package","description":"Get started by installing the package with your preferred package manager.","code":"npm install @guideem/core"},{"title":"Create your first document","description":"Open the editor, pick a theme, and start dropping blocks with the slash menu.","code":"const editor = createEditor()"},{"title":"Export and share","description":"Click Export to generate a single HTML file. Email it, host it, or open it offline.","code":"guideem export --output guide.html"}]'></div>
+
+<div data-type="section-divider" data-style="gradient" class="section-divider"></div>
+
+<h2>31. Code Window</h2>
+<p>A macOS-style code block with traffic light dots, editable title bar, line numbers, and four color themes — dark, light, nord, and dracula. The code is always editable in the editor; in the exported file it renders as a styled <code>&lt;pre&gt;</code> block.</p>
+
+<div data-type="code-window" data-code="import { exportGuide } from '@guideem/core';
+
+const doc = await loadDocument('my-guide');
+const html = exportGuide(doc, {
+  theme: 'modern',
+  compress: true,
+  darkMode: true,
+});
+
+await writeFile('./dist/guide.html', html);
+console.log('Exported successfully!');" data-language="typescript" data-title="export.ts" data-theme="dark"></div>
+
+<div data-type="code-window" data-code="from guideem import export_guide, load_doc
+
+doc = load_doc('onboarding-flow')
+html = export_guide(doc, theme='editorial')
+
+with open('guide.html', 'w') as f:
+    f.write(html)
+
+print(f'Done — {len(html) / 1024:.0f} KB')" data-language="python" data-title="export.py" data-theme="nord"></div>
+
+<div data-type="section-divider" data-style="dots" class="section-divider"></div>
+
+<h2>32. Changelog Timeline</h2>
+<p>A vertical timeline for release notes, version histories, and project updates. Each entry has a version badge, date, and categorized items — Added (green), Fixed (blue), Changed (amber), and Removed (red). All styled with colored badges and dot indicators.</p>
+
+<div data-type="changelog-timeline" data-entries='[{"version":"v2.0.0","date":"March 2026","items":[{"type":"added","text":"Bento Grid, Feature Spotlight, Sticky Scroll, Code Window, Changelog Timeline, Browser Mockup, and Phone Mockup blocks"},{"type":"added","text":"Four code window themes: dark, light, nord, dracula"},{"type":"changed","text":"Export engine now handles 30+ block types with full fidelity"},{"type":"fixed","text":"Phone mockup image now fills the frame edge-to-edge"}]},{"version":"v1.5.0","date":"February 2026","items":[{"type":"added","text":"Portfolio blocks: Project Cards, Gallery, Hero, About Me, Tech Stack, Social Links"},{"type":"added","text":"Workflow Cards with 10 background presets and per-step overrides"},{"type":"fixed","text":"Scroll reveal animations no longer trigger on page load"}]},{"version":"v1.0.0","date":"January 2026","items":[{"type":"added","text":"Initial release with 14 block types"},{"type":"added","text":"Single-file HTML export with zero dependencies"},{"type":"added","text":"IndexedDB persistence with automatic save"}]}]'></div>
+
+<div data-type="section-divider" data-style="animated-gradient" class="section-divider"></div>
+
+<h2>33. Browser Mockup</h2>
+<p>Wrap any screenshot in a realistic browser chrome — complete with traffic light dots and an editable URL bar. Light and dark variants available. The frame renders identically in the editor and in exported files.</p>
+
+<div data-type="browser-mockup" data-url="https://guideem.app/docs/getting-started" data-variant="light"></div>
+
+<div data-type="browser-mockup" data-url="https://guideem.app/dashboard" data-variant="dark"></div>
+
+<div data-type="section-divider" data-style="dots" class="section-divider"></div>
+
+<h2>34. Phone Mockup</h2>
+<p>An iPhone-style device frame for showcasing mobile screenshots, app designs, or responsive layouts. The image fills the frame edge-to-edge with a dynamic island overlay. Toggle between dark and light frames and optionally show a status bar.</p>
+
+<div data-type="phone-mockup" data-variant="dark" data-show-status-bar="false"></div>
+
+<div data-type="phone-mockup" data-variant="light" data-show-status-bar="true"></div>
+
+<div data-type="section-divider" data-style="rainbow" class="section-divider"></div>
+
 <div data-type="confetti" data-message="You made it to the end!" data-emoji="🎉" data-colors='["#6366f1","#ec4899","#f59e0b","#10b981","#3b82f6"]'></div>
 `;

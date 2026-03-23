@@ -921,6 +921,260 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     `;
   });
 
+  // Transform Bento Grid blocks
+  doc.querySelectorAll('div[data-type="bento-grid"]').forEach((el) => {
+    let cells: any[] = [];
+    try { cells = JSON.parse(el.getAttribute('data-cells') || '[]'); } catch { /* empty */ }
+    el.className = 'bento-grid';
+    el.removeAttribute('data-type');
+    el.removeAttribute('data-cells');
+    el.innerHTML = cells.map((cell: any) => {
+      const variant = cell.variant || 'default';
+      return `
+        <div class="bento-cell bento-variant-${variant}" style="grid-column: span ${Math.min(cell.colSpan || 1, 3)}; grid-row: span ${cell.rowSpan || 1};">
+          ${cell.icon ? `<div class="bento-icon">${cell.icon}</div>` : ''}
+          <h3 class="bento-title">${escapeHtml(cell.title || '')}</h3>
+          <p class="bento-desc">${escapeHtml(cell.description || '')}</p>
+        </div>
+      `;
+    }).join('');
+  });
+
+  // Transform Feature Spotlight blocks
+  doc.querySelectorAll('div[data-type="feature-spotlight"]').forEach((el) => {
+    const image = el.getAttribute('data-image') || '';
+    const icon = el.getAttribute('data-icon') || '';
+    const title = el.getAttribute('data-title') || 'Feature Title';
+    const description = el.getAttribute('data-description') || '';
+    const gradient = el.getAttribute('data-gradient') || 'linear-gradient(135deg, #6366f1, #a855f7)';
+    const layout = el.getAttribute('data-layout') || 'image-left';
+    const accentColor = el.getAttribute('data-accent-color') || '#6366f1';
+    let bullets: string[] = [];
+    try { bullets = JSON.parse(el.getAttribute('data-bullets') || '[]'); } catch { /* empty */ }
+
+    el.className = 'feature-spotlight';
+    el.setAttribute('data-layout', layout);
+    el.removeAttribute('data-type');
+    ['data-image','data-icon','data-title','data-description','data-gradient','data-bullets','data-accent-color'].forEach((a) => el.removeAttribute(a));
+
+    const visualHtml = `
+      <div class="feature-spotlight-visual" style="background:${gradient};">
+        ${image ? `<img src="${image}" alt="${escapeHtml(title)}" class="feature-spotlight-img" />` : (icon ? `<span class="feature-spotlight-icon">${icon}</span>` : '')}
+      </div>
+    `;
+    const bulletsHtml = bullets.length > 0
+      ? `<ul class="feature-spotlight-bullets">${bullets.map((b) => `<li><span class="feature-spotlight-check" style="background:${accentColor};"></span>${escapeHtml(b)}</li>`).join('')}</ul>`
+      : '';
+    const contentHtml = `
+      <div class="feature-spotlight-content">
+        <h2 class="feature-spotlight-title">${escapeHtml(title)}</h2>
+        ${description ? `<p class="feature-spotlight-desc">${escapeHtml(description)}</p>` : ''}
+        ${bulletsHtml}
+      </div>
+    `;
+
+    el.innerHTML = layout === 'image-right'
+      ? `${contentHtml}${visualHtml}`
+      : `${visualHtml}${contentHtml}`;
+  });
+
+  // Transform Sticky Scroll blocks
+  doc.querySelectorAll('div[data-type="sticky-scroll"]').forEach((el) => {
+    const stickyTitle = el.getAttribute('data-sticky-title') || 'How It Works';
+    const stickyDescription = el.getAttribute('data-sticky-description') || '';
+    const accentColor = el.getAttribute('data-accent-color') || '#6366f1';
+    let steps: any[] = [];
+    try { steps = JSON.parse(el.getAttribute('data-steps') || '[]'); } catch { /* empty */ }
+
+    el.className = 'sticky-scroll';
+    el.removeAttribute('data-type');
+    ['data-sticky-title','data-sticky-description','data-accent-color','data-steps'].forEach((a) => el.removeAttribute(a));
+
+    const stepIndicators = steps.map((s: any, i: number) => `
+      <button class="sticky-scroll-step-btn" data-step="${i}" style="--accent:${accentColor};">
+        <span class="sticky-scroll-step-num">${i + 1}</span>
+        <span class="sticky-scroll-step-label">${escapeHtml(s.title || '')}</span>
+      </button>
+    `).join('');
+
+    const stepPanels = steps.map((s: any, i: number) => `
+      <div class="sticky-scroll-panel" data-panel="${i}" ${i > 0 ? 'hidden' : ''}>
+        <h3 class="sticky-scroll-panel-title">${escapeHtml(s.title || '')}</h3>
+        <p class="sticky-scroll-panel-desc">${escapeHtml(s.description || '')}</p>
+        ${s.code ? `<pre class="sticky-scroll-code">${escapeHtml(s.code)}</pre>` : ''}
+      </div>
+    `).join('');
+
+    el.innerHTML = `
+      <div class="sticky-scroll-left" style="--accent:${accentColor};">
+        <div class="sticky-scroll-accent-bar" style="background:${accentColor};"></div>
+        <h2 class="sticky-scroll-title">${escapeHtml(stickyTitle)}</h2>
+        ${stickyDescription ? `<p class="sticky-scroll-desc">${escapeHtml(stickyDescription)}</p>` : ''}
+        <div class="sticky-scroll-steps">${stepIndicators}</div>
+      </div>
+      <div class="sticky-scroll-right">${stepPanels}</div>
+    `;
+  });
+
+  // Transform Code Window blocks
+  doc.querySelectorAll('div[data-type="code-window"]').forEach((el) => {
+    const code = el.getAttribute('data-code') || '';
+    const language = el.getAttribute('data-language') || 'javascript';
+    const title = el.getAttribute('data-title') || 'untitled';
+    const theme = el.getAttribute('data-theme') || 'dark';
+
+    const themes: Record<string, { bg: string; text: string; titleBg: string; titleText: string; d1: string; d2: string; d3: string }> = {
+      dark:    { bg: '#1e1e2e', text: '#cdd6f4', titleBg: '#313244', titleText: '#a6adc8', d1: '#f38ba8', d2: '#f9e2af', d3: '#a6e3a1' },
+      light:   { bg: '#fafafa', text: '#383a42', titleBg: '#e8e8e8', titleText: '#696c77', d1: '#e06c75', d2: '#e5c07b', d3: '#98c379' },
+      nord:    { bg: '#2e3440', text: '#d8dee9', titleBg: '#3b4252', titleText: '#8fbcbb', d1: '#bf616a', d2: '#ebcb8b', d3: '#a3be8c' },
+      dracula: { bg: '#282a36', text: '#f8f8f2', titleBg: '#44475a', titleText: '#6272a4', d1: '#ff5555', d2: '#ffb86c', d3: '#50fa7b' },
+    };
+    const t = themes[theme] || themes.dark;
+
+    el.className = 'code-window';
+    el.removeAttribute('data-type');
+    ['data-code','data-language','data-title','data-theme'].forEach((a) => el.removeAttribute(a));
+
+    el.innerHTML = `
+      <div class="code-window-titlebar" style="background:${t.titleBg};">
+        <div class="code-window-dots">
+          <span style="background:${t.d1};"></span>
+          <span style="background:${t.d2};"></span>
+          <span style="background:${t.d3};"></span>
+        </div>
+        <span class="code-window-title" style="color:${t.titleText};">${escapeHtml(title)}</span>
+        <span class="code-window-lang" style="color:${t.titleText};">${escapeHtml(language)}</span>
+      </div>
+      <pre class="code-window-body" style="background:${t.bg};color:${t.text};">${escapeHtml(code)}</pre>
+    `;
+  });
+
+  // Transform Changelog Timeline blocks
+  doc.querySelectorAll('div[data-type="changelog-timeline"]').forEach((el) => {
+    let entries: any[] = [];
+    try { entries = JSON.parse(el.getAttribute('data-entries') || '[]'); } catch { /* empty */ }
+
+    const typeStyles: Record<string, { label: string; color: string; bg: string }> = {
+      added:   { label: 'Added',   color: '#10b981', bg: '#d1fae5' },
+      fixed:   { label: 'Fixed',   color: '#3b82f6', bg: '#dbeafe' },
+      changed: { label: 'Changed', color: '#f59e0b', bg: '#fef3c7' },
+      removed: { label: 'Removed', color: '#ef4444', bg: '#fee2e2' },
+    };
+
+    el.className = 'changelog-timeline';
+    el.removeAttribute('data-type');
+    el.removeAttribute('data-entries');
+
+    el.innerHTML = entries.map((entry: any) => {
+      const grouped: Record<string, string[]> = {};
+      (entry.items || []).forEach((item: any) => {
+        if (!grouped[item.type]) grouped[item.type] = [];
+        grouped[item.type].push(item.text);
+      });
+
+      const itemsHtml = Object.entries(grouped).map(([type, texts]) => {
+        const s = typeStyles[type] || { label: type, color: '#64748b', bg: '#f1f5f9' };
+        return `
+          <div class="changelog-type-group">
+            <span class="changelog-type-badge" style="background:${s.bg};color:${s.color};">${s.label}</span>
+            <ul class="changelog-items">${(texts as string[]).map((t) => `<li style="--dot:${s.color};">${escapeHtml(t)}</li>`).join('')}</ul>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="changelog-entry">
+          <div class="changelog-dot"></div>
+          <div class="changelog-entry-body">
+            <div class="changelog-entry-header">
+              <span class="changelog-version">${escapeHtml(entry.version || '')}</span>
+              ${entry.date ? `<span class="changelog-date">${escapeHtml(entry.date)}</span>` : ''}
+            </div>
+            ${itemsHtml}
+          </div>
+        </div>
+      `;
+    }).join('');
+  });
+
+  // Transform Browser Mockup blocks
+  doc.querySelectorAll('div[data-type="browser-mockup"]').forEach((el) => {
+    const image = el.getAttribute('data-image') || '';
+    const url = el.getAttribute('data-url') || 'https://example.com';
+    const variant = el.getAttribute('data-variant') || 'light';
+    const isDark = variant === 'dark';
+
+    el.className = 'browser-mockup';
+    el.setAttribute('data-variant', variant);
+    el.removeAttribute('data-type');
+    ['data-image','data-url'].forEach((a) => el.removeAttribute(a));
+
+    const titleBg = isDark ? '#2d2d2d' : '#e8e8e8';
+    const borderColor = isDark ? '#3d3d3d' : '#d1d5db';
+    const bodyBg = isDark ? '#1a1a1a' : '#ffffff';
+    const urlBarBg = isDark ? '#1e1e1e' : '#f3f4f6';
+    const urlTextColor = isDark ? '#9ca3af' : '#6b7280';
+
+    el.innerHTML = `
+      <div class="browser-chrome" style="background:${titleBg};border-bottom:1px solid ${borderColor};">
+        <div class="browser-dots">
+          <span style="background:#ff5f57;"></span>
+          <span style="background:#ffbe2e;"></span>
+          <span style="background:#28c941;"></span>
+        </div>
+        <div class="browser-urlbar" style="background:${urlBarBg};color:${urlTextColor};">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>${escapeHtml(url)}</span>
+        </div>
+      </div>
+      <div class="browser-screen" style="background:${bodyBg};">
+        ${image ? `<img src="${image}" alt="Browser screenshot" style="display:block;width:100%;" />` : '<div class="browser-empty">No screenshot</div>'}
+      </div>
+    `;
+    el.setAttribute('style', `border:1px solid ${borderColor};`);
+  });
+
+  // Transform Phone Mockup blocks
+  doc.querySelectorAll('div[data-type="phone-mockup"]').forEach((el) => {
+    const image = el.getAttribute('data-image') || '';
+    const showStatusBar = el.getAttribute('data-show-status-bar') !== 'false';
+    const variant = el.getAttribute('data-variant') || 'dark';
+    const isDark = variant === 'dark';
+
+    el.className = 'phone-mockup';
+    el.setAttribute('data-variant', variant);
+    el.removeAttribute('data-type');
+    ['data-image','data-show-status-bar'].forEach((a) => el.removeAttribute(a));
+
+    const phoneBg = isDark ? '#0a0a0a' : '#f9fafb';
+    const frameColor = isDark ? '#2a2a2a' : '#d1d5db';
+    const notchColor = isDark ? '#000' : '#1a1a1a';
+    const statusColor = isDark ? '#ffffff' : '#000000';
+    const homeBarColor = isDark ? '#4b4b4b' : '#c9cdd2';
+
+    const statusBarHtml = showStatusBar ? `
+      <div class="phone-status-bar" style="color:${statusColor};">
+        <span>9:41</span>
+        <span class="phone-status-icons">●●● 100%</span>
+      </div>
+    ` : '';
+
+    el.innerHTML = `
+      <div class="phone-inner" style="background:${phoneBg};border:4px solid ${frameColor};box-shadow:inset 0 0 0 1px ${isDark ? '#1a1a1a' : '#b8b8b8'},0 0 0 1px ${isDark ? '#333' : '#c5c5c5'},0 25px 50px rgba(0,0,0,${isDark ? '0.5' : '0.2'});">
+        <div class="phone-screen" style="background:${phoneBg};">
+          ${image ? `<img src="${image}" alt="Phone screenshot" />` : '<div class="phone-empty">No screenshot</div>'}
+          <div class="phone-notch">
+            <div class="phone-island" style="background:${notchColor};"></div>
+          </div>
+          ${statusBarHtml}
+          <div class="phone-home">
+            <div class="phone-home-bar" style="background:${homeBarColor};"></div>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
   // processedHTML now contains the headings with their newly injected IDs
   const processedHTML = doc.body.innerHTML;
 
@@ -1320,6 +1574,22 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       });
       document.addEventListener('click', () => {
         document.querySelectorAll('.annotation-marker.active').forEach(m => m.classList.remove('active'));
+      });
+
+      // --- STICKY SCROLL ---
+      document.querySelectorAll('.sticky-scroll').forEach(block => {
+        const btns = block.querySelectorAll('.sticky-scroll-step-btn');
+        const panels = block.querySelectorAll('.sticky-scroll-panel');
+        btns.forEach((btn, idx) => {
+          if (idx === 0) btn.classList.add('active');
+          btn.addEventListener('click', () => {
+            btns.forEach(b => b.classList.remove('active'));
+            panels.forEach(p => { p.classList.remove('active'); p.hidden = true; });
+            btn.classList.add('active');
+            if (panels[idx]) { panels[idx].classList.add('active'); panels[idx].hidden = false; }
+          });
+        });
+        if (panels[0]) { panels[0].classList.add('active'); panels[0].hidden = false; }
       });
 
       // --- SHARE BUTTONS ---
@@ -2194,6 +2464,106 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     .before-after-label { position: absolute; top: 0.75rem; padding: 0.25rem 0.75rem; background: rgba(0,0,0,0.5); color: white; font-size: 0.75rem; font-weight: 600; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; }
     .before-after-label-left { left: 0.75rem; }
     .before-after-label-right { right: 0.75rem; }
+
+    /* Bento Grid */
+    .bento-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 2rem 0; }
+    .bento-cell { border-radius: 1.25rem; padding: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; min-height: 130px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+    .bento-variant-default { background: #ffffff; border: 1px solid #e2e8f0; }
+    .bento-variant-accent { background: #6366f1; border: 1px solid #6366f1; box-shadow: 0 4px 20px rgba(99,102,241,0.35); }
+    .bento-variant-dark { background: #0f172a; border: 1px solid #1e293b; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+    .bento-icon { font-size: 2.25rem; line-height: 1; }
+    .bento-title { font-size: 1.125rem; font-weight: 700; margin: 0; line-height: 1.3; }
+    .bento-variant-default .bento-title { color: #0f172a; }
+    .bento-variant-accent .bento-title, .bento-variant-dark .bento-title { color: #ffffff; }
+    .bento-desc { font-size: 0.875rem; margin: 0; line-height: 1.6; }
+    .bento-variant-default .bento-desc { color: #64748b; }
+    .bento-variant-accent .bento-desc { color: #e0e7ff; }
+    .bento-variant-dark .bento-desc { color: #94a3b8; }
+    @media (max-width: 640px) { .bento-grid { grid-template-columns: 1fr !important; } .bento-cell { grid-column: span 1 !important; grid-row: span 1 !important; } }
+
+    /* Feature Spotlight */
+    .feature-spotlight { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; margin: 3rem 0; }
+    .feature-spotlight[data-layout="image-right"] { }
+    .feature-spotlight-visual { border-radius: 1.25rem; overflow: hidden; min-height: 280px; display: flex; align-items: center; justify-content: center; position: relative; }
+    .feature-spotlight-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .feature-spotlight-icon { font-size: 5rem; line-height: 1; }
+    .feature-spotlight-content { display: flex; flex-direction: column; gap: 1rem; }
+    .feature-spotlight-title { font-size: 1.75rem; font-weight: 800; color: #0f172a; margin: 0; line-height: 1.2; letter-spacing: -0.02em; }
+    .feature-spotlight-desc { font-size: 1rem; color: #475569; margin: 0; line-height: 1.7; }
+    .feature-spotlight-bullets { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.625rem; }
+    .feature-spotlight-bullets li { display: flex; align-items: flex-start; gap: 0.75rem; font-size: 0.9375rem; color: #475569; line-height: 1.5; }
+    .feature-spotlight-check { width: 1.25rem; height: 1.25rem; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 0.1rem; font-size: 0.65rem; color: #fff; }
+    .feature-spotlight-check::after { content: '✓'; }
+    @media (max-width: 768px) { .feature-spotlight { grid-template-columns: 1fr; gap: 2rem; } }
+
+    /* Sticky Scroll */
+    .sticky-scroll { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #e2e8f0; border-radius: 1.25rem; overflow: hidden; margin: 2.5rem 0; }
+    .sticky-scroll-left { padding: 2.5rem; background: #f8fafc; position: sticky; top: 2rem; align-self: start; }
+    .sticky-scroll-accent-bar { width: 2.5rem; height: 4px; border-radius: 9999px; margin-bottom: 1.25rem; }
+    .sticky-scroll-title { font-size: 1.375rem; font-weight: 700; color: #0f172a; margin: 0 0 0.625rem; }
+    .sticky-scroll-desc { font-size: 0.875rem; color: #64748b; line-height: 1.65; margin: 0 0 1.5rem; }
+    .sticky-scroll-steps { display: flex; flex-direction: column; gap: 0.375rem; }
+    .sticky-scroll-step-btn { display: flex; align-items: center; gap: 0.75rem; padding: 0.625rem 0.75rem; border-radius: 0.75rem; border: none; background: transparent; cursor: pointer; width: 100%; text-align: left; transition: background 0.2s; font-family: inherit; }
+    .sticky-scroll-step-btn.active, .sticky-scroll-step-btn[data-active="true"] { background: var(--accent); }
+    .sticky-scroll-step-num { width: 1.5rem; height: 1.5rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; flex-shrink: 0; background: rgba(0,0,0,0.08); }
+    .sticky-scroll-step-btn.active .sticky-scroll-step-num { background: rgba(255,255,255,0.25); color: #fff; }
+    .sticky-scroll-step-label { font-size: 0.875rem; font-weight: 500; color: #475569; }
+    .sticky-scroll-step-btn.active .sticky-scroll-step-label { color: #fff; }
+    .sticky-scroll-right { padding: 2.5rem; background: #fff; border-left: 1px solid #e2e8f0; }
+    .sticky-scroll-panel { display: none; }
+    .sticky-scroll-panel:first-child, .sticky-scroll-panel.active { display: block; }
+    .sticky-scroll-panel-title { font-size: 1.125rem; font-weight: 700; color: #0f172a; margin: 0 0 0.625rem; }
+    .sticky-scroll-panel-desc { font-size: 0.9rem; color: #475569; margin: 0 0 1.25rem; line-height: 1.7; }
+    .sticky-scroll-code { background: #0f172a; color: #e2e8f0; padding: 1.25rem; border-radius: 0.75rem; font-size: 0.8125rem; font-family: ui-monospace, monospace; line-height: 1.7; overflow-x: auto; margin: 0; white-space: pre; }
+    @media (max-width: 768px) { .sticky-scroll { grid-template-columns: 1fr; } .sticky-scroll-left { position: relative; top: auto; } }
+
+    /* Code Window */
+    .code-window { margin: 2rem 0; border-radius: 0.875rem; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,0.18); }
+    .code-window-titlebar { display: flex; align-items: center; padding: 0.625rem 1rem; gap: 0.5rem; }
+    .code-window-dots { display: flex; gap: 0.375rem; flex-shrink: 0; }
+    .code-window-dots span { width: 0.75rem; height: 0.75rem; border-radius: 50%; display: block; }
+    .code-window-title { flex: 1; text-align: center; font-size: 0.75rem; font-family: ui-monospace, monospace; }
+    .code-window-lang { font-size: 0.7rem; font-family: ui-monospace, monospace; opacity: 0.5; }
+    .code-window-body { margin: 0; padding: 1.5rem; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.875rem; line-height: 1.7; overflow-x: auto; white-space: pre; }
+
+    /* Changelog Timeline */
+    .changelog-timeline { position: relative; padding-left: 2.5rem; margin: 2rem 0; }
+    .changelog-timeline::before { content: ''; position: absolute; left: 0.875rem; top: 0.5rem; bottom: 0.5rem; width: 2px; background: #e2e8f0; border-radius: 9999px; }
+    .changelog-entry { position: relative; margin-bottom: 2.5rem; }
+    .changelog-entry:last-child { margin-bottom: 0; }
+    .changelog-dot { position: absolute; left: -1.875rem; top: 0.375rem; width: 1rem; height: 1rem; border-radius: 50%; background: #fff; border: 2px solid #cbd5e1; }
+    .changelog-entry-body { }
+    .changelog-entry-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.875rem; }
+    .changelog-version { display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 700; font-family: ui-monospace, monospace; background: #1e293b; color: #fff; }
+    .changelog-date { font-size: 0.875rem; color: #94a3b8; }
+    .changelog-type-group { margin-bottom: 0.875rem; }
+    .changelog-type-badge { display: inline-flex; align-items: center; padding: 0.125rem 0.5rem; border-radius: 0.3rem; font-size: 0.75rem; font-weight: 600; margin-bottom: 0.375rem; }
+    .changelog-items { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    .changelog-items li { display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.9rem; color: #334155; line-height: 1.5; padding-left: 0.125rem; }
+    .changelog-items li::before { content: ''; width: 0.375rem; height: 0.375rem; border-radius: 50%; background: var(--dot, #64748b); flex-shrink: 0; margin-top: 0.5rem; }
+
+    /* Browser Mockup */
+    .browser-mockup { border-radius: 0.875rem; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.18); margin: 2rem 0; }
+    .browser-chrome { display: flex; align-items: center; gap: 0.875rem; padding: 0.625rem 1rem; }
+    .browser-dots { display: flex; gap: 0.375rem; flex-shrink: 0; }
+    .browser-dots span { width: 0.75rem; height: 0.75rem; border-radius: 50%; display: block; }
+    .browser-urlbar { flex: 1; display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.75rem; border-radius: 0.4rem; font-size: 0.75rem; font-family: ui-monospace, monospace; overflow: hidden; }
+    .browser-urlbar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .browser-screen { line-height: 0; }
+    .browser-empty { padding: 3rem; text-align: center; color: #9ca3af; font-size: 0.875rem; line-height: normal; }
+
+    /* Phone Mockup */
+    .phone-mockup { display: flex; justify-content: center; margin: 2rem 0; }
+    .phone-inner { width: 240px; border-radius: 2.25rem; overflow: hidden; position: relative; }
+    .phone-screen { position: relative; line-height: 0; min-height: 380px; overflow: hidden; }
+    .phone-screen img { display: block; width: 100%; margin: 0; padding: 0; border-radius: 0; box-shadow: none; }
+    .phone-empty { padding: 4rem 2rem; text-align: center; color: #9ca3af; font-size: 0.875rem; line-height: normal; height: 460px; display: flex; align-items: center; justify-content: center; }
+    .phone-notch { position: absolute; top: 0.35rem; left: 0; right: 0; display: flex; justify-content: center; pointer-events: none; z-index: 1; }
+    .phone-island { width: 4.5rem; height: 1.125rem; border-radius: 9999px; }
+    .phone-status-bar { position: absolute; top: 1.625rem; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 1rem; font-size: 0.625rem; font-weight: 600; pointer-events: none; z-index: 1; }
+    .phone-status-icons { font-size: 0.6rem; opacity: 0.8; }
+    .phone-home { position: absolute; bottom: 0.25rem; left: 0; right: 0; display: flex; justify-content: center; pointer-events: none; z-index: 1; }
+    .phone-home-bar { width: 5rem; height: 0.2rem; border-radius: 9999px; }
 
     /* Share Buttons */
     #share-bar {
@@ -3111,7 +3481,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     </div>
   ` : ''}
   <div class="export-layout">
-    <div class="guide-container prose prose-slate max-w-none">
+    <div class="guide-container prose prose-slate prose-lg max-w-none">
       ${theme?.logoBase64 && !theme?.features?.stickyHeader && !theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none') ? `<div class="brand-header"><img src="${theme.logoBase64}" alt="Brand Logo" class="brand-logo" /></div>` : ''}
       ${!(theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none')) ? renderHeroCover(title, theme) : ''}
       ${processedHTML}

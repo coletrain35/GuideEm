@@ -41,8 +41,16 @@ import { CodeDiff } from '../extensions/CodeDiff';
 import { BeforeAfter } from '../extensions/BeforeAfter';
 import { Confetti } from '../extensions/Confetti';
 import { BackgroundSection } from '../extensions/BackgroundSection';
+import { BentoGrid } from '../extensions/BentoGrid';
+import { FeatureSpotlight } from '../extensions/FeatureSpotlight';
+import { StickyScroll } from '../extensions/StickyScroll';
+import { CodeWindow } from '../extensions/CodeWindow';
+import { ChangelogTimeline } from '../extensions/ChangelogTimeline';
+import { BrowserMockup } from '../extensions/BrowserMockup';
+import { PhoneMockup } from '../extensions/PhoneMockup';
 import { ScrollReveal, REVEAL_TYPES, BLOCK_TYPES } from '../extensions/ScrollReveal';
 import { InlineCode, type InlineCodeLanguage } from '../extensions/InlineCode';
+import { FontSize, type FontSizeValue } from '../extensions/FontSize';
 import { SlashCommand } from '../extensions/SlashCommand';
 import { SearchReplace } from '../extensions/SearchReplace';
 import GlobalDragHandle from 'tiptap-extension-global-drag-handle';
@@ -288,9 +296,17 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       BeforeAfter,
       Confetti,
       BackgroundSection,
+      BentoGrid,
+      FeatureSpotlight,
+      StickyScroll,
+      CodeWindow,
+      ChangelogTimeline,
+      BrowserMockup,
+      PhoneMockup,
       ScrollReveal,
       SlashCommand,
       SearchReplace,
+      FontSize,
       GlobalDragHandle.configure({ dragHandleWidth: 20, scrollTreshold: 100 }),
     ],
     content: initialContent || '',
@@ -741,6 +757,26 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
                   <option value="3">Heading 3</option>
                   <option value="4">Heading 4</option>
                 </select>
+                <div className="flex items-center gap-0.5 border border-slate-200 rounded px-0.5 py-0.5">
+                  <button
+                    onMouseDown={e => { e.preventDefault(); editor.chain().focus().setFontSize('small' as FontSizeValue).run(); }}
+                    className={`px-1.5 py-0.5 rounded leading-none font-medium hover:bg-slate-200 ${editor.isActive('fontSize', { size: 'small' }) ? 'bg-slate-200 text-blue-600' : 'text-slate-500'}`}
+                    style={{ fontSize: '10px' }}
+                    title="Small text"
+                  >A</button>
+                  <button
+                    onMouseDown={e => { e.preventDefault(); editor.chain().focus().unsetFontSize().run(); }}
+                    className="px-1.5 py-0.5 rounded leading-none font-medium hover:bg-slate-200 text-slate-500"
+                    style={{ fontSize: '13px' }}
+                    title="Normal text"
+                  >A</button>
+                  <button
+                    onMouseDown={e => { e.preventDefault(); editor.chain().focus().setFontSize('large' as FontSizeValue).run(); }}
+                    className={`px-1.5 py-0.5 rounded leading-none font-medium hover:bg-slate-200 ${editor.isActive('fontSize', { size: 'large' }) ? 'bg-slate-200 text-blue-600' : 'text-slate-500'}`}
+                    style={{ fontSize: '17px' }}
+                    title="Large text"
+                  >A</button>
+                </div>
                 <div className="w-px h-5 bg-slate-300 mx-1" />
                 <button onClick={() => editor.chain().focus().toggleBold().run()} className={`p-2 rounded hover:bg-slate-200 ${editor.isActive('bold') ? 'bg-slate-200 text-blue-600' : 'text-slate-600'}`} title="Bold"><Bold size={16} /></button>
                 <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-2 rounded hover:bg-slate-200 ${editor.isActive('italic') ? 'bg-slate-200 text-blue-600' : 'text-slate-600'}`} title="Italic"><Italic size={16} /></button>
