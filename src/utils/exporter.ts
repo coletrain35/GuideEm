@@ -165,7 +165,7 @@ function renderHeroCover(title: string, theme?: ThemeConfig): string {
     }
     // Plain cover — matches DocumentCover 'none' style in the editor
     return `
-    <div style="border-left: 4px solid ${primaryColor}; padding-left: 1.25rem; margin-bottom: 2.5rem;">
+    <div class="hero-plain" style="border-left: 4px solid ${primaryColor}; padding-left: 1.25rem; margin-bottom: 2.5rem;">
       <h1 style="font-size: 3rem; font-weight: 900; letter-spacing: -0.04em; color: #0f172a; margin: 0; line-height: 1.1; font-family: inherit;">${escapedTitle}</h1>
     </div>`;
   }
@@ -3243,6 +3243,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       .share-btn:hover { background: rgba(30, 41, 59, 1); color: var(--brand-primary); }
       .confetti-block { background: linear-gradient(to bottom, #1e293b, #0f172a); border-color: #334155; }
       .confetti-message { color: #f1f5f9; }
+      .hero-plain h1 { color: #f8fafc !important; }
       body::before { opacity: 0.1; }
     }
 
@@ -3320,6 +3321,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     html.dark .share-btn:hover { background: rgba(30, 41, 59, 1); color: var(--brand-primary); }
     html.dark .confetti-block { background: linear-gradient(to bottom, #1e293b, #0f172a); border-color: #334155; }
     html.dark .confetti-message { color: #f1f5f9; }
+    html.dark .hero-plain h1 { color: #f8fafc !important; }
     html.dark .site-footer { background-color: #0f172a; border-top-color: #1e293b; }
     html.dark .site-footer-links a { color: #94a3b8; }
     html.dark .site-footer-text { color: #94a3b8; }
