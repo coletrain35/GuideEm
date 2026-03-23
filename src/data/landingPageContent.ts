@@ -384,5 +384,103 @@ $ npm run export -- --output ./dist/guide.html
 
 </div>
 
+<div data-type="section-divider" data-style="gradient" class="section-divider"></div>
+
+<h2>22. Portfolio: Project Cards & Gallery</h2>
+<p>Showcase any kind of work — software projects, design case studies, photo series, research papers, or client campaigns. Drop a single <strong>Project Card</strong> anywhere in your document, or group them into a <strong>Project Gallery</strong> for a responsive 2 or 3-column grid. Each card supports a thumbnail, title, description, freeform tags, and optional live demo and repo links — tags work equally well for tech stacks, disciplines, or categories.</p>
+
+<div data-type="project-gallery" data-cols="3" data-cards='[{"thumbnail":"","title":"Coastal Brand Identity","description":"Complete visual identity for a boutique seafood restaurant — logo, color palette, menu design, and signage system. Delivered in 6 weeks from brief to final handoff.","tags":["Branding","Print","Typography","Figma"],"liveUrl":"#","repoUrl":"","accentColor":"#0ea5e9"},{"thumbnail":"","title":"Urban Geometry — Photo Series","description":"A 40-image series documenting architectural patterns in five cities. Featured in Aperture Magazine and exhibited at the 2024 London Photo Festival.","tags":["Photography","Exhibition","2024","Architecture"],"liveUrl":"#","repoUrl":"","accentColor":"#f97316"},{"thumbnail":"","title":"GuideEm","description":"A local-first documentation editor that exports standalone HTML files with zero external dependencies. Everything runs in the browser — no server, no account required.","tags":["Open Source","Web App","Local-First"],"liveUrl":"#","repoUrl":"https://github.com/coletrain35/GuideEm","accentColor":"#6366f1"}]'></div>
+
+<div data-type="section-divider" data-style="gradient" class="section-divider"></div>
+
+<h2>23. About Me / Bio Block</h2>
+<p>A clean split layout for personal introductions — avatar, name, role, and bio paragraph side by side. Drop it at the top of a portfolio, an author page, or any document where context about who wrote it matters. Toggle the avatar to the left or right, upload a photo or paste a URL, and pick an accent color. The avatar is always circular.</p>
+
+<div data-type="about-me" data-name="Alex Rivera" data-role="Senior Product Designer · San Francisco" data-bio="I design systems and interfaces at the intersection of clarity and delight. Previously at Stripe and Figma — now building tools that help teams communicate complex ideas without friction. Open to interesting collaborations." data-accent-color="#6366f1" data-layout="left" data-avatar="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=facearea&facepad=3&w=256&h=256&q=80"></div>
+
+<div data-type="about-me" data-name="Maya Okonkwo" data-role="Staff Engineer · Open Source Maintainer" data-bio="I build developer tooling and write about distributed systems. Author of three popular open-source libraries with over 40k GitHub stars combined. I care about documentation as much as the code it describes." data-accent-color="#10b981" data-layout="right" data-avatar="https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=facearea&facepad=3&w=256&h=256&q=80"></div>
+
+<div data-type="section-divider" data-style="gradient" class="section-divider"></div>
+
+<h2>24. Portfolio Hero Block</h2>
+<p>A full-width personal branding block — name, tagline, optional status badge, and two CTA buttons over a fully customizable gradient. Drop it at the top of any portfolio page for an immediate first impression. Both gradient stops, alignment (left or centered), and all text fields are editable inline.</p>
+
+<div data-type="portfolio-hero" data-name="Jordan Reeves" data-tagline="I design and build digital products that feel inevitable — fast, accessible, and honest to the medium." data-badge-text="Available for new projects" data-cta-text="View My Work" data-cta-url="#" data-cta-secondary-text="Get in Touch" data-cta-secondary-url="mailto:hello@jordanreeves.design" data-gradient-from="#6366f1" data-gradient-to="#ec4899" data-alignment="center"></div>
+
+<div data-type="portfolio-hero" data-name="Priya Nair" data-tagline="Senior full-stack engineer. I build distributed systems, developer tools, and the occasional side project that unexpectedly goes viral." data-badge-text="Open to work" data-cta-text="See Projects" data-cta-url="#" data-cta-secondary-text="Download CV" data-cta-secondary-url="#" data-gradient-from="#0f172a" data-gradient-to="#1e3a5f" data-alignment="left"></div>
+
+<div data-type="section-divider" data-style="dots" class="section-divider"></div>
+
+<h2>25. Tech Stack Grid</h2>
+<p>A compact icon grid for listing languages, frameworks, and tools — with no external icon library required. Each tile holds an emoji (or any Unicode character) as the icon and a label below it. Configure the number of columns from 3 to 6, choose an accent color for the tile borders and background tint, and add or remove entries freely. The grid is fully responsive in the exported file.</p>
+
+<div data-type="tech-stack" data-cols="6" data-accent-color="#6366f1" data-items='[{"icon":"⚛️","label":"React"},{"icon":"🟦","label":"TypeScript"},{"icon":"🐍","label":"Python"},{"icon":"🦀","label":"Rust"},{"icon":"🐘","label":"PostgreSQL"},{"icon":"🟩","label":"Node.js"},{"icon":"🐳","label":"Docker"},{"icon":"☁️","label":"AWS"},{"icon":"🎨","label":"Figma"},{"icon":"🔷","label":"GraphQL"},{"icon":"⚡","label":"Vite"},{"icon":"🧪","label":"Vitest"}]'></div>
+
+<div data-type="tech-stack" data-cols="5" data-accent-color="#10b981" data-items='[{"icon":"📐","label":"Sketch"},{"icon":"🎯","label":"Framer"},{"icon":"💅","label":"CSS / SCSS"},{"icon":"🏗️","label":"Storybook"},{"icon":"🌀","label":"Tailwind"},{"icon":"📦","label":"Webpack"},{"icon":"🔒","label":"Auth0"},{"icon":"📊","label":"Grafana"},{"icon":"🚀","label":"Vercel"},{"icon":"🐙","label":"GitHub"}]'></div>
+
+<div data-type="section-divider" data-style="dots" class="section-divider"></div>
+
+<h2>26. Social Links Bar</h2>
+<p>A configurable row of icon links — GitHub, LinkedIn, Twitter/X, Dribbble, email, and more. Three display styles: <strong>icons</strong> (minimal circles), <strong>pills</strong> (icon + label on a tinted background), or <strong>buttons</strong> (outlined with a border). Alignment is independently configurable. All links render as real anchor tags with <code>target="_blank"</code> in the exported file.</p>
+
+<p>Icons style:</p>
+<div data-type="social-links" data-style="icons" data-alignment="center" data-links='[{"platform":"GitHub","url":"https://github.com","label":"GitHub"},{"platform":"LinkedIn","url":"https://linkedin.com","label":"LinkedIn"},{"platform":"Twitter/X","url":"https://x.com","label":"Twitter"},{"platform":"Dribbble","url":"https://dribbble.com","label":"Dribbble"},{"platform":"Email","url":"mailto:hello@example.com","label":"Email"},{"platform":"Website","url":"https://example.com","label":"Website"}]'></div>
+
+<p>Pills style (centered):</p>
+<div data-type="social-links" data-style="pills" data-alignment="center" data-links='[{"platform":"GitHub","url":"https://github.com","label":"GitHub"},{"platform":"LinkedIn","url":"https://linkedin.com","label":"LinkedIn"},{"platform":"Dribbble","url":"https://dribbble.com","label":"Dribbble"},{"platform":"Email","url":"mailto:hello@example.com","label":"Email"}]'></div>
+
+<p>Buttons style (left-aligned):</p>
+<div data-type="social-links" data-style="buttons" data-alignment="left" data-links='[{"platform":"GitHub","url":"https://github.com","label":"View Source"},{"platform":"LinkedIn","url":"https://linkedin.com","label":"Connect"},{"platform":"Twitter/X","url":"https://x.com","label":"Follow"},{"platform":"YouTube","url":"https://youtube.com","label":"Subscribe"}]'></div>
+
+<div data-type="section-divider" data-style="gradient" class="section-divider"></div>
+
+<h2>27. Workflow Cards</h2>
+<p>Turn any multi-step process into a polished vertical flow. Workflow blocks support seven accent colors, ten card background presets — including gradients and animated effects — and per-step background overrides. Each step has an icon picker, a rich-text body, and an optional image. All of it exports as a single self-contained HTML block.</p>
+
+<h3>Emerald · Frost gradient background</h3>
+
+<div data-type="workflow" data-accent-color="emerald" data-card-bg="frost">
+  <div data-type="workflow-step" data-title="Write in the Block Editor" data-icon="edit">
+    <p>Use the slash menu to insert any block — callouts, code, tables, grids, timelines, and more. The editor is distraction-free and fully keyboard-navigable.</p>
+  </div>
+  <div data-type="workflow-step" data-title="Style Your Workflow" data-icon="settings">
+    <p>Pick an accent color and card background from the hover toolbar. Override individual step backgrounds independently — mix light and dark cards in the same flow.</p>
+  </div>
+  <div data-type="workflow-step" data-title="Export to HTML" data-icon="download">
+    <p>Click Export. GuideEm bundles your content, images, styles, and all interactive JavaScript into one <code>.html</code> file. No build step, no server.</p>
+  </div>
+  <div data-type="workflow-step" data-title="Share Anywhere" data-icon="send">
+    <p>Email the file, drop it in Slack, or host it on any static server. Readers get a fully interactive document — no apps to install, no account required.</p>
+  </div>
+</div>
+
+<h3>Violet · Dark card background</h3>
+
+<div data-type="workflow" data-accent-color="violet" data-card-bg="charcoal">
+  <div data-type="workflow-step" data-title="Authenticate" data-icon="lock">
+    <p>Generate an API token from your dashboard. All requests must include the <code>Authorization: Bearer &lt;token&gt;</code> header. Tokens expire after 90 days and can be rotated at any time.</p>
+  </div>
+  <div data-type="workflow-step" data-title="Fetch Your Data" data-icon="database">
+    <p>Call the <code>/v2/documents</code> endpoint with your workspace ID. The response is paginated — pass <code>?cursor=</code> from the previous page to continue.</p>
+  </div>
+  <div data-type="workflow-step" data-title="Transform &amp; Publish" data-icon="zap">
+    <p>Apply your business logic, then POST the result to <code>/v2/publish</code>. The engine validates the payload, generates the standalone HTML, and returns a signed download URL valid for 24 hours.</p>
+  </div>
+</div>
+
+<h3>Rose · Per-step background overrides</h3>
+
+<div data-type="workflow" data-accent-color="rose" data-card-bg="white">
+  <div data-type="workflow-step" data-title="Plan" data-icon="target" data-card-bg-override="frost">
+    <p>Define scope, success criteria, and stakeholders before writing a single line. A documented plan cuts revision cycles in half.</p>
+  </div>
+  <div data-type="workflow-step" data-title="Build" data-icon="code" data-card-bg-override="mint">
+    <p>Develop against the spec. Use the Workflow block to keep implementation steps visible to the whole team — not buried in a Notion page no one opens.</p>
+  </div>
+  <div data-type="workflow-step" data-title="Ship" data-icon="rocket" data-card-bg-override="dusk">
+    <p>Export your release notes as a standalone HTML file. Attach it to the Jira ticket, the Slack announcement, and the customer email — one file, everywhere.</p>
+  </div>
+</div>
+
 <div data-type="confetti" data-message="You made it to the end!" data-emoji="🎉" data-colors='["#6366f1","#ec4899","#f59e0b","#10b981","#3b82f6"]'></div>
 `;

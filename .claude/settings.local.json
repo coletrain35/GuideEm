@@ -6,7 +6,10 @@
       "Bash(grep:*)",
       "Bash(npm install:*)",
       "Bash(npm ls:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(npx tailwindcss:*)",
+      "Bash(npx vite:*)",
+      "Bash(cat dist/assets/*.css)"
     ]
   }
 }

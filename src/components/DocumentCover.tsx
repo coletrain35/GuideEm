@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { ThemeConfig } from '../utils/storage';
 
 interface DocumentCoverProps {
@@ -43,15 +43,17 @@ export function DocumentCover({ title, onTitleChange, theme, onThemeChange }: Do
   const subtitleValueRef = useRef(subtitle);
   subtitleValueRef.current = subtitle;
 
-  // Ref callback: fires on every mount (including style switches that replace the DOM node)
-  const titleRefCallback = (node: HTMLDivElement | null) => {
+  // Ref callback: memoized so React only calls it on mount/unmount, not every render.
+  // Inline functions cause React to re-invoke the callback on every render, which
+  // calls node.textContent = ... and resets the cursor to the beginning.
+  const titleRefCallback = useCallback((node: HTMLDivElement | null) => {
     titleRef.current = node;
     if (node) node.textContent = titleValueRef.current;
-  };
-  const subtitleRefCallback = (node: HTMLDivElement | null) => {
+  }, []);
+  const subtitleRefCallback = useCallback((node: HTMLDivElement | null) => {
     subtitleRef.current = node;
     if (node) node.textContent = subtitleValueRef.current;
-  };
+  }, []);
 
   // Keep contenteditable in sync when the doc itself switches (external title change)
   useEffect(() => {
@@ -107,8 +109,8 @@ export function DocumentCover({ title, onTitleChange, theme, onThemeChange }: Do
   };
 
   // Style picker toolbar — hidden until parent is hovered
-  const stylePicker = (
-    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/75 backdrop-blur-sm px-2.5 py-1.5 rounded-full z-20 whitespace-nowrap pointer-events-auto">
+  const makeStylePicker = (position: 'bottom' | 'below') => (
+    <div className={`absolute left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/75 backdrop-blur-sm px-2.5 py-1.5 rounded-full z-20 whitespace-nowrap pointer-events-auto ${position === 'below' ? 'top-full mt-2' : 'bottom-3'}`}>
       {COVER_STYLES.map(({ key, label }) => (
         <button
           key={key}
@@ -124,6 +126,7 @@ export function DocumentCover({ title, onTitleChange, theme, onThemeChange }: Do
       ))}
     </div>
   );
+  const stylePicker = makeStylePicker('bottom');
 
   const titleEl = (className: string, style?: React.CSSProperties) => (
     <div
@@ -159,7 +162,7 @@ export function DocumentCover({ title, onTitleChange, theme, onThemeChange }: Do
         style={{ borderLeft: `4px solid ${primaryColor}`, paddingLeft: '1.25rem' }}
       >
         {titleEl('text-4xl sm:text-5xl font-black tracking-tighter text-slate-900 outline-none')}
-        {stylePicker}
+        {makeStylePicker('below')}
       </div>
     );
   }
