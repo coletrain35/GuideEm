@@ -8,6 +8,7 @@ import { TemplatePickerModal } from './components/TemplatePickerModal';
 import { loadDocuments, saveDocument, deleteDocument, Document, ThemeConfig } from './utils/storage';
 import { generateHTML } from './utils/exporter';
 import { tiptapJsonToMarkdown } from './utils/markdownExporter';
+import { exportToPDF } from './utils/pdfExporter';
 import { LandingPage } from './components/LandingPage';
 import { markdownToHtml } from './utils/markdownImporter';
 import type { TemplateDefinition } from './data/templates';
@@ -255,6 +256,17 @@ export default function App() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  const handlePDFExport = async (userFileName: string) => {
+    if (!currentDoc) return;
+    const safeFileName = userFileName.replace(/[/\\:*?"<>|]/g, '').trim() || 'Untitled Guide';
+    await exportToPDF(
+      currentDoc.title,
+      currentDoc.htmlContent,
+      currentDoc.theme || DEFAULT_THEME,
+      safeFileName
+    );
   };
 
   const handleTagsChange = useCallback((id: string, tags: string[]) => {
@@ -670,6 +682,7 @@ export default function App() {
           onClose={() => setIsExportModalOpen(false)}
           onExport={handleExportDownload}
           onExportMarkdown={handleMarkdownExport}
+          onExportPDF={handlePDFExport}
           theme={currentDoc.theme || DEFAULT_THEME}
           setTheme={handleThemeChange}
           documentTitle={currentDoc.title}

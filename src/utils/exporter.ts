@@ -418,9 +418,10 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       const cardBgOverrideId = step.getAttribute('data-card-bg-override') || null;
 
       // Resolve card background: step override or workflow default
-      const resolvedBg = cardBgOverrideId && WORKFLOW_CARD_BG[cardBgOverrideId]
-        ? WORKFLOW_CARD_BG[cardBgOverrideId]
-        : defaultCardBg;
+      const resolvedBgId = (cardBgOverrideId && WORKFLOW_CARD_BG[cardBgOverrideId])
+        ? cardBgOverrideId
+        : workflowCardBgId;
+      const resolvedBg = WORKFLOW_CARD_BG[resolvedBgId] || WORKFLOW_CARD_BG['white'];
 
       const isDark = resolvedBg.dark;
       const cardBgStyle = [
@@ -463,7 +464,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       step.removeAttribute('data-image');
       step.removeAttribute('data-card-bg-override');
       step.innerHTML = `
-        <div class="workflow-card${animClass}" style="border-left-color:${accent[500]};${cardBgStyle}"${darkAttr}>
+        <div class="workflow-card${animClass}" style="border-left-color:${accent[500]};${cardBgStyle}" data-bg-preset="${resolvedBgId}"${darkAttr}>
           <div class="workflow-step-header">
             <div class="workflow-step-icon" style="background:linear-gradient(to bottom right,${accent[50]},${accent[100]});color:${accent[600]}">${iconSvg}</div>
             <span class="workflow-step-badge" style="background-color:${accent[50]};color:${accent[600]}">STEP ${stepIndex}</span>
@@ -1175,6 +1176,262 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     `;
   });
 
+  // Transform Marquee blocks
+  doc.querySelectorAll('div[data-type="marquee"]').forEach((el) => {
+    let items: any[] = [];
+    try { items = JSON.parse(el.getAttribute('data-items') || '[]'); } catch { /* empty */ }
+    const speed = el.getAttribute('data-speed') || 'medium';
+    const direction = el.getAttribute('data-direction') || 'left';
+    const separator = el.getAttribute('data-separator') || 'star';
+    const accentColor = el.getAttribute('data-accent-color') || '#6366f1';
+    const dur = speed === 'slow' ? 60 : speed === 'fast' ? 18 : 35;
+    const animDir = direction === 'right' ? 'reverse' : 'normal';
+    const sepChar = separator === 'dot' ? '●' : separator === 'star' ? '✦' : separator === 'dash' ? '—' : '';
+
+    el.className = 'marquee-block';
+    el.removeAttribute('data-type');
+    ['data-items','data-speed','data-direction','data-separator','data-accent-color'].forEach(a => el.removeAttribute(a));
+
+    const doubled = [...items, ...items];
+    el.innerHTML = `
+      <div class="marquee-track-outer">
+        <div class="marquee-fade-left"></div>
+        <div class="marquee-fade-right"></div>
+        <div class="marquee-track" style="animation-duration:${dur}s;animation-direction:${animDir};">
+          ${doubled.map((item: any) => `
+            <span class="marquee-item" style="border-color:${accentColor}33;background:${accentColor}0d;">
+              ${item.emoji ? `<span>${item.emoji}</span>` : ''}
+              <span>${escapeHtml(item.text || '')}</span>
+              ${sepChar ? `<span class="marquee-sep" style="color:${accentColor};">${sepChar}</span>` : ''}
+            </span>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  });
+
+  // Transform Glow Cards blocks
+  doc.querySelectorAll('div[data-type="glow-cards"]').forEach((el) => {
+    let cards: any[] = [];
+    try { cards = JSON.parse(el.getAttribute('data-cards') || '[]'); } catch { /* empty */ }
+    const cols = parseInt(el.getAttribute('data-cols') || '3');
+    const cardBg = el.getAttribute('data-card-bg') || 'white';
+    const textColor = el.getAttribute('data-text-color') || 'light';
+
+    const bgColor = cardBg === 'dark' ? '#0f172a' : cardBg === 'glass' ? 'rgba(255,255,255,0.7)' : '#ffffff';
+    const border = cardBg === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)';
+    const titleClr = textColor === 'dark' ? '#f1f5f9' : '#0f172a';
+    const descClr = textColor === 'dark' ? '#94a3b8' : '#64748b';
+
+    el.className = 'glow-cards-grid';
+    el.setAttribute('style', `display:grid;grid-template-columns:repeat(${cols},1fr);gap:1.25rem;`);
+    el.removeAttribute('data-type');
+    ['data-cards','data-cols','data-card-bg','data-text-color'].forEach(a => el.removeAttribute(a));
+
+    el.innerHTML = cards.map((card: any) => `
+      <div class="glow-card" style="background:${bgColor};border:${border};border-radius:1rem;padding:1.5rem;position:relative;overflow:hidden;transition:transform 0.2s,box-shadow 0.3s;"
+        onmouseenter="this.querySelector('.glow-overlay').style.opacity='1';this.style.transform='translateY(-2px)';"
+        onmouseleave="this.querySelector('.glow-overlay').style.opacity='0';this.style.transform='';"
+        onmousemove="var r=this.getBoundingClientRect();this.querySelector('.glow-overlay').style.background='radial-gradient(300px circle at '+(event.clientX-r.left)+'px '+(event.clientY-r.top)+'px,${card.glowColor}22,transparent 70%)';">
+        <div class="glow-overlay" style="position:absolute;inset:0;opacity:0;transition:opacity 0.3s;pointer-events:none;border-radius:1rem;"></div>
+        <div style="font-size:2rem;margin-bottom:0.75rem;">${card.emoji || ''}</div>
+        <h3 style="font-weight:600;font-size:1rem;margin:0 0 0.5rem;color:${titleClr};">${escapeHtml(card.title || '')}</h3>
+        <p style="font-size:0.875rem;line-height:1.6;margin:0;color:${descClr};">${escapeHtml(card.description || '')}</p>
+      </div>
+    `).join('');
+  });
+
+  // Transform Gradient Border blocks
+  doc.querySelectorAll('div[data-type="gradient-border"]').forEach((el) => {
+    const title = el.getAttribute('data-title') || '';
+    const description = el.getAttribute('data-description') || '';
+    const preset = parseInt(el.getAttribute('data-preset') || '0');
+    const borderWidth = el.getAttribute('data-border-width') || '2';
+    const animSpeed = el.getAttribute('data-anim-speed') || 'medium';
+    const borderRadius = el.getAttribute('data-border-radius') || 'md';
+
+    const PRESETS = [
+      ['#6366f1','#8b5cf6','#ec4899'],
+      ['#f59e0b','#ef4444','#ec4899'],
+      ['#06b6d4','#3b82f6','#6366f1'],
+      ['#10b981','#06b6d4','#3b82f6'],
+      ['#fbbf24','#f59e0b','#d97706'],
+      ['#64748b','#94a3b8','#cbd5e1'],
+    ];
+    const colors = PRESETS[preset] ?? PRESETS[0];
+    const dur = animSpeed === 'fast' ? 2 : animSpeed === 'slow' ? 6 : 3.5;
+    const br = borderRadius === 'sm' ? '12px' : borderRadius === 'lg' ? '24px' : '16px';
+    const bw = parseInt(borderWidth) || 2;
+
+    el.className = 'gradient-border-block';
+    el.removeAttribute('data-type');
+    ['data-title','data-description','data-preset','data-border-width','data-anim-speed','data-border-radius'].forEach(a => el.removeAttribute(a));
+
+    el.innerHTML = `
+      <div style="background:linear-gradient(135deg,${colors.join(',')});background-size:200% 200%;animation:gradient-shift ${dur}s ease infinite;border-radius:${br};padding:${bw}px;">
+        <div style="border-radius:calc(${br} - ${bw}px);background:#fff;padding:2rem 2.5rem;text-align:center;">
+          ${title ? `<p style="font-size:1.5rem;font-weight:700;color:#1e293b;margin:0 0 0.5rem;">${escapeHtml(title)}</p>` : ''}
+          ${description ? `<p style="color:#64748b;margin:0;">${escapeHtml(description)}</p>` : ''}
+        </div>
+      </div>
+    `;
+  });
+
+  // Transform Hover Reveal blocks
+  doc.querySelectorAll('div[data-type="hover-reveal"]').forEach((el) => {
+    let cards: any[] = [];
+    try { cards = JSON.parse(el.getAttribute('data-cards') || '[]'); } catch { /* empty */ }
+    const cols = parseInt(el.getAttribute('data-cols') || '3');
+    const revealStyle = el.getAttribute('data-reveal-style') || 'flip';
+
+    el.className = 'hover-reveal-grid';
+    el.setAttribute('style', `display:grid;grid-template-columns:repeat(${cols},1fr);gap:1.25rem;`);
+    el.removeAttribute('data-type');
+    ['data-cards','data-cols','data-reveal-style'].forEach(a => el.removeAttribute(a));
+
+    el.innerHTML = cards.map((card: any) => {
+      if (revealStyle === 'flip') {
+        return `
+          <div class="hr-card" style="height:192px;border-radius:1rem;overflow:hidden;perspective:800px;cursor:pointer;"
+            onmouseenter="this.querySelector('.hr-inner').style.transform='rotateY(180deg)';"
+            onmouseleave="this.querySelector('.hr-inner').style.transform='';">
+            <div class="hr-inner" style="width:100%;height:100%;transition:transform 0.5s;transform-style:preserve-3d;position:relative;">
+              <div style="position:absolute;inset:0;backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:1rem;background:${card.accentColor}12;border:1px solid ${card.accentColor}30;">
+                <span style="font-size:2.5rem;margin-bottom:0.75rem;">${card.emoji || ''}</span>
+                <span style="font-weight:600;font-size:1.1rem;color:#1e293b;">${escapeHtml(card.frontTitle || '')}</span>
+              </div>
+              <div style="position:absolute;inset:0;backface-visibility:hidden;transform:rotateY(180deg);display:flex;align-items:center;justify-content:center;border-radius:1rem;background:${card.accentColor};padding:1.5rem;text-align:center;">
+                <p style="color:#fff;font-size:0.875rem;line-height:1.6;margin:0;">${escapeHtml(card.backDescription || '')}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      return `
+        <div class="hr-card" style="height:192px;border-radius:1rem;overflow:hidden;position:relative;cursor:pointer;"
+          onmouseenter="this.querySelector('.hr-front').style.opacity='0';this.querySelector('.hr-front').style.transform='translateY(-100%)';this.querySelector('.hr-back').style.opacity='1';this.querySelector('.hr-back').style.transform='translateY(0)';"
+          onmouseleave="this.querySelector('.hr-front').style.opacity='1';this.querySelector('.hr-front').style.transform='';this.querySelector('.hr-back').style.opacity='0';this.querySelector('.hr-back').style.transform='translateY(100%)';">
+          <div class="hr-front" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:1rem;background:${card.accentColor}12;border:1px solid ${card.accentColor}30;transition:all 0.3s;">
+            <span style="font-size:2.5rem;margin-bottom:0.75rem;">${card.emoji || ''}</span>
+            <span style="font-weight:600;font-size:1.1rem;color:#1e293b;">${escapeHtml(card.frontTitle || '')}</span>
+          </div>
+          <div class="hr-back" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:1rem;background:${card.accentColor};padding:1.5rem;text-align:center;opacity:0;transform:translateY(100%);transition:all 0.3s;">
+            <p style="color:#fff;font-size:0.875rem;line-height:1.6;margin:0;">${escapeHtml(card.backDescription || '')}</p>
+          </div>
+        </div>
+      `;
+    }).join('');
+  });
+
+  // Transform Announcement Pill blocks
+  doc.querySelectorAll('div[data-type="announcement-pill"]').forEach((el) => {
+    const label = el.getAttribute('data-label') || 'New';
+    const message = el.getAttribute('data-message') || '';
+    const url = el.getAttribute('data-url') || '';
+    const variant = el.getAttribute('data-variant') || 'indigo';
+    const shimmer = el.getAttribute('data-shimmer') !== 'false';
+    const align = el.getAttribute('data-align') || 'center';
+
+    const VARIANTS: Record<string, { pill: string; pillBorder: string; pillText: string; badge: string; badgeText: string }> = {
+      indigo: { pill: '#eef2ff', pillBorder: '#c7d2fe', pillText: '#4338ca', badge: '#6366f1', badgeText: '#fff' },
+      rose:   { pill: '#fff1f2', pillBorder: '#fecdd3', pillText: '#be123c', badge: '#f43f5e', badgeText: '#fff' },
+      emerald:{ pill: '#ecfdf5', pillBorder: '#a7f3d0', pillText: '#065f46', badge: '#10b981', badgeText: '#fff' },
+      amber:  { pill: '#fffbeb', pillBorder: '#fde68a', pillText: '#92400e', badge: '#f59e0b', badgeText: '#fff' },
+      slate:  { pill: '#f8fafc', pillBorder: '#e2e8f0', pillText: '#334155', badge: '#475569', badgeText: '#fff' },
+      dark:   { pill: '#0f172a', pillBorder: '#1e293b', pillText: '#e2e8f0', badge: '#6366f1', badgeText: '#fff' },
+    };
+    const c = VARIANTS[variant] ?? VARIANTS.indigo;
+    const justifyStyle = align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center';
+
+    el.className = 'announcement-pill-wrapper';
+    el.removeAttribute('data-type');
+    ['data-label','data-message','data-url','data-variant','data-shimmer','data-align'].forEach(a => el.removeAttribute(a));
+
+    const pillInner = `
+      <span style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;border-radius:9999px;background:${c.pill};border:1px solid ${c.pillBorder};color:${c.pillText};font-size:0.875rem;font-weight:500;position:relative;overflow:hidden;">
+        <span style="display:inline-flex;align-items:center;padding:0.125rem 0.5rem;border-radius:9999px;background:${c.badge};color:${c.badgeText};font-size:0.75rem;font-weight:600;">${escapeHtml(label)}</span>
+        <span>${escapeHtml(message)}</span>
+        ${url ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.6;"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>` : ''}
+        ${shimmer ? `<span style="position:absolute;inset:0;background:linear-gradient(110deg,transparent 20%,rgba(255,255,255,0.4) 50%,transparent 80%);background-size:200% 100%;animation:shimmer-sweep 2.5s ease-in-out infinite;pointer-events:none;"></span>` : ''}
+      </span>
+    `;
+
+    el.innerHTML = `<div style="display:flex;justify-content:${justifyStyle};">${url ? `<a href="${url}" style="text-decoration:none;">${pillInner}</a>` : pillInner}</div>`;
+  });
+
+  // Transform Gradient Blobs blocks
+  doc.querySelectorAll('div[data-type="gradient-blobs"]').forEach((el) => {
+    const preset = parseInt(el.getAttribute('data-preset') || '0');
+    const title = el.getAttribute('data-title') || '';
+    const subtitle = el.getAttribute('data-subtitle') || '';
+    const height = el.getAttribute('data-height') || 'md';
+    const animate = el.getAttribute('data-animate') !== 'false';
+
+    const PRESETS = [
+      { bg: '#0f0f1a', blobs: [{ color: '#6366f1', size: 60, x: 10, y: 5, opacity: 0.5 }, { color: '#ec4899', size: 55, x: 55, y: 15, opacity: 0.45 }, { color: '#8b5cf6', size: 45, x: 30, y: 50, opacity: 0.4 }] },
+      { bg: '#0c1a2e', blobs: [{ color: '#06b6d4', size: 65, x: 5, y: 10, opacity: 0.5 }, { color: '#3b82f6', size: 55, x: 50, y: 5, opacity: 0.45 }, { color: '#6366f1', size: 50, x: 25, y: 55, opacity: 0.4 }] },
+      { bg: '#1a0a0a', blobs: [{ color: '#f59e0b', size: 55, x: 10, y: 20, opacity: 0.45 }, { color: '#ef4444', size: 60, x: 55, y: 5, opacity: 0.5 }, { color: '#ec4899', size: 45, x: 35, y: 55, opacity: 0.4 }] },
+      { bg: '#0a1a0f', blobs: [{ color: '#10b981', size: 60, x: 5, y: 5, opacity: 0.45 }, { color: '#06b6d4', size: 50, x: 55, y: 20, opacity: 0.4 }, { color: '#3b82f6', size: 55, x: 25, y: 50, opacity: 0.35 }] },
+      { bg: '#f8fafc', blobs: [{ color: '#6366f1', size: 50, x: 5, y: 5, opacity: 0.2 }, { color: '#ec4899', size: 45, x: 60, y: 15, opacity: 0.18 }, { color: '#8b5cf6', size: 40, x: 30, y: 55, opacity: 0.15 }] },
+    ];
+    const p = PRESETS[preset] ?? PRESETS[0];
+    const isDark = p.bg.startsWith('#0') || p.bg.startsWith('#1');
+    const minH = height === 'sm' ? '200px' : height === 'lg' ? '400px' : '300px';
+
+    el.className = 'gradient-blobs-block';
+    el.removeAttribute('data-type');
+    ['data-preset','data-title','data-subtitle','data-height','data-animate'].forEach(a => el.removeAttribute(a));
+
+    const blobsHtml = p.blobs.map((blob: any, i: number) => `
+      <div style="position:absolute;width:${blob.size}%;padding-top:${blob.size}%;left:${blob.x}%;top:${blob.y}%;transform:translate(-50%,-50%);border-radius:50%;background:${blob.color};opacity:${blob.opacity};filter:blur(80px);pointer-events:none;${animate ? `animation:blob-drift-${i % 3} ${8 + i * 2}s ease-in-out infinite;` : ''}"></div>
+    `).join('');
+
+    el.innerHTML = `
+      <div style="position:relative;border-radius:1rem;overflow:hidden;min-height:${minH};background:${p.bg};display:flex;align-items:center;justify-content:center;text-align:center;">
+        ${blobsHtml}
+        <div style="position:relative;z-index:1;padding:3rem 2rem;">
+          ${title ? `<p style="font-size:1.5rem;font-weight:700;margin:0 0 0.5rem;color:${isDark ? '#f1f5f9' : '#0f172a'};">${escapeHtml(title)}</p>` : ''}
+          ${subtitle ? `<p style="font-size:1rem;opacity:0.7;margin:0;color:${isDark ? '#cbd5e1' : '#475569'};">${escapeHtml(subtitle)}</p>` : ''}
+        </div>
+      </div>
+    `;
+  });
+
+  // Transform Noise Overlay blocks
+  doc.querySelectorAll('div[data-type="noise-overlay"]').forEach((el) => {
+    const bgPreset = parseInt(el.getAttribute('data-bg-preset') || '0');
+    const noiseOpacity = parseFloat(el.getAttribute('data-noise-opacity') || '0.15');
+    const noiseDensity = parseInt(el.getAttribute('data-noise-density') || '50');
+    const title = el.getAttribute('data-title') || '';
+    const subtitle = el.getAttribute('data-subtitle') || '';
+    const height = el.getAttribute('data-height') || 'md';
+
+    const BG_PRESETS = [
+      { value: '#ffffff', dark: false }, { value: '#f8fafc', dark: false }, { value: '#fefce8', dark: false },
+      { value: '#0f172a', dark: true }, { value: '#1c1c1e', dark: true }, { value: '#1e1b4b', dark: true },
+    ];
+    const bg = BG_PRESETS[bgPreset] ?? BG_PRESETS[0];
+    const minH = height === 'sm' ? '180px' : height === 'lg' ? '380px' : '280px';
+    const freq = 0.4 + (noiseDensity / 100) * 0.6;
+    const noiseSvg = `<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='${freq}' numOctaves='4' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='200' height='200' filter='url(#n)' opacity='${noiseOpacity}'/></svg>`;
+
+    el.className = 'noise-overlay-block';
+    el.removeAttribute('data-type');
+    ['data-bg-preset','data-noise-opacity','data-noise-density','data-title','data-subtitle','data-height'].forEach(a => el.removeAttribute(a));
+
+    el.innerHTML = `
+      <div style="position:relative;border-radius:1rem;overflow:hidden;min-height:${minH};background:${bg.value};display:flex;align-items:center;justify-content:center;text-align:center;">
+        <div style="position:absolute;inset:0;background-image:url('data:image/svg+xml,${encodeURIComponent(noiseSvg)}');background-repeat:repeat;background-size:200px 200px;pointer-events:none;"></div>
+        <div style="position:relative;z-index:1;padding:3rem 2rem;">
+          ${title ? `<p style="font-size:1.5rem;font-weight:700;margin:0 0 0.5rem;color:${bg.dark ? '#f1f5f9' : '#0f172a'};">${escapeHtml(title)}</p>` : ''}
+          ${subtitle ? `<p style="font-size:1rem;opacity:0.7;margin:0;color:${bg.dark ? '#cbd5e1' : '#475569'};">${escapeHtml(subtitle)}</p>` : ''}
+        </div>
+      </div>
+    `;
+  });
+
+  // Transform Parallax Section blocks
+
   // processedHTML now contains the headings with their newly injected IDs
   const processedHTML = doc.body.innerHTML;
 
@@ -1616,6 +1873,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
           });
         });
       }
+
     });
   `;
 
@@ -2565,6 +2823,42 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     .phone-home { position: absolute; bottom: 0.25rem; left: 0; right: 0; display: flex; justify-content: center; pointer-events: none; z-index: 1; }
     .phone-home-bar { width: 5rem; height: 0.2rem; border-radius: 9999px; }
 
+    /* ── Tier 5: Visual Effects ── */
+
+    /* Marquee */
+    @keyframes marquee-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+    .marquee-block { overflow: hidden; padding: 0.75rem 0; position: relative; }
+    .marquee-track-outer { overflow: hidden; position: relative; }
+    .marquee-fade-left  { position: absolute; left: 0; top: 0; bottom: 0; width: 4rem; z-index: 1; pointer-events: none; background: linear-gradient(to right, white, transparent); }
+    .marquee-fade-right { position: absolute; right: 0; top: 0; bottom: 0; width: 4rem; z-index: 1; pointer-events: none; background: linear-gradient(to left, white, transparent); }
+    .marquee-track { display: flex; gap: 1.5rem; width: max-content; animation: marquee-scroll 35s linear infinite; }
+    .marquee-item { display: inline-flex; align-items: center; gap: 0.5rem; white-space: nowrap; padding: 0.5rem 1rem; border-radius: 9999px; border: 1px solid currentColor; font-size: 0.875rem; font-weight: 500; }
+    .marquee-sep { margin-left: 0.5rem; opacity: 0.4; }
+
+    /* Glow Cards */
+    .glow-cards-grid .glow-card:hover { box-shadow: 0 8px 32px rgba(0,0,0,0.12) !important; }
+
+    /* Gradient Border */
+    @keyframes gradient-border-shift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+    .gradient-border-block > div { background-size: 200% 200% !important; animation: gradient-border-shift 3.5s ease infinite; }
+
+    /* Hover Reveal */
+    .hr-card { }
+    .hr-inner { transition: transform 0.5s; transform-style: preserve-3d; }
+
+    /* Announcement Pill */
+    @keyframes shimmer-sweep { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    /* Gradient Blobs */
+    @keyframes blob-drift-0 { 0%, 100% { transform: translate(-50%,-50%) scale(1); } 50% { transform: translate(-45%,-55%) scale(1.1); } }
+    @keyframes blob-drift-1 { 0%, 100% { transform: translate(-50%,-50%) scale(1.05); } 50% { transform: translate(-55%,-45%) scale(0.95); } }
+    @keyframes blob-drift-2 { 0%, 100% { transform: translate(-50%,-50%) scale(0.95); } 50% { transform: translate(-48%,-52%) scale(1.08); } }
+    .gradient-blobs-block { margin: 2rem 0; }
+
+    /* Noise Overlay */
+    .noise-overlay-block { margin: 2rem 0; }
+
+
     /* Share Buttons */
     #share-bar {
       position: fixed;
@@ -3216,9 +3510,15 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       .timeline-step::after { background: linear-gradient(to bottom, var(--tl-accent, var(--brand-primary)), #334155); }
       .timeline-step-title { color: #f1f5f9; }
       .timeline-step-date { color: #64748b; }
-      .workflow-card:not([data-dark]) { background-color: #1e293b; border-color: #334155; }
+      .workflow-card:not([data-dark]) { border-color: #334155 !important; color: #cbd5e1; }
+      .workflow-card[data-bg-preset="white"], .workflow-card[data-bg-preset="light-gray"] { background-color: #1e293b !important; background-image: none !important; }
+      .workflow-card[data-bg-preset="warm-cream"] { background-color: transparent !important; background-image: linear-gradient(135deg, #2a1a00 0%, #1e1200 100%) !important; }
+      .workflow-card[data-bg-preset="frost"] { background-color: transparent !important; background-image: linear-gradient(135deg, #0f2d47 0%, #0a2035 100%) !important; }
+      .workflow-card[data-bg-preset="dusk"] { background-color: transparent !important; background-image: linear-gradient(135deg, #1f0e40 0%, #33102e 100%) !important; }
+      .workflow-card[data-bg-preset="mint"] { background-color: transparent !important; background-image: linear-gradient(135deg, #0a3d28 0%, #07291b 100%) !important; }
+      .workflow-card[data-bg-preset="shimmer"], .workflow-card[data-bg-preset="pulse-glow"] { background-color: #1e293b !important; background-image: none !important; }
       .workflow-card:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
-      .workflow-step-title { color: #f1f5f9; }
+      .workflow-step-title { color: #f1f5f9 !important; }
       .workflow-step-body { color: #cbd5e1; }
       .workflow-arrow { color: #475569; }
       .card { background-color: #1e293b; border-color: #334155; }
@@ -3245,6 +3545,43 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       .confetti-message { color: #f1f5f9; }
       .hero-plain h1 { color: #f8fafc !important; }
       body::before { opacity: 0.1; }
+      /* Project Card */
+      .project-card { background: #1e293b; border-color: #334155; }
+      /* About Me */
+      .about-me { background: #1e293b; border-color: #334155; }
+      .about-me-role { color: #94a3b8; }
+      /* Bento Grid */
+      .bento-variant-default { background: #1e293b; border-color: #334155; }
+      .bento-variant-default .bento-title { color: #f1f5f9; }
+      .bento-variant-default .bento-desc { color: #94a3b8; }
+      /* Sticky Scroll */
+      .sticky-scroll { border-color: #334155; }
+      .sticky-scroll-left { background: #1e293b; }
+      .sticky-scroll-step-num { background: rgba(255,255,255,0.1); color: #f1f5f9; }
+      .sticky-scroll-step-label { color: #94a3b8; }
+      .sticky-scroll-right { background: #0f172a; border-left-color: #334155; }
+      /* Tech Stack */
+      .tech-item-label { color: #e2e8f0; }
+      /* Changelog */
+      .changelog-timeline::before { background: #334155; }
+      /* Marquee fades */
+      .marquee-fade-left { background: linear-gradient(to right, #0f172a, transparent); }
+      .marquee-fade-right { background: linear-gradient(to left, #0f172a, transparent); }
+      /* Gradient Border */
+      .gradient-border-block > div > div { background: #1e293b !important; }
+      .gradient-border-block p { color: #f1f5f9 !important; }
+      /* Hover Reveal */
+      .hr-card span[style*="color:#1e293b"] { color: #f1f5f9 !important; }
+      /* Background Section — light presets (dots, grid, diagonal, etc.) */
+      .background-section:not([data-text-color]) { background-color: #1e293b; }
+      .background-section:not([data-text-color]) .background-section-bg { opacity: 0.25 !important; }
+      /* Noise Overlay — light presets */
+      .noise-overlay-block > div[style*="background:#ffffff"],
+      .noise-overlay-block > div[style*="background:#f8fafc"],
+      .noise-overlay-block > div[style*="background:#fefce8"] { background: #0f172a !important; }
+      .noise-overlay-block > div[style*="background:#ffffff"] p,
+      .noise-overlay-block > div[style*="background:#f8fafc"] p,
+      .noise-overlay-block > div[style*="background:#fefce8"] p { color: #f1f5f9 !important; }
     }
 
     html.dark body { background-color: #0f172a; color: #f1f5f9; }
@@ -3294,9 +3631,15 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     html.dark .timeline-step::after { background: linear-gradient(to bottom, var(--tl-accent, var(--brand-primary)), #334155); }
     html.dark .timeline-step-title { color: #f1f5f9; }
     html.dark .timeline-step-date { color: #64748b; }
-    html.dark .workflow-card:not([data-dark]) { background-color: #1e293b; border-color: #334155; }
+    html.dark .workflow-card:not([data-dark]) { border-color: #334155 !important; color: #cbd5e1; }
+    html.dark .workflow-card[data-bg-preset="white"], html.dark .workflow-card[data-bg-preset="light-gray"] { background-color: #1e293b !important; background-image: none !important; }
+    html.dark .workflow-card[data-bg-preset="warm-cream"] { background-color: transparent !important; background-image: linear-gradient(135deg, #2a1a00 0%, #1e1200 100%) !important; }
+    html.dark .workflow-card[data-bg-preset="frost"] { background-color: transparent !important; background-image: linear-gradient(135deg, #0f2d47 0%, #0a2035 100%) !important; }
+    html.dark .workflow-card[data-bg-preset="dusk"] { background-color: transparent !important; background-image: linear-gradient(135deg, #1f0e40 0%, #33102e 100%) !important; }
+    html.dark .workflow-card[data-bg-preset="mint"] { background-color: transparent !important; background-image: linear-gradient(135deg, #0a3d28 0%, #07291b 100%) !important; }
+    html.dark .workflow-card[data-bg-preset="shimmer"], html.dark .workflow-card[data-bg-preset="pulse-glow"] { background-color: #1e293b !important; background-image: none !important; }
     html.dark .workflow-card:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
-    html.dark .workflow-step-title { color: #f1f5f9; }
+    html.dark .workflow-step-title { color: #f1f5f9 !important; }
     html.dark .workflow-step-body { color: #cbd5e1; }
     html.dark .workflow-arrow { color: #475569; }
     html.dark .card { background-color: #1e293b; border-color: #334155; }
@@ -3326,6 +3669,43 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     html.dark .site-footer-links a { color: #94a3b8; }
     html.dark .site-footer-text { color: #94a3b8; }
     html.dark .site-footer-branding, html.dark .site-footer-branding a { color: #475569; }
+    /* Project Card */
+    html.dark .project-card { background: #1e293b; border-color: #334155; }
+    /* About Me */
+    html.dark .about-me { background: #1e293b; border-color: #334155; }
+    html.dark .about-me-role { color: #94a3b8; }
+    /* Bento Grid */
+    html.dark .bento-variant-default { background: #1e293b; border-color: #334155; }
+    html.dark .bento-variant-default .bento-title { color: #f1f5f9; }
+    html.dark .bento-variant-default .bento-desc { color: #94a3b8; }
+    /* Sticky Scroll */
+    html.dark .sticky-scroll { border-color: #334155; }
+    html.dark .sticky-scroll-left { background: #1e293b; }
+    html.dark .sticky-scroll-step-num { background: rgba(255,255,255,0.1); color: #f1f5f9; }
+    html.dark .sticky-scroll-step-label { color: #94a3b8; }
+    html.dark .sticky-scroll-right { background: #0f172a; border-left-color: #334155; }
+    /* Tech Stack */
+    html.dark .tech-item-label { color: #e2e8f0; }
+    /* Changelog */
+    html.dark .changelog-timeline::before { background: #334155; }
+    /* Marquee fades */
+    html.dark .marquee-fade-left { background: linear-gradient(to right, #0f172a, transparent); }
+    html.dark .marquee-fade-right { background: linear-gradient(to left, #0f172a, transparent); }
+    /* Gradient Border */
+    html.dark .gradient-border-block > div > div { background: #1e293b !important; }
+    html.dark .gradient-border-block p { color: #f1f5f9 !important; }
+    /* Hover Reveal */
+    html.dark .hr-card span[style*="color:#1e293b"] { color: #f1f5f9 !important; }
+    /* Background Section — light presets (dots, grid, diagonal, etc.) */
+    html.dark .background-section:not([data-text-color]) { background-color: #1e293b; }
+    html.dark .background-section:not([data-text-color]) .background-section-bg { opacity: 0.25 !important; }
+    /* Noise Overlay — light presets */
+    html.dark .noise-overlay-block > div[style*="background:#ffffff"],
+    html.dark .noise-overlay-block > div[style*="background:#f8fafc"],
+    html.dark .noise-overlay-block > div[style*="background:#fefce8"] { background: #0f172a !important; }
+    html.dark .noise-overlay-block > div[style*="background:#ffffff"] p,
+    html.dark .noise-overlay-block > div[style*="background:#f8fafc"] p,
+    html.dark .noise-overlay-block > div[style*="background:#fefce8"] p { color: #f1f5f9 !important; }
     @media (prefers-color-scheme: dark) {
       .site-footer { background-color: #0f172a; border-top-color: #1e293b; }
       .site-footer-links a { color: #94a3b8; }

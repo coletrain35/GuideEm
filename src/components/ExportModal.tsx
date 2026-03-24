@@ -1,21 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { ThemeConfig } from '../utils/storage';
-import { FileDown } from 'lucide-react';
+import { FileDown, Loader2 } from 'lucide-react';
 
 interface ExportModalProps {
   isOpen: boolean;
   onClose: () => void;
   onExport: (fileName: string) => void;
   onExportMarkdown?: (fileName: string) => void;
+  onExportPDF?: (fileName: string) => Promise<void>;
   theme: ThemeConfig;
   setTheme: (themeUpdates: Partial<ThemeConfig>) => void;
   documentTitle: string;
 }
 
 export const ExportModal: React.FC<ExportModalProps> = ({
-  isOpen, onClose, onExport, onExportMarkdown, theme, setTheme, documentTitle
+  isOpen, onClose, onExport, onExportMarkdown, onExportPDF, theme, setTheme, documentTitle
 }) => {
   const [fileName, setFileName] = useState(documentTitle || 'Untitled Guide');
+  const [isPDFExporting, setIsPDFExporting] = useState(false);
 
   useEffect(() => {
     if (isOpen) setFileName(documentTitle || 'Untitled Guide');
@@ -179,6 +181,24 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             >
               <FileDown size={15} />
               .md
+            </button>
+          )}
+          {onExportPDF && (
+            <button
+              disabled={isPDFExporting}
+              onClick={async () => {
+                setIsPDFExporting(true);
+                try {
+                  await onExportPDF(fileName.trim() || 'Untitled Guide');
+                } finally {
+                  setIsPDFExporting(false);
+                }
+                onClose();
+              }}
+              className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-2 border border-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isPDFExporting ? <Loader2 size={15} className="animate-spin" /> : <FileDown size={15} />}
+              .pdf
             </button>
           )}
           <button

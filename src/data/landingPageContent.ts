@@ -259,23 +259,8 @@ setUsers(users);"></div>
 
 <div data-type="section-divider" data-style="gradient" class="section-divider"></div>
 
-<h2>19. Phase 4: Visual Polish</h2>
-<p>The final phase adds three more layer of visual refinement: glassmorphism callouts, language-tinted inline code labels, and image presentation effects — all rendered identically in the editor and in every exported file.</p>
-
-<h3>Glass Callouts</h3>
-<p>Three frosted-glass variants that pair well with light backgrounds or image-heavy layouts. The translucent border and <code>backdrop-filter: blur</code> let the page texture show through subtly.</p>
-
-<div data-type="glass-info" class="callout callout-glass-info">
-  <p><strong>Design consideration:</strong> Glass callouts work best when layered over a gradient or textured background. On solid white they appear as subtle tinted boxes — on a hero banner they become fully translucent panels.</p>
-</div>
-
-<div data-type="glass-warning" class="callout callout-glass-warning">
-  <p><strong>Rate limit:</strong> The glass warning variant keeps the amber warning signal readable at lower contrast. Use it for soft cautions rather than hard blockers.</p>
-</div>
-
-<div data-type="glass-success" class="callout callout-glass-success">
-  <p><strong>Checkpoint passed:</strong> Inline <code class="inline-code lang-bash">npm run lint</code> returned zero errors. All 14 Phase 4 assertions are green.</p>
-</div>
+<h2>19. Visual Polish</h2>
+<p>Two layers of visual refinement: language-tinted inline code labels and image presentation effects — all rendered identically in the editor and in every exported file.</p>
 
 <h3>Syntax-Highlighted Inline Code</h3>
 <p>Inline code now carries an optional language label that applies a distinct background tint — making it immediately clear which runtime a snippet belongs to without adding visual noise.</p>

@@ -155,53 +155,47 @@ Blocks that make exported docs feel like Stripe, Linear, and Vercel-quality mark
 
 Visual effects and interactive blocks that add the finishing touches of a premium website.
 
-- [ ] **24. Marquee / Infinite Scroll**
+- [x] **24. Marquee / Infinite Scroll**
   - Auto-scrolling horizontal ticker for logos, testimonials, or text
   - Configurable speed, direction (left/right), pause-on-hover
   - Seamless loop with duplicated content for smooth infinite scroll
-  - **Files:** New `src/extensions/Marquee.tsx`, `src/utils/blockItems.ts`, `src/utils/exporter.ts`
+  - **Files:** New `src/extensions/Marquee.tsx`, `src/utils/blockItems.ts`
 
-- [ ] **25. Glow Cards**
+- [x] **25. Glow Cards**
   - Cards with hover glow effect and spotlight that follows the cursor
   - Subtle radial gradient glow in the card's accent color on hover
   - Works with any card content (text, images, icons)
-  - **Files:** New `src/extensions/GlowCard.tsx`, `src/utils/blockItems.ts`, `src/utils/exporter.ts`
+  - **Files:** New `src/extensions/GlowCards.tsx`, `src/utils/blockItems.ts`
 
-- [ ] **26. Animated Gradient Borders**
+- [x] **26. Animated Gradient Borders**
   - Blocks wrapped in slowly animating gradient borders
   - Configurable gradient colors and animation speed
   - Can be applied as a wrapper around any content block
-  - **Files:** New `src/extensions/GradientBorder.tsx`, `src/utils/blockItems.ts`, `src/utils/exporter.ts`
+  - **Files:** New `src/extensions/GradientBorder.tsx`, `src/utils/blockItems.ts`
 
-- [ ] **27. Hover Reveal Cards**
+- [x] **27. Hover Reveal Cards**
   - Cards that reveal additional content, images, or descriptions on hover
-  - Smooth slide-up or fade-in reveal animation
+  - Flip or slide-up reveal animation
   - Front face (title + icon) → hover reveals full description
-  - **Files:** New `src/extensions/HoverReveal.tsx`, `src/utils/blockItems.ts`, `src/utils/exporter.ts`
+  - **Files:** New `src/extensions/HoverReveal.tsx`, `src/utils/blockItems.ts`
 
-- [ ] **28. Badge/Pill Announcements**
+- [x] **28. Badge/Pill Announcements**
   - Animated announcement pill banner — "New", "v2.0 just shipped", "Coming soon"
   - Shimmer animation, configurable text and link
   - Typically placed at the top of a page or section
-  - **Files:** New `src/extensions/AnnouncementPill.tsx`, `src/utils/blockItems.ts`, `src/utils/exporter.ts`
+  - **Files:** New `src/extensions/AnnouncementPill.tsx`, `src/utils/blockItems.ts`
 
-- [ ] **29. Gradient Blur Blobs**
+- [x] **29. Gradient Blur Blobs**
   - Ambient blurred gradient orbs floating in the background of a section
-  - Configurable blob colors, sizes, and positions
-  - Subtle animation (slow drift or pulse)
-  - **Files:** New `src/extensions/GradientBlobs.tsx`, `src/utils/blockItems.ts`, `src/utils/exporter.ts`
+  - 5 color presets (Aurora, Ocean, Sunset, Forest, Minimal) with animated drift
+  - **Files:** New `src/extensions/GradientBlobs.tsx`, `src/utils/blockItems.ts`
 
-- [ ] **30. Noise/Grain Texture Overlay**
+- [x] **30. Noise/Grain Texture Overlay**
   - Subtle film grain or noise texture applied to section backgrounds
-  - Configurable opacity and grain density
-  - Adds tactile depth that separates premium from generic
-  - **Files:** New `src/extensions/NoiseOverlay.tsx` or extend `BackgroundSection.tsx`, `src/utils/exporter.ts`
+  - Configurable opacity and grain density via inline SVG filter
+  - **Files:** New `src/extensions/NoiseOverlay.tsx`, `src/utils/blockItems.ts`
 
-- [ ] **31. Parallax Sections**
-  - Background layers that move at different scroll speeds
-  - Configurable parallax intensity (subtle to dramatic)
-  - Supports background images or gradient layers
-  - **Files:** New `src/extensions/ParallaxSection.tsx`, `src/utils/blockItems.ts`, `src/utils/exporter.ts`
+- [ ] **31. Parallax Sections** *(Omitted — scroll-driven parallax does not work reliably inside iframe previews and nested scroll containers)*
 
 ---
 
@@ -248,7 +242,7 @@ Portfolio-focused features for users building personal sites, project showcases,
   - Configurable via ThemeDrawer or a new "Publish Settings" panel
   - **Files:** `src/utils/exporter.ts`, `src/components/ThemeDrawer.tsx`
 
-- [ ] **39. PDF Export**
+- [x] **39. PDF Export**
   - Export via `html2pdf.js` or controlled `window.print()` with a print stylesheet
   - Essential for portfolios shared as attachments
   - **Files:** `src/utils/exporter.ts`, `src/components/ExportModal.tsx`
@@ -288,6 +282,6 @@ Portfolio-focused features for users building personal sites, project showcases,
 **Phase 2:** Items 10, 7, 6, 11, 9, 8 ✅ Complete
 **Phase 3:** Tier 3 items ✅ Complete
 **Phase 4:** Tier 4 premium layout blocks ✅ Complete
-**Phase 5:** Tier 5 premium visual effects
+**Phase 5:** Tier 5 premium visual effects ✅ Complete
 **Phase 6:** Tier 6 portfolio features (blocks ✅, export & templates remaining)
 **Phase 7:** Pick Tier 7 items based on strategic direction

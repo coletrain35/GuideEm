@@ -48,6 +48,13 @@ import { CodeWindow } from '../extensions/CodeWindow';
 import { ChangelogTimeline } from '../extensions/ChangelogTimeline';
 import { BrowserMockup } from '../extensions/BrowserMockup';
 import { PhoneMockup } from '../extensions/PhoneMockup';
+import { Marquee } from '../extensions/Marquee';
+import { GlowCards } from '../extensions/GlowCards';
+import { GradientBorder } from '../extensions/GradientBorder';
+import { HoverReveal } from '../extensions/HoverReveal';
+import { AnnouncementPill } from '../extensions/AnnouncementPill';
+import { GradientBlobs } from '../extensions/GradientBlobs';
+import { NoiseOverlay } from '../extensions/NoiseOverlay';
 import { ScrollReveal, REVEAL_TYPES, BLOCK_TYPES } from '../extensions/ScrollReveal';
 import { InlineCode, type InlineCodeLanguage } from '../extensions/InlineCode';
 import { FontSize, type FontSizeValue } from '../extensions/FontSize';
@@ -217,6 +224,33 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
     setHeadings(newHeadings);
   };
 
+  // Strip node types that are no longer registered (e.g. removed extensions)
+  const KNOWN_NODES = new Set([
+    'doc','text','paragraph','heading','blockquote','bulletList','orderedList','listItem',
+    'taskList','taskItem','codeBlock','horizontalRule','hardBreak','image','table','tableRow',
+    'tableCell','tableHeader',
+    // custom extensions
+    'callout','annotatedImage','imagePlaceholder','grid','gridColumn','accordion','accordionItem',
+    'tabGroup','tabPanel','sectionDivider','videoEmbed','timeline','timelineStep','timelineStepTitle',
+    'workflow','workflowStep','cardGrid','card','counter','testimonial','heroBanner',
+    'projectCard','projectGallery','aboutMe','techStack','socialLinks','portfolioHero',
+    'statRow','codeDiff','beforeAfter','confetti','backgroundSection','bentoGrid',
+    'featureSpotlight','stickyScroll','codeWindow','changelogTimeline','browserMockup',
+    'phoneMockup','marquee','glowCards','gradientBorder','hoverReveal','announcementPill',
+    'gradientBlobs','noiseOverlay','scrollReveal',
+  ]);
+  const stripUnknownNodes = (node: any): any => {
+    if (!node || typeof node !== 'object') return node;
+    if (node.type && !KNOWN_NODES.has(node.type)) return null;
+    if (node.content && Array.isArray(node.content)) {
+      node = { ...node, content: node.content.map(stripUnknownNodes).filter(Boolean) };
+    }
+    return node;
+  };
+  const sanitizedContent = initialContent && typeof initialContent === 'object'
+    ? stripUnknownNodes(initialContent)
+    : initialContent;
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -303,13 +337,20 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       ChangelogTimeline,
       BrowserMockup,
       PhoneMockup,
+      Marquee,
+      GlowCards,
+      GradientBorder,
+      HoverReveal,
+      AnnouncementPill,
+      GradientBlobs,
+      NoiseOverlay,
       ScrollReveal,
       SlashCommand,
       SearchReplace,
       FontSize,
       GlobalDragHandle.configure({ dragHandleWidth: 20, scrollTreshold: 100 }),
     ],
-    content: initialContent || '',
+    content: sanitizedContent || '',
     editorProps: {
       attributes: {
         class: 'prose prose-slate prose-lg max-w-none focus:outline-none prose-headings:font-bold prose-headings:tracking-tight prose-h1:text-4xl prose-h2:text-2xl prose-p:text-slate-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-img:shadow-md min-h-[500px] pb-32',

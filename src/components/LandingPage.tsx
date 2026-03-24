@@ -308,6 +308,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
                <iframe
                  srcDoc={generatedHtml}
                  title="Exported Document Preview"
+                 onLoad={(e) => {
+                   const doc = (e.target as HTMLIFrameElement).contentDocument;
+                   if (!doc) return;
+                   doc.addEventListener('click', (ev) => {
+                     const a = (ev.target as Element).closest('a');
+                     if (a) ev.preventDefault();
+                   }, true);
+                 }}
                  style={iframeScale < 1 ? {
                    position: 'absolute',
                    top: 0,

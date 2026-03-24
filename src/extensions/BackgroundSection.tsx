@@ -38,14 +38,19 @@ const BackgroundSectionNodeView = (props: any) => {
       style={{
         color: textColor,
         borderRadius: resolvedRadius,
-        backgroundColor: preset?.backgroundColor,
-        backgroundImage: preset?.backgroundImage,
-        backgroundSize: preset?.backgroundSize,
-        backgroundRepeat: 'repeat',
         outline: bgPreset === 'none' ? '2px dashed rgba(148,163,184,0.5)' : undefined,
         outlineOffset: bgPreset === 'none' ? '0px' : undefined,
       }}
     >
+      <div
+        className="background-section-bg"
+        style={{
+          backgroundColor: preset?.backgroundColor,
+          backgroundImage: preset?.backgroundImage,
+          backgroundSize: preset?.backgroundSize,
+          backgroundRepeat: 'repeat',
+        }}
+      />
       {/* Style button + popover — not editable */}
       <div
         ref={panelRef}
