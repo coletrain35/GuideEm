@@ -41,8 +41,23 @@ import { CodeDiff } from '../extensions/CodeDiff';
 import { BeforeAfter } from '../extensions/BeforeAfter';
 import { Confetti } from '../extensions/Confetti';
 import { BackgroundSection } from '../extensions/BackgroundSection';
+import { BentoGrid } from '../extensions/BentoGrid';
+import { FeatureSpotlight } from '../extensions/FeatureSpotlight';
+import { StickyScroll } from '../extensions/StickyScroll';
+import { CodeWindow } from '../extensions/CodeWindow';
+import { ChangelogTimeline } from '../extensions/ChangelogTimeline';
+import { BrowserMockup } from '../extensions/BrowserMockup';
+import { PhoneMockup } from '../extensions/PhoneMockup';
+import { Marquee } from '../extensions/Marquee';
+import { GlowCards } from '../extensions/GlowCards';
+import { GradientBorder } from '../extensions/GradientBorder';
+import { HoverReveal } from '../extensions/HoverReveal';
+import { AnnouncementPill } from '../extensions/AnnouncementPill';
+import { GradientBlobs } from '../extensions/GradientBlobs';
+import { NoiseOverlay } from '../extensions/NoiseOverlay';
 import { ScrollReveal, REVEAL_TYPES, BLOCK_TYPES } from '../extensions/ScrollReveal';
 import { InlineCode, type InlineCodeLanguage } from '../extensions/InlineCode';
+import { FontSize, type FontSizeValue } from '../extensions/FontSize';
 import { SlashCommand } from '../extensions/SlashCommand';
 import { SearchReplace } from '../extensions/SearchReplace';
 import GlobalDragHandle from 'tiptap-extension-global-drag-handle';
@@ -209,6 +224,33 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
     setHeadings(newHeadings);
   };
 
+  // Strip node types that are no longer registered (e.g. removed extensions)
+  const KNOWN_NODES = new Set([
+    'doc','text','paragraph','heading','blockquote','bulletList','orderedList','listItem',
+    'taskList','taskItem','codeBlock','horizontalRule','hardBreak','image','table','tableRow',
+    'tableCell','tableHeader',
+    // custom extensions
+    'callout','annotatedImage','imagePlaceholder','grid','gridColumn','accordion','accordionItem',
+    'tabGroup','tabPanel','sectionDivider','videoEmbed','timeline','timelineStep','timelineStepTitle',
+    'workflow','workflowStep','cardGrid','card','counter','testimonial','heroBanner',
+    'projectCard','projectGallery','aboutMe','techStack','socialLinks','portfolioHero',
+    'statRow','codeDiff','beforeAfter','confetti','backgroundSection','bentoGrid',
+    'featureSpotlight','stickyScroll','codeWindow','changelogTimeline','browserMockup',
+    'phoneMockup','marquee','glowCards','gradientBorder','hoverReveal','announcementPill',
+    'gradientBlobs','noiseOverlay','scrollReveal',
+  ]);
+  const stripUnknownNodes = (node: any): any => {
+    if (!node || typeof node !== 'object') return node;
+    if (node.type && !KNOWN_NODES.has(node.type)) return null;
+    if (node.content && Array.isArray(node.content)) {
+      node = { ...node, content: node.content.map(stripUnknownNodes).filter(Boolean) };
+    }
+    return node;
+  };
+  const sanitizedContent = initialContent && typeof initialContent === 'object'
+    ? stripUnknownNodes(initialContent)
+    : initialContent;
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -288,12 +330,27 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       BeforeAfter,
       Confetti,
       BackgroundSection,
+      BentoGrid,
+      FeatureSpotlight,
+      StickyScroll,
+      CodeWindow,
+      ChangelogTimeline,
+      BrowserMockup,
+      PhoneMockup,
+      Marquee,
+      GlowCards,
+      GradientBorder,
+      HoverReveal,
+      AnnouncementPill,
+      GradientBlobs,
+      NoiseOverlay,
       ScrollReveal,
       SlashCommand,
       SearchReplace,
+      FontSize,
       GlobalDragHandle.configure({ dragHandleWidth: 20, scrollTreshold: 100 }),
     ],
-    content: initialContent || '',
+    content: sanitizedContent || '',
     editorProps: {
       attributes: {
         class: 'prose prose-slate prose-lg max-w-none focus:outline-none prose-headings:font-bold prose-headings:tracking-tight prose-h1:text-4xl prose-h2:text-2xl prose-p:text-slate-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-img:shadow-md min-h-[500px] pb-32',
@@ -741,6 +798,26 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
                   <option value="3">Heading 3</option>
                   <option value="4">Heading 4</option>
                 </select>
+                <div className="flex items-center gap-0.5 border border-slate-200 rounded px-0.5 py-0.5">
+                  <button
+                    onMouseDown={e => { e.preventDefault(); editor.chain().focus().setFontSize('small' as FontSizeValue).run(); }}
+                    className={`px-1.5 py-0.5 rounded leading-none font-medium hover:bg-slate-200 ${editor.isActive('fontSize', { size: 'small' }) ? 'bg-slate-200 text-blue-600' : 'text-slate-500'}`}
+                    style={{ fontSize: '10px' }}
+                    title="Small text"
+                  >A</button>
+                  <button
+                    onMouseDown={e => { e.preventDefault(); editor.chain().focus().unsetFontSize().run(); }}
+                    className="px-1.5 py-0.5 rounded leading-none font-medium hover:bg-slate-200 text-slate-500"
+                    style={{ fontSize: '13px' }}
+                    title="Normal text"
+                  >A</button>
+                  <button
+                    onMouseDown={e => { e.preventDefault(); editor.chain().focus().setFontSize('large' as FontSizeValue).run(); }}
+                    className={`px-1.5 py-0.5 rounded leading-none font-medium hover:bg-slate-200 ${editor.isActive('fontSize', { size: 'large' }) ? 'bg-slate-200 text-blue-600' : 'text-slate-500'}`}
+                    style={{ fontSize: '17px' }}
+                    title="Large text"
+                  >A</button>
+                </div>
                 <div className="w-px h-5 bg-slate-300 mx-1" />
                 <button onClick={() => editor.chain().focus().toggleBold().run()} className={`p-2 rounded hover:bg-slate-200 ${editor.isActive('bold') ? 'bg-slate-200 text-blue-600' : 'text-slate-600'}`} title="Bold"><Bold size={16} /></button>
                 <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-2 rounded hover:bg-slate-200 ${editor.isActive('italic') ? 'bg-slate-200 text-blue-600' : 'text-slate-600'}`} title="Italic"><Italic size={16} /></button>

@@ -8,10 +8,12 @@ import { TemplatePickerModal } from './components/TemplatePickerModal';
 import { loadDocuments, saveDocument, deleteDocument, Document, ThemeConfig } from './utils/storage';
 import { generateHTML } from './utils/exporter';
 import { tiptapJsonToMarkdown } from './utils/markdownExporter';
+import { exportToPDF } from './utils/pdfExporter';
 import { LandingPage } from './components/LandingPage';
 import { markdownToHtml } from './utils/markdownImporter';
+import { importGuideHTML } from './utils/htmlImporter';
 import type { TemplateDefinition } from './data/templates';
-import { FileDown, FileText, Trash2, Loader2, Keyboard, HelpCircle, X, CheckCircle, AlertTriangle, Info, Menu, Plus, Settings, Upload, Palette, ArrowLeft, Eye, Maximize2, Minimize2, LayoutGrid } from 'lucide-react';
+import { FileDown, FileText, Trash2, Loader2, Keyboard, HelpCircle, X, CheckCircle, AlertTriangle, Info, Menu, Plus, Settings, Upload, Palette, ArrowLeft, Eye, Maximize2, Minimize2, LayoutGrid, ChevronDown } from 'lucide-react';
 import { BlockPalette } from './components/BlockPalette';
 
 const DEFAULT_THEME: ThemeConfig = {
@@ -60,6 +62,8 @@ export default function App() {
   const [showBlockPalette, setShowBlockPalette] = useState(true);
   const [editorInstance, setEditorInstance] = useState<import('@tiptap/core').Editor | null>(null);
   const markdownImportRef = useRef<HTMLInputElement>(null);
+  const htmlImportRef = useRef<HTMLInputElement>(null);
+  const [showImportMenu, setShowImportMenu] = useState(false);
   
   // Always-current mirror of documents state for use in callbacks.
   // Callbacks captured by useCallback only see the snapshot of state at the
@@ -161,6 +165,26 @@ export default function App() {
     e.target.value = '';
   };
 
+  const handleHtmlImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    const { title: importedTitle, content, theme: importedTheme } = importGuideHTML(text);
+    const docTitle = importedTitle || file.name.replace(/\.html?$/i, '').trim() || 'Imported Guide';
+    const newDoc: Document = {
+      id: crypto.randomUUID(),
+      title: docTitle,
+      content,
+      htmlContent: content,
+      lastEdited: Date.now(),
+      theme: { ...DEFAULT_THEME, ...importedTheme } as ThemeConfig,
+    };
+    setDocuments(prev => [newDoc, ...prev]);
+    setCurrentDocId(newDoc.id);
+    await saveDocument(newDoc);
+    e.target.value = '';
+  };
+
   const handleUpdate = useCallback((html: string, json: any, newTitle: string) => {
     if (!currentDocId) return;
 
@@ -255,6 +279,17 @@ export default function App() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  const handlePDFExport = async (userFileName: string) => {
+    if (!currentDoc) return;
+    const safeFileName = userFileName.replace(/[/\\:*?"<>|]/g, '').trim() || 'Untitled Guide';
+    await exportToPDF(
+      currentDoc.title,
+      currentDoc.htmlContent,
+      currentDoc.theme || DEFAULT_THEME,
+      safeFileName
+    );
   };
 
   const handleTagsChange = useCallback((id: string, tags: string[]) => {
@@ -447,7 +482,7 @@ export default function App() {
                     <Eye size={18} />
                     <span className="hidden sm:inline">Preview</span>
                   </button>
-                  {/* Hidden markdown import input */}
+                  {/* Hidden file inputs for import */}
                   <input
                     ref={markdownImportRef}
                     type="file"
@@ -455,14 +490,51 @@ export default function App() {
                     className="hidden"
                     onChange={handleMarkdownImport}
                   />
-                  <button
-                    onClick={() => markdownImportRef.current?.click()}
-                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                    title="Import Markdown file"
-                  >
-                    <Upload size={18} />
-                    <span className="hidden sm:inline">Import</span>
-                  </button>
+                  <input
+                    ref={htmlImportRef}
+                    type="file"
+                    accept=".html,.htm"
+                    className="hidden"
+                    onChange={handleHtmlImport}
+                  />
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowImportMenu(v => !v)}
+                      className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                      title="Import document"
+                    >
+                      <Upload size={18} />
+                      <span className="hidden sm:inline">Import</span>
+                      <ChevronDown size={14} className="hidden sm:inline opacity-70" />
+                    </button>
+                    {showImportMenu && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowImportMenu(false)} />
+                        <div className="absolute right-0 top-full mt-1 z-50 w-56 bg-white rounded-lg shadow-lg border border-slate-200 py-1">
+                          <button
+                            onClick={() => { setShowImportMenu(false); markdownImportRef.current?.click(); }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3"
+                          >
+                            <FileText size={16} className="text-slate-400" />
+                            <div>
+                              <div className="font-medium">Markdown</div>
+                              <div className="text-xs text-slate-400">.md files</div>
+                            </div>
+                          </button>
+                          <button
+                            onClick={() => { setShowImportMenu(false); htmlImportRef.current?.click(); }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3"
+                          >
+                            <FileDown size={16} className="text-slate-400" />
+                            <div>
+                              <div className="font-medium">HTML Guide</div>
+                              <div className="text-xs text-slate-400">.html exported guides</div>
+                            </div>
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                   <button
                     onClick={() => setIsZenMode(v => !v)}
                     className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
@@ -477,7 +549,8 @@ export default function App() {
                     className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors"
                   >
                     <FileDown size={18} />
-                    <span className="hidden sm:inline">Export HTML</span>
+                    <span className="hidden sm:inline">Export</span>
+                    <ChevronDown size={14} className="hidden sm:inline opacity-70" />
                   </button>
                 </>
               )}
@@ -670,6 +743,7 @@ export default function App() {
           onClose={() => setIsExportModalOpen(false)}
           onExport={handleExportDownload}
           onExportMarkdown={handleMarkdownExport}
+          onExportPDF={handlePDFExport}
           theme={currentDoc.theme || DEFAULT_THEME}
           setTheme={handleThemeChange}
           documentTitle={currentDoc.title}

@@ -165,7 +165,7 @@ function renderHeroCover(title: string, theme?: ThemeConfig): string {
     }
     // Plain cover — matches DocumentCover 'none' style in the editor
     return `
-    <div style="border-left: 4px solid ${primaryColor}; padding-left: 1.25rem; margin-bottom: 2.5rem;">
+    <div class="hero-plain" style="border-left: 4px solid ${primaryColor}; padding-left: 1.25rem; margin-bottom: 2.5rem;">
       <h1 style="font-size: 3rem; font-weight: 900; letter-spacing: -0.04em; color: #0f172a; margin: 0; line-height: 1.1; font-family: inherit;">${escapedTitle}</h1>
     </div>`;
   }
@@ -418,9 +418,10 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       const cardBgOverrideId = step.getAttribute('data-card-bg-override') || null;
 
       // Resolve card background: step override or workflow default
-      const resolvedBg = cardBgOverrideId && WORKFLOW_CARD_BG[cardBgOverrideId]
-        ? WORKFLOW_CARD_BG[cardBgOverrideId]
-        : defaultCardBg;
+      const resolvedBgId = (cardBgOverrideId && WORKFLOW_CARD_BG[cardBgOverrideId])
+        ? cardBgOverrideId
+        : workflowCardBgId;
+      const resolvedBg = WORKFLOW_CARD_BG[resolvedBgId] || WORKFLOW_CARD_BG['white'];
 
       const isDark = resolvedBg.dark;
       const cardBgStyle = [
@@ -463,7 +464,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       step.removeAttribute('data-image');
       step.removeAttribute('data-card-bg-override');
       step.innerHTML = `
-        <div class="workflow-card${animClass}" style="border-left-color:${accent[500]};${cardBgStyle}"${darkAttr}>
+        <div class="workflow-card${animClass}" style="border-left-color:${accent[500]};${cardBgStyle}" data-bg-preset="${resolvedBgId}"${darkAttr}>
           <div class="workflow-step-header">
             <div class="workflow-step-icon" style="background:linear-gradient(to bottom right,${accent[50]},${accent[100]});color:${accent[600]}">${iconSvg}</div>
             <span class="workflow-step-badge" style="background-color:${accent[50]};color:${accent[600]}">STEP ${stepIndex}</span>
@@ -921,6 +922,516 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     `;
   });
 
+  // Transform Bento Grid blocks
+  doc.querySelectorAll('div[data-type="bento-grid"]').forEach((el) => {
+    let cells: any[] = [];
+    try { cells = JSON.parse(el.getAttribute('data-cells') || '[]'); } catch { /* empty */ }
+    el.className = 'bento-grid';
+    el.removeAttribute('data-type');
+    el.removeAttribute('data-cells');
+    el.innerHTML = cells.map((cell: any) => {
+      const variant = cell.variant || 'default';
+      return `
+        <div class="bento-cell bento-variant-${variant}" style="grid-column: span ${Math.min(cell.colSpan || 1, 3)}; grid-row: span ${cell.rowSpan || 1};">
+          ${cell.icon ? `<div class="bento-icon">${cell.icon}</div>` : ''}
+          <h3 class="bento-title">${escapeHtml(cell.title || '')}</h3>
+          <p class="bento-desc">${escapeHtml(cell.description || '')}</p>
+        </div>
+      `;
+    }).join('');
+  });
+
+  // Transform Feature Spotlight blocks
+  doc.querySelectorAll('div[data-type="feature-spotlight"]').forEach((el) => {
+    const image = el.getAttribute('data-image') || '';
+    const icon = el.getAttribute('data-icon') || '';
+    const title = el.getAttribute('data-title') || 'Feature Title';
+    const description = el.getAttribute('data-description') || '';
+    const gradient = el.getAttribute('data-gradient') || 'linear-gradient(135deg, #6366f1, #a855f7)';
+    const layout = el.getAttribute('data-layout') || 'image-left';
+    const accentColor = el.getAttribute('data-accent-color') || '#6366f1';
+    let bullets: string[] = [];
+    try { bullets = JSON.parse(el.getAttribute('data-bullets') || '[]'); } catch { /* empty */ }
+
+    el.className = 'feature-spotlight';
+    el.setAttribute('data-layout', layout);
+    el.removeAttribute('data-type');
+    ['data-image','data-icon','data-title','data-description','data-gradient','data-bullets','data-accent-color'].forEach((a) => el.removeAttribute(a));
+
+    const visualHtml = `
+      <div class="feature-spotlight-visual" style="background:${gradient};">
+        ${image ? `<img src="${image}" alt="${escapeHtml(title)}" class="feature-spotlight-img" />` : (icon ? `<span class="feature-spotlight-icon">${icon}</span>` : '')}
+      </div>
+    `;
+    const bulletsHtml = bullets.length > 0
+      ? `<ul class="feature-spotlight-bullets">${bullets.map((b) => `<li><span class="feature-spotlight-check" style="background:${accentColor};"></span>${escapeHtml(b)}</li>`).join('')}</ul>`
+      : '';
+    const contentHtml = `
+      <div class="feature-spotlight-content">
+        <h2 class="feature-spotlight-title">${escapeHtml(title)}</h2>
+        ${description ? `<p class="feature-spotlight-desc">${escapeHtml(description)}</p>` : ''}
+        ${bulletsHtml}
+      </div>
+    `;
+
+    el.innerHTML = layout === 'image-right'
+      ? `${contentHtml}${visualHtml}`
+      : `${visualHtml}${contentHtml}`;
+  });
+
+  // Transform Sticky Scroll blocks
+  doc.querySelectorAll('div[data-type="sticky-scroll"]').forEach((el) => {
+    const stickyTitle = el.getAttribute('data-sticky-title') || 'How It Works';
+    const stickyDescription = el.getAttribute('data-sticky-description') || '';
+    const accentColor = el.getAttribute('data-accent-color') || '#6366f1';
+    let steps: any[] = [];
+    try { steps = JSON.parse(el.getAttribute('data-steps') || '[]'); } catch { /* empty */ }
+
+    el.className = 'sticky-scroll';
+    el.removeAttribute('data-type');
+    ['data-sticky-title','data-sticky-description','data-accent-color','data-steps'].forEach((a) => el.removeAttribute(a));
+
+    const stepIndicators = steps.map((s: any, i: number) => `
+      <button class="sticky-scroll-step-btn" data-step="${i}" style="--accent:${accentColor};">
+        <span class="sticky-scroll-step-num">${i + 1}</span>
+        <span class="sticky-scroll-step-label">${escapeHtml(s.title || '')}</span>
+      </button>
+    `).join('');
+
+    const stepPanels = steps.map((s: any, i: number) => `
+      <div class="sticky-scroll-panel" data-panel="${i}" ${i > 0 ? 'hidden' : ''}>
+        <h3 class="sticky-scroll-panel-title">${escapeHtml(s.title || '')}</h3>
+        <p class="sticky-scroll-panel-desc">${escapeHtml(s.description || '')}</p>
+        ${s.code ? `<pre class="sticky-scroll-code">${escapeHtml(s.code)}</pre>` : ''}
+      </div>
+    `).join('');
+
+    el.innerHTML = `
+      <div class="sticky-scroll-left" style="--accent:${accentColor};">
+        <div class="sticky-scroll-accent-bar" style="background:${accentColor};"></div>
+        <h2 class="sticky-scroll-title">${escapeHtml(stickyTitle)}</h2>
+        ${stickyDescription ? `<p class="sticky-scroll-desc">${escapeHtml(stickyDescription)}</p>` : ''}
+        <div class="sticky-scroll-steps">${stepIndicators}</div>
+      </div>
+      <div class="sticky-scroll-right">${stepPanels}</div>
+    `;
+  });
+
+  // Transform Code Window blocks
+  doc.querySelectorAll('div[data-type="code-window"]').forEach((el) => {
+    const code = el.getAttribute('data-code') || '';
+    const language = el.getAttribute('data-language') || 'javascript';
+    const title = el.getAttribute('data-title') || 'untitled';
+    const theme = el.getAttribute('data-theme') || 'dark';
+
+    const themes: Record<string, { bg: string; text: string; titleBg: string; titleText: string; d1: string; d2: string; d3: string }> = {
+      dark:    { bg: '#1e1e2e', text: '#cdd6f4', titleBg: '#313244', titleText: '#a6adc8', d1: '#f38ba8', d2: '#f9e2af', d3: '#a6e3a1' },
+      light:   { bg: '#fafafa', text: '#383a42', titleBg: '#e8e8e8', titleText: '#696c77', d1: '#e06c75', d2: '#e5c07b', d3: '#98c379' },
+      nord:    { bg: '#2e3440', text: '#d8dee9', titleBg: '#3b4252', titleText: '#8fbcbb', d1: '#bf616a', d2: '#ebcb8b', d3: '#a3be8c' },
+      dracula: { bg: '#282a36', text: '#f8f8f2', titleBg: '#44475a', titleText: '#6272a4', d1: '#ff5555', d2: '#ffb86c', d3: '#50fa7b' },
+    };
+    const t = themes[theme] || themes.dark;
+
+    el.className = 'code-window';
+    el.removeAttribute('data-type');
+    ['data-code','data-language','data-title','data-theme'].forEach((a) => el.removeAttribute(a));
+
+    el.innerHTML = `
+      <div class="code-window-titlebar" style="background:${t.titleBg};">
+        <div class="code-window-dots">
+          <span style="background:${t.d1};"></span>
+          <span style="background:${t.d2};"></span>
+          <span style="background:${t.d3};"></span>
+        </div>
+        <span class="code-window-title" style="color:${t.titleText};">${escapeHtml(title)}</span>
+        <span class="code-window-lang" style="color:${t.titleText};">${escapeHtml(language)}</span>
+      </div>
+      <pre class="code-window-body" style="background:${t.bg};color:${t.text};">${escapeHtml(code)}</pre>
+    `;
+  });
+
+  // Transform Changelog Timeline blocks
+  doc.querySelectorAll('div[data-type="changelog-timeline"]').forEach((el) => {
+    let entries: any[] = [];
+    try { entries = JSON.parse(el.getAttribute('data-entries') || '[]'); } catch { /* empty */ }
+
+    const typeStyles: Record<string, { label: string; color: string; bg: string }> = {
+      added:   { label: 'Added',   color: '#10b981', bg: '#d1fae5' },
+      fixed:   { label: 'Fixed',   color: '#3b82f6', bg: '#dbeafe' },
+      changed: { label: 'Changed', color: '#f59e0b', bg: '#fef3c7' },
+      removed: { label: 'Removed', color: '#ef4444', bg: '#fee2e2' },
+    };
+
+    el.className = 'changelog-timeline';
+    el.removeAttribute('data-type');
+    el.removeAttribute('data-entries');
+
+    el.innerHTML = entries.map((entry: any) => {
+      const grouped: Record<string, string[]> = {};
+      (entry.items || []).forEach((item: any) => {
+        if (!grouped[item.type]) grouped[item.type] = [];
+        grouped[item.type].push(item.text);
+      });
+
+      const itemsHtml = Object.entries(grouped).map(([type, texts]) => {
+        const s = typeStyles[type] || { label: type, color: '#64748b', bg: '#f1f5f9' };
+        return `
+          <div class="changelog-type-group">
+            <span class="changelog-type-badge" style="background:${s.bg};color:${s.color};">${s.label}</span>
+            <ul class="changelog-items">${(texts as string[]).map((t) => `<li style="--dot:${s.color};">${escapeHtml(t)}</li>`).join('')}</ul>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="changelog-entry">
+          <div class="changelog-dot"></div>
+          <div class="changelog-entry-body">
+            <div class="changelog-entry-header">
+              <span class="changelog-version">${escapeHtml(entry.version || '')}</span>
+              ${entry.date ? `<span class="changelog-date">${escapeHtml(entry.date)}</span>` : ''}
+            </div>
+            ${itemsHtml}
+          </div>
+        </div>
+      `;
+    }).join('');
+  });
+
+  // Transform Browser Mockup blocks
+  doc.querySelectorAll('div[data-type="browser-mockup"]').forEach((el) => {
+    const image = el.getAttribute('data-image') || '';
+    const url = el.getAttribute('data-url') || 'https://example.com';
+    const variant = el.getAttribute('data-variant') || 'light';
+    const isDark = variant === 'dark';
+
+    el.className = 'browser-mockup';
+    el.setAttribute('data-variant', variant);
+    el.removeAttribute('data-type');
+    ['data-image','data-url'].forEach((a) => el.removeAttribute(a));
+
+    const titleBg = isDark ? '#2d2d2d' : '#e8e8e8';
+    const borderColor = isDark ? '#3d3d3d' : '#d1d5db';
+    const bodyBg = isDark ? '#1a1a1a' : '#ffffff';
+    const urlBarBg = isDark ? '#1e1e1e' : '#f3f4f6';
+    const urlTextColor = isDark ? '#9ca3af' : '#6b7280';
+
+    el.innerHTML = `
+      <div class="browser-chrome" style="background:${titleBg};border-bottom:1px solid ${borderColor};">
+        <div class="browser-dots">
+          <span style="background:#ff5f57;"></span>
+          <span style="background:#ffbe2e;"></span>
+          <span style="background:#28c941;"></span>
+        </div>
+        <div class="browser-urlbar" style="background:${urlBarBg};color:${urlTextColor};">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>${escapeHtml(url)}</span>
+        </div>
+      </div>
+      <div class="browser-screen" style="background:${bodyBg};">
+        ${image ? `<img src="${image}" alt="Browser screenshot" style="display:block;width:100%;" />` : '<div class="browser-empty">No screenshot</div>'}
+      </div>
+    `;
+    el.setAttribute('style', `border:1px solid ${borderColor};`);
+  });
+
+  // Transform Phone Mockup blocks
+  doc.querySelectorAll('div[data-type="phone-mockup"]').forEach((el) => {
+    const image = el.getAttribute('data-image') || '';
+    const showStatusBar = el.getAttribute('data-show-status-bar') !== 'false';
+    const variant = el.getAttribute('data-variant') || 'dark';
+    const isDark = variant === 'dark';
+
+    el.className = 'phone-mockup';
+    el.setAttribute('data-variant', variant);
+    el.removeAttribute('data-type');
+    ['data-image','data-show-status-bar'].forEach((a) => el.removeAttribute(a));
+
+    const phoneBg = isDark ? '#0a0a0a' : '#f9fafb';
+    const frameColor = isDark ? '#2a2a2a' : '#d1d5db';
+    const notchColor = isDark ? '#000' : '#1a1a1a';
+    const statusColor = isDark ? '#ffffff' : '#000000';
+    const homeBarColor = isDark ? '#4b4b4b' : '#c9cdd2';
+
+    const statusBarHtml = showStatusBar ? `
+      <div class="phone-status-bar" style="color:${statusColor};">
+        <span>9:41</span>
+        <span class="phone-status-icons">●●● 100%</span>
+      </div>
+    ` : '';
+
+    el.innerHTML = `
+      <div class="phone-inner" style="background:${phoneBg};border:4px solid ${frameColor};box-shadow:inset 0 0 0 1px ${isDark ? '#1a1a1a' : '#b8b8b8'},0 0 0 1px ${isDark ? '#333' : '#c5c5c5'},0 25px 50px rgba(0,0,0,${isDark ? '0.5' : '0.2'});">
+        <div class="phone-screen" style="background:${phoneBg};">
+          ${image ? `<img src="${image}" alt="Phone screenshot" />` : '<div class="phone-empty">No screenshot</div>'}
+          <div class="phone-notch">
+            <div class="phone-island" style="background:${notchColor};"></div>
+          </div>
+          ${statusBarHtml}
+          <div class="phone-home">
+            <div class="phone-home-bar" style="background:${homeBarColor};"></div>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  // Transform Marquee blocks
+  doc.querySelectorAll('div[data-type="marquee"]').forEach((el) => {
+    let items: any[] = [];
+    try { items = JSON.parse(el.getAttribute('data-items') || '[]'); } catch { /* empty */ }
+    const speed = el.getAttribute('data-speed') || 'medium';
+    const direction = el.getAttribute('data-direction') || 'left';
+    const separator = el.getAttribute('data-separator') || 'star';
+    const accentColor = el.getAttribute('data-accent-color') || '#6366f1';
+    const dur = speed === 'slow' ? 60 : speed === 'fast' ? 18 : 35;
+    const animDir = direction === 'right' ? 'reverse' : 'normal';
+    const sepChar = separator === 'dot' ? '●' : separator === 'star' ? '✦' : separator === 'dash' ? '—' : '';
+
+    el.className = 'marquee-block';
+    el.removeAttribute('data-type');
+    ['data-items','data-speed','data-direction','data-separator','data-accent-color'].forEach(a => el.removeAttribute(a));
+
+    const doubled = [...items, ...items];
+    el.innerHTML = `
+      <div class="marquee-track-outer">
+        <div class="marquee-fade-left"></div>
+        <div class="marquee-fade-right"></div>
+        <div class="marquee-track" style="animation-duration:${dur}s;animation-direction:${animDir};">
+          ${doubled.map((item: any) => `
+            <span class="marquee-item" style="border-color:${accentColor}33;background:${accentColor}0d;">
+              ${item.emoji ? `<span>${item.emoji}</span>` : ''}
+              <span>${escapeHtml(item.text || '')}</span>
+              ${sepChar ? `<span class="marquee-sep" style="color:${accentColor};">${sepChar}</span>` : ''}
+            </span>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  });
+
+  // Transform Glow Cards blocks
+  doc.querySelectorAll('div[data-type="glow-cards"]').forEach((el) => {
+    let cards: any[] = [];
+    try { cards = JSON.parse(el.getAttribute('data-cards') || '[]'); } catch { /* empty */ }
+    const cols = parseInt(el.getAttribute('data-cols') || '3');
+    const cardBg = el.getAttribute('data-card-bg') || 'white';
+    const textColor = el.getAttribute('data-text-color') || 'light';
+
+    const bgColor = cardBg === 'dark' ? '#0f172a' : cardBg === 'glass' ? 'rgba(255,255,255,0.7)' : '#ffffff';
+    const border = cardBg === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)';
+    const titleClr = textColor === 'dark' ? '#f1f5f9' : '#0f172a';
+    const descClr = textColor === 'dark' ? '#94a3b8' : '#64748b';
+
+    el.className = 'glow-cards-grid';
+    el.setAttribute('style', `display:grid;grid-template-columns:repeat(${cols},1fr);gap:1.25rem;`);
+    el.removeAttribute('data-type');
+    ['data-cards','data-cols','data-card-bg','data-text-color'].forEach(a => el.removeAttribute(a));
+
+    el.innerHTML = cards.map((card: any) => `
+      <div class="glow-card" style="background:${bgColor};border:${border};border-radius:1rem;padding:1.5rem;position:relative;overflow:hidden;transition:transform 0.2s,box-shadow 0.3s;"
+        onmouseenter="this.querySelector('.glow-overlay').style.opacity='1';this.style.transform='translateY(-2px)';"
+        onmouseleave="this.querySelector('.glow-overlay').style.opacity='0';this.style.transform='';"
+        onmousemove="var r=this.getBoundingClientRect();this.querySelector('.glow-overlay').style.background='radial-gradient(300px circle at '+(event.clientX-r.left)+'px '+(event.clientY-r.top)+'px,${card.glowColor}22,transparent 70%)';">
+        <div class="glow-overlay" style="position:absolute;inset:0;opacity:0;transition:opacity 0.3s;pointer-events:none;border-radius:1rem;"></div>
+        <div style="font-size:2rem;margin-bottom:0.75rem;">${card.emoji || ''}</div>
+        <h3 style="font-weight:600;font-size:1rem;margin:0 0 0.5rem;color:${titleClr};">${escapeHtml(card.title || '')}</h3>
+        <p style="font-size:0.875rem;line-height:1.6;margin:0;color:${descClr};">${escapeHtml(card.description || '')}</p>
+      </div>
+    `).join('');
+  });
+
+  // Transform Gradient Border blocks
+  doc.querySelectorAll('div[data-type="gradient-border"]').forEach((el) => {
+    const title = el.getAttribute('data-title') || '';
+    const description = el.getAttribute('data-description') || '';
+    const preset = parseInt(el.getAttribute('data-preset') || '0');
+    const borderWidth = el.getAttribute('data-border-width') || '2';
+    const animSpeed = el.getAttribute('data-anim-speed') || 'medium';
+    const borderRadius = el.getAttribute('data-border-radius') || 'md';
+
+    const PRESETS = [
+      ['#6366f1','#8b5cf6','#ec4899'],
+      ['#f59e0b','#ef4444','#ec4899'],
+      ['#06b6d4','#3b82f6','#6366f1'],
+      ['#10b981','#06b6d4','#3b82f6'],
+      ['#fbbf24','#f59e0b','#d97706'],
+      ['#64748b','#94a3b8','#cbd5e1'],
+    ];
+    const colors = PRESETS[preset] ?? PRESETS[0];
+    const dur = animSpeed === 'fast' ? 2 : animSpeed === 'slow' ? 6 : 3.5;
+    const br = borderRadius === 'sm' ? '12px' : borderRadius === 'lg' ? '24px' : '16px';
+    const bw = parseInt(borderWidth) || 2;
+
+    el.className = 'gradient-border-block';
+    el.removeAttribute('data-type');
+    ['data-title','data-description','data-preset','data-border-width','data-anim-speed','data-border-radius'].forEach(a => el.removeAttribute(a));
+
+    el.innerHTML = `
+      <div style="background:linear-gradient(135deg,${colors.join(',')});background-size:200% 200%;animation:gradient-shift ${dur}s ease infinite;border-radius:${br};padding:${bw}px;">
+        <div style="border-radius:calc(${br} - ${bw}px);background:#fff;padding:2rem 2.5rem;text-align:center;">
+          ${title ? `<p style="font-size:1.5rem;font-weight:700;color:#1e293b;margin:0 0 0.5rem;">${escapeHtml(title)}</p>` : ''}
+          ${description ? `<p style="color:#64748b;margin:0;">${escapeHtml(description)}</p>` : ''}
+        </div>
+      </div>
+    `;
+  });
+
+  // Transform Hover Reveal blocks
+  doc.querySelectorAll('div[data-type="hover-reveal"]').forEach((el) => {
+    let cards: any[] = [];
+    try { cards = JSON.parse(el.getAttribute('data-cards') || '[]'); } catch { /* empty */ }
+    const cols = parseInt(el.getAttribute('data-cols') || '3');
+    const revealStyle = el.getAttribute('data-reveal-style') || 'flip';
+
+    el.className = 'hover-reveal-grid';
+    el.setAttribute('style', `display:grid;grid-template-columns:repeat(${cols},1fr);gap:1.25rem;`);
+    el.removeAttribute('data-type');
+    ['data-cards','data-cols','data-reveal-style'].forEach(a => el.removeAttribute(a));
+
+    el.innerHTML = cards.map((card: any) => {
+      if (revealStyle === 'flip') {
+        return `
+          <div class="hr-card" style="height:192px;border-radius:1rem;overflow:hidden;perspective:800px;cursor:pointer;"
+            onmouseenter="this.querySelector('.hr-inner').style.transform='rotateY(180deg)';"
+            onmouseleave="this.querySelector('.hr-inner').style.transform='';">
+            <div class="hr-inner" style="width:100%;height:100%;transition:transform 0.5s;transform-style:preserve-3d;position:relative;">
+              <div style="position:absolute;inset:0;backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:1rem;background:${card.accentColor}12;border:1px solid ${card.accentColor}30;">
+                <span style="font-size:2.5rem;margin-bottom:0.75rem;">${card.emoji || ''}</span>
+                <span style="font-weight:600;font-size:1.1rem;color:#1e293b;">${escapeHtml(card.frontTitle || '')}</span>
+              </div>
+              <div style="position:absolute;inset:0;backface-visibility:hidden;transform:rotateY(180deg);display:flex;align-items:center;justify-content:center;border-radius:1rem;background:${card.accentColor};padding:1.5rem;text-align:center;">
+                <p style="color:#fff;font-size:0.875rem;line-height:1.6;margin:0;">${escapeHtml(card.backDescription || '')}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      return `
+        <div class="hr-card" style="height:192px;border-radius:1rem;overflow:hidden;position:relative;cursor:pointer;"
+          onmouseenter="this.querySelector('.hr-front').style.opacity='0';this.querySelector('.hr-front').style.transform='translateY(-100%)';this.querySelector('.hr-back').style.opacity='1';this.querySelector('.hr-back').style.transform='translateY(0)';"
+          onmouseleave="this.querySelector('.hr-front').style.opacity='1';this.querySelector('.hr-front').style.transform='';this.querySelector('.hr-back').style.opacity='0';this.querySelector('.hr-back').style.transform='translateY(100%)';">
+          <div class="hr-front" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:1rem;background:${card.accentColor}12;border:1px solid ${card.accentColor}30;transition:all 0.3s;">
+            <span style="font-size:2.5rem;margin-bottom:0.75rem;">${card.emoji || ''}</span>
+            <span style="font-weight:600;font-size:1.1rem;color:#1e293b;">${escapeHtml(card.frontTitle || '')}</span>
+          </div>
+          <div class="hr-back" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:1rem;background:${card.accentColor};padding:1.5rem;text-align:center;opacity:0;transform:translateY(100%);transition:all 0.3s;">
+            <p style="color:#fff;font-size:0.875rem;line-height:1.6;margin:0;">${escapeHtml(card.backDescription || '')}</p>
+          </div>
+        </div>
+      `;
+    }).join('');
+  });
+
+  // Transform Announcement Pill blocks
+  doc.querySelectorAll('div[data-type="announcement-pill"]').forEach((el) => {
+    const label = el.getAttribute('data-label') || 'New';
+    const message = el.getAttribute('data-message') || '';
+    const url = el.getAttribute('data-url') || '';
+    const variant = el.getAttribute('data-variant') || 'indigo';
+    const shimmer = el.getAttribute('data-shimmer') !== 'false';
+    const align = el.getAttribute('data-align') || 'center';
+
+    const VARIANTS: Record<string, { pill: string; pillBorder: string; pillText: string; badge: string; badgeText: string }> = {
+      indigo: { pill: '#eef2ff', pillBorder: '#c7d2fe', pillText: '#4338ca', badge: '#6366f1', badgeText: '#fff' },
+      rose:   { pill: '#fff1f2', pillBorder: '#fecdd3', pillText: '#be123c', badge: '#f43f5e', badgeText: '#fff' },
+      emerald:{ pill: '#ecfdf5', pillBorder: '#a7f3d0', pillText: '#065f46', badge: '#10b981', badgeText: '#fff' },
+      amber:  { pill: '#fffbeb', pillBorder: '#fde68a', pillText: '#92400e', badge: '#f59e0b', badgeText: '#fff' },
+      slate:  { pill: '#f8fafc', pillBorder: '#e2e8f0', pillText: '#334155', badge: '#475569', badgeText: '#fff' },
+      dark:   { pill: '#0f172a', pillBorder: '#1e293b', pillText: '#e2e8f0', badge: '#6366f1', badgeText: '#fff' },
+    };
+    const c = VARIANTS[variant] ?? VARIANTS.indigo;
+    const justifyStyle = align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center';
+
+    el.className = 'announcement-pill-wrapper';
+    el.removeAttribute('data-type');
+    ['data-label','data-message','data-url','data-variant','data-shimmer','data-align'].forEach(a => el.removeAttribute(a));
+
+    const pillInner = `
+      <span style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;border-radius:9999px;background:${c.pill};border:1px solid ${c.pillBorder};color:${c.pillText};font-size:0.875rem;font-weight:500;position:relative;overflow:hidden;">
+        <span style="display:inline-flex;align-items:center;padding:0.125rem 0.5rem;border-radius:9999px;background:${c.badge};color:${c.badgeText};font-size:0.75rem;font-weight:600;">${escapeHtml(label)}</span>
+        <span>${escapeHtml(message)}</span>
+        ${url ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.6;"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>` : ''}
+        ${shimmer ? `<span style="position:absolute;inset:0;background:linear-gradient(110deg,transparent 20%,rgba(255,255,255,0.4) 50%,transparent 80%);background-size:200% 100%;animation:shimmer-sweep 2.5s ease-in-out infinite;pointer-events:none;"></span>` : ''}
+      </span>
+    `;
+
+    el.innerHTML = `<div style="display:flex;justify-content:${justifyStyle};">${url ? `<a href="${url}" style="text-decoration:none;">${pillInner}</a>` : pillInner}</div>`;
+  });
+
+  // Transform Gradient Blobs blocks
+  doc.querySelectorAll('div[data-type="gradient-blobs"]').forEach((el) => {
+    const preset = parseInt(el.getAttribute('data-preset') || '0');
+    const title = el.getAttribute('data-title') || '';
+    const subtitle = el.getAttribute('data-subtitle') || '';
+    const height = el.getAttribute('data-height') || 'md';
+    const animate = el.getAttribute('data-animate') !== 'false';
+
+    const PRESETS = [
+      { bg: '#0f0f1a', blobs: [{ color: '#6366f1', size: 60, x: 10, y: 5, opacity: 0.5 }, { color: '#ec4899', size: 55, x: 55, y: 15, opacity: 0.45 }, { color: '#8b5cf6', size: 45, x: 30, y: 50, opacity: 0.4 }] },
+      { bg: '#0c1a2e', blobs: [{ color: '#06b6d4', size: 65, x: 5, y: 10, opacity: 0.5 }, { color: '#3b82f6', size: 55, x: 50, y: 5, opacity: 0.45 }, { color: '#6366f1', size: 50, x: 25, y: 55, opacity: 0.4 }] },
+      { bg: '#1a0a0a', blobs: [{ color: '#f59e0b', size: 55, x: 10, y: 20, opacity: 0.45 }, { color: '#ef4444', size: 60, x: 55, y: 5, opacity: 0.5 }, { color: '#ec4899', size: 45, x: 35, y: 55, opacity: 0.4 }] },
+      { bg: '#0a1a0f', blobs: [{ color: '#10b981', size: 60, x: 5, y: 5, opacity: 0.45 }, { color: '#06b6d4', size: 50, x: 55, y: 20, opacity: 0.4 }, { color: '#3b82f6', size: 55, x: 25, y: 50, opacity: 0.35 }] },
+      { bg: '#f8fafc', blobs: [{ color: '#6366f1', size: 50, x: 5, y: 5, opacity: 0.2 }, { color: '#ec4899', size: 45, x: 60, y: 15, opacity: 0.18 }, { color: '#8b5cf6', size: 40, x: 30, y: 55, opacity: 0.15 }] },
+    ];
+    const p = PRESETS[preset] ?? PRESETS[0];
+    const isDark = p.bg.startsWith('#0') || p.bg.startsWith('#1');
+    const minH = height === 'sm' ? '200px' : height === 'lg' ? '400px' : '300px';
+
+    el.className = 'gradient-blobs-block';
+    el.removeAttribute('data-type');
+    ['data-preset','data-title','data-subtitle','data-height','data-animate'].forEach(a => el.removeAttribute(a));
+
+    const blobsHtml = p.blobs.map((blob: any, i: number) => `
+      <div style="position:absolute;width:${blob.size}%;padding-top:${blob.size}%;left:${blob.x}%;top:${blob.y}%;transform:translate(-50%,-50%);border-radius:50%;background:${blob.color};opacity:${blob.opacity};filter:blur(80px);pointer-events:none;${animate ? `animation:blob-drift-${i % 3} ${8 + i * 2}s ease-in-out infinite;` : ''}"></div>
+    `).join('');
+
+    el.innerHTML = `
+      <div style="position:relative;border-radius:1rem;overflow:hidden;min-height:${minH};background:${p.bg};display:flex;align-items:center;justify-content:center;text-align:center;">
+        ${blobsHtml}
+        <div style="position:relative;z-index:1;padding:3rem 2rem;">
+          ${title ? `<p style="font-size:1.5rem;font-weight:700;margin:0 0 0.5rem;color:${isDark ? '#f1f5f9' : '#0f172a'};">${escapeHtml(title)}</p>` : ''}
+          ${subtitle ? `<p style="font-size:1rem;opacity:0.7;margin:0;color:${isDark ? '#cbd5e1' : '#475569'};">${escapeHtml(subtitle)}</p>` : ''}
+        </div>
+      </div>
+    `;
+  });
+
+  // Transform Noise Overlay blocks
+  doc.querySelectorAll('div[data-type="noise-overlay"]').forEach((el) => {
+    const bgPreset = parseInt(el.getAttribute('data-bg-preset') || '0');
+    const noiseOpacity = parseFloat(el.getAttribute('data-noise-opacity') || '0.15');
+    const noiseDensity = parseInt(el.getAttribute('data-noise-density') || '50');
+    const title = el.getAttribute('data-title') || '';
+    const subtitle = el.getAttribute('data-subtitle') || '';
+    const height = el.getAttribute('data-height') || 'md';
+
+    const BG_PRESETS = [
+      { value: '#ffffff', dark: false }, { value: '#f8fafc', dark: false }, { value: '#fefce8', dark: false },
+      { value: '#0f172a', dark: true }, { value: '#1c1c1e', dark: true }, { value: '#1e1b4b', dark: true },
+    ];
+    const bg = BG_PRESETS[bgPreset] ?? BG_PRESETS[0];
+    const minH = height === 'sm' ? '180px' : height === 'lg' ? '380px' : '280px';
+    const freq = 0.4 + (noiseDensity / 100) * 0.6;
+    const noiseSvg = `<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='${freq}' numOctaves='4' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='200' height='200' filter='url(#n)' opacity='${noiseOpacity}'/></svg>`;
+
+    el.className = 'noise-overlay-block';
+    el.removeAttribute('data-type');
+    ['data-bg-preset','data-noise-opacity','data-noise-density','data-title','data-subtitle','data-height'].forEach(a => el.removeAttribute(a));
+
+    el.innerHTML = `
+      <div style="position:relative;border-radius:1rem;overflow:hidden;min-height:${minH};background:${bg.value};display:flex;align-items:center;justify-content:center;text-align:center;">
+        <div style="position:absolute;inset:0;background-image:url('data:image/svg+xml,${encodeURIComponent(noiseSvg)}');background-repeat:repeat;background-size:200px 200px;pointer-events:none;"></div>
+        <div style="position:relative;z-index:1;padding:3rem 2rem;">
+          ${title ? `<p style="font-size:1.5rem;font-weight:700;margin:0 0 0.5rem;color:${bg.dark ? '#f1f5f9' : '#0f172a'};">${escapeHtml(title)}</p>` : ''}
+          ${subtitle ? `<p style="font-size:1rem;opacity:0.7;margin:0;color:${bg.dark ? '#cbd5e1' : '#475569'};">${escapeHtml(subtitle)}</p>` : ''}
+        </div>
+      </div>
+    `;
+  });
+
+  // Transform Parallax Section blocks
+
   // processedHTML now contains the headings with their newly injected IDs
   const processedHTML = doc.body.innerHTML;
 
@@ -1322,6 +1833,22 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
         document.querySelectorAll('.annotation-marker.active').forEach(m => m.classList.remove('active'));
       });
 
+      // --- STICKY SCROLL ---
+      document.querySelectorAll('.sticky-scroll').forEach(block => {
+        const btns = block.querySelectorAll('.sticky-scroll-step-btn');
+        const panels = block.querySelectorAll('.sticky-scroll-panel');
+        btns.forEach((btn, idx) => {
+          if (idx === 0) btn.classList.add('active');
+          btn.addEventListener('click', () => {
+            btns.forEach(b => b.classList.remove('active'));
+            panels.forEach(p => { p.classList.remove('active'); p.hidden = true; });
+            btn.classList.add('active');
+            if (panels[idx]) { panels[idx].classList.add('active'); panels[idx].hidden = false; }
+          });
+        });
+        if (panels[0]) { panels[0].classList.add('active'); panels[0].hidden = false; }
+      });
+
       // --- SHARE BUTTONS ---
       const copyLinkBtn = document.getElementById('copy-link-btn');
       if (copyLinkBtn) {
@@ -1346,6 +1873,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
           });
         });
       }
+
     });
   `;
 
@@ -2195,6 +2723,142 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     .before-after-label-left { left: 0.75rem; }
     .before-after-label-right { right: 0.75rem; }
 
+    /* Bento Grid */
+    .bento-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 2rem 0; }
+    .bento-cell { border-radius: 1.25rem; padding: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; min-height: 130px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+    .bento-variant-default { background: #ffffff; border: 1px solid #e2e8f0; }
+    .bento-variant-accent { background: #6366f1; border: 1px solid #6366f1; box-shadow: 0 4px 20px rgba(99,102,241,0.35); }
+    .bento-variant-dark { background: #0f172a; border: 1px solid #1e293b; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+    .bento-icon { font-size: 2.25rem; line-height: 1; }
+    .bento-title { font-size: 1.125rem; font-weight: 700; margin: 0; line-height: 1.3; }
+    .bento-variant-default .bento-title { color: #0f172a; }
+    .bento-variant-accent .bento-title, .bento-variant-dark .bento-title { color: #ffffff; }
+    .bento-desc { font-size: 0.875rem; margin: 0; line-height: 1.6; }
+    .bento-variant-default .bento-desc { color: #64748b; }
+    .bento-variant-accent .bento-desc { color: #e0e7ff; }
+    .bento-variant-dark .bento-desc { color: #94a3b8; }
+    @media (max-width: 640px) { .bento-grid { grid-template-columns: 1fr !important; } .bento-cell { grid-column: span 1 !important; grid-row: span 1 !important; } }
+
+    /* Feature Spotlight */
+    .feature-spotlight { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; margin: 3rem 0; }
+    .feature-spotlight[data-layout="image-right"] { }
+    .feature-spotlight-visual { border-radius: 1.25rem; overflow: hidden; min-height: 280px; display: flex; align-items: center; justify-content: center; position: relative; }
+    .feature-spotlight-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .feature-spotlight-icon { font-size: 5rem; line-height: 1; }
+    .feature-spotlight-content { display: flex; flex-direction: column; gap: 1rem; }
+    .feature-spotlight-title { font-size: 1.75rem; font-weight: 800; color: #0f172a; margin: 0; line-height: 1.2; letter-spacing: -0.02em; }
+    .feature-spotlight-desc { font-size: 1rem; color: #475569; margin: 0; line-height: 1.7; }
+    .feature-spotlight-bullets { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.625rem; }
+    .feature-spotlight-bullets li { display: flex; align-items: flex-start; gap: 0.75rem; font-size: 0.9375rem; color: #475569; line-height: 1.5; }
+    .feature-spotlight-check { width: 1.25rem; height: 1.25rem; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 0.1rem; font-size: 0.65rem; color: #fff; }
+    .feature-spotlight-check::after { content: '✓'; }
+    @media (max-width: 768px) { .feature-spotlight { grid-template-columns: 1fr; gap: 2rem; } }
+
+    /* Sticky Scroll */
+    .sticky-scroll { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #e2e8f0; border-radius: 1.25rem; overflow: hidden; margin: 2.5rem 0; }
+    .sticky-scroll-left { padding: 2.5rem; background: #f8fafc; position: sticky; top: 2rem; align-self: start; }
+    .sticky-scroll-accent-bar { width: 2.5rem; height: 4px; border-radius: 9999px; margin-bottom: 1.25rem; }
+    .sticky-scroll-title { font-size: 1.375rem; font-weight: 700; color: #0f172a; margin: 0 0 0.625rem; }
+    .sticky-scroll-desc { font-size: 0.875rem; color: #64748b; line-height: 1.65; margin: 0 0 1.5rem; }
+    .sticky-scroll-steps { display: flex; flex-direction: column; gap: 0.375rem; }
+    .sticky-scroll-step-btn { display: flex; align-items: center; gap: 0.75rem; padding: 0.625rem 0.75rem; border-radius: 0.75rem; border: none; background: transparent; cursor: pointer; width: 100%; text-align: left; transition: background 0.2s; font-family: inherit; }
+    .sticky-scroll-step-btn.active, .sticky-scroll-step-btn[data-active="true"] { background: var(--accent); }
+    .sticky-scroll-step-num { width: 1.5rem; height: 1.5rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; flex-shrink: 0; background: rgba(0,0,0,0.08); }
+    .sticky-scroll-step-btn.active .sticky-scroll-step-num { background: rgba(255,255,255,0.25); color: #fff; }
+    .sticky-scroll-step-label { font-size: 0.875rem; font-weight: 500; color: #475569; }
+    .sticky-scroll-step-btn.active .sticky-scroll-step-label { color: #fff; }
+    .sticky-scroll-right { padding: 2.5rem; background: #fff; border-left: 1px solid #e2e8f0; }
+    .sticky-scroll-panel { display: none; }
+    .sticky-scroll-panel:first-child, .sticky-scroll-panel.active { display: block; }
+    .sticky-scroll-panel-title { font-size: 1.125rem; font-weight: 700; color: #0f172a; margin: 0 0 0.625rem; }
+    .sticky-scroll-panel-desc { font-size: 0.9rem; color: #475569; margin: 0 0 1.25rem; line-height: 1.7; }
+    .sticky-scroll-code { background: #0f172a; color: #e2e8f0; padding: 1.25rem; border-radius: 0.75rem; font-size: 0.8125rem; font-family: ui-monospace, monospace; line-height: 1.7; overflow-x: auto; margin: 0; white-space: pre; }
+    @media (max-width: 768px) { .sticky-scroll { grid-template-columns: 1fr; } .sticky-scroll-left { position: relative; top: auto; } }
+
+    /* Code Window */
+    .code-window { margin: 2rem 0; border-radius: 0.875rem; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,0.18); }
+    .code-window-titlebar { display: flex; align-items: center; padding: 0.625rem 1rem; gap: 0.5rem; }
+    .code-window-dots { display: flex; gap: 0.375rem; flex-shrink: 0; }
+    .code-window-dots span { width: 0.75rem; height: 0.75rem; border-radius: 50%; display: block; }
+    .code-window-title { flex: 1; text-align: center; font-size: 0.75rem; font-family: ui-monospace, monospace; }
+    .code-window-lang { font-size: 0.7rem; font-family: ui-monospace, monospace; opacity: 0.5; }
+    .code-window-body { margin: 0; padding: 1.5rem; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.875rem; line-height: 1.7; overflow-x: auto; white-space: pre; }
+
+    /* Changelog Timeline */
+    .changelog-timeline { position: relative; padding-left: 2.5rem; margin: 2rem 0; }
+    .changelog-timeline::before { content: ''; position: absolute; left: 0.875rem; top: 0.5rem; bottom: 0.5rem; width: 2px; background: #e2e8f0; border-radius: 9999px; }
+    .changelog-entry { position: relative; margin-bottom: 2.5rem; }
+    .changelog-entry:last-child { margin-bottom: 0; }
+    .changelog-dot { position: absolute; left: -1.875rem; top: 0.375rem; width: 1rem; height: 1rem; border-radius: 50%; background: #fff; border: 2px solid #cbd5e1; }
+    .changelog-entry-body { }
+    .changelog-entry-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.875rem; }
+    .changelog-version { display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 700; font-family: ui-monospace, monospace; background: #1e293b; color: #fff; }
+    .changelog-date { font-size: 0.875rem; color: #94a3b8; }
+    .changelog-type-group { margin-bottom: 0.875rem; }
+    .changelog-type-badge { display: inline-flex; align-items: center; padding: 0.125rem 0.5rem; border-radius: 0.3rem; font-size: 0.75rem; font-weight: 600; margin-bottom: 0.375rem; }
+    .changelog-items { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    .changelog-items li { display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.9rem; color: #334155; line-height: 1.5; padding-left: 0.125rem; }
+    .changelog-items li::before { content: ''; width: 0.375rem; height: 0.375rem; border-radius: 50%; background: var(--dot, #64748b); flex-shrink: 0; margin-top: 0.5rem; }
+
+    /* Browser Mockup */
+    .browser-mockup { border-radius: 0.875rem; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.18); margin: 2rem 0; }
+    .browser-chrome { display: flex; align-items: center; gap: 0.875rem; padding: 0.625rem 1rem; }
+    .browser-dots { display: flex; gap: 0.375rem; flex-shrink: 0; }
+    .browser-dots span { width: 0.75rem; height: 0.75rem; border-radius: 50%; display: block; }
+    .browser-urlbar { flex: 1; display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.75rem; border-radius: 0.4rem; font-size: 0.75rem; font-family: ui-monospace, monospace; overflow: hidden; }
+    .browser-urlbar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .browser-screen { line-height: 0; }
+    .browser-empty { padding: 3rem; text-align: center; color: #9ca3af; font-size: 0.875rem; line-height: normal; }
+
+    /* Phone Mockup */
+    .phone-mockup { display: flex; justify-content: center; margin: 2rem 0; }
+    .phone-inner { width: 240px; border-radius: 2.25rem; overflow: hidden; position: relative; }
+    .phone-screen { position: relative; line-height: 0; min-height: 380px; overflow: hidden; }
+    .phone-screen img { display: block; width: 100%; margin: 0; padding: 0; border-radius: 0; box-shadow: none; }
+    .phone-empty { padding: 4rem 2rem; text-align: center; color: #9ca3af; font-size: 0.875rem; line-height: normal; height: 460px; display: flex; align-items: center; justify-content: center; }
+    .phone-notch { position: absolute; top: 0.35rem; left: 0; right: 0; display: flex; justify-content: center; pointer-events: none; z-index: 1; }
+    .phone-island { width: 4.5rem; height: 1.125rem; border-radius: 9999px; }
+    .phone-status-bar { position: absolute; top: 1.625rem; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 1rem; font-size: 0.625rem; font-weight: 600; pointer-events: none; z-index: 1; }
+    .phone-status-icons { font-size: 0.6rem; opacity: 0.8; }
+    .phone-home { position: absolute; bottom: 0.25rem; left: 0; right: 0; display: flex; justify-content: center; pointer-events: none; z-index: 1; }
+    .phone-home-bar { width: 5rem; height: 0.2rem; border-radius: 9999px; }
+
+    /* ── Tier 5: Visual Effects ── */
+
+    /* Marquee */
+    @keyframes marquee-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+    .marquee-block { overflow: hidden; padding: 0.75rem 0; position: relative; }
+    .marquee-track-outer { overflow: hidden; position: relative; }
+    .marquee-fade-left  { position: absolute; left: 0; top: 0; bottom: 0; width: 4rem; z-index: 1; pointer-events: none; background: linear-gradient(to right, white, transparent); }
+    .marquee-fade-right { position: absolute; right: 0; top: 0; bottom: 0; width: 4rem; z-index: 1; pointer-events: none; background: linear-gradient(to left, white, transparent); }
+    .marquee-track { display: flex; gap: 1.5rem; width: max-content; animation: marquee-scroll 35s linear infinite; }
+    .marquee-item { display: inline-flex; align-items: center; gap: 0.5rem; white-space: nowrap; padding: 0.5rem 1rem; border-radius: 9999px; border: 1px solid currentColor; font-size: 0.875rem; font-weight: 500; }
+    .marquee-sep { margin-left: 0.5rem; opacity: 0.4; }
+
+    /* Glow Cards */
+    .glow-cards-grid .glow-card:hover { box-shadow: 0 8px 32px rgba(0,0,0,0.12) !important; }
+
+    /* Gradient Border */
+    @keyframes gradient-border-shift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+    .gradient-border-block > div { background-size: 200% 200% !important; animation: gradient-border-shift 3.5s ease infinite; }
+
+    /* Hover Reveal */
+    .hr-card { }
+    .hr-inner { transition: transform 0.5s; transform-style: preserve-3d; }
+
+    /* Announcement Pill */
+    @keyframes shimmer-sweep { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    /* Gradient Blobs */
+    @keyframes blob-drift-0 { 0%, 100% { transform: translate(-50%,-50%) scale(1); } 50% { transform: translate(-45%,-55%) scale(1.1); } }
+    @keyframes blob-drift-1 { 0%, 100% { transform: translate(-50%,-50%) scale(1.05); } 50% { transform: translate(-55%,-45%) scale(0.95); } }
+    @keyframes blob-drift-2 { 0%, 100% { transform: translate(-50%,-50%) scale(0.95); } 50% { transform: translate(-48%,-52%) scale(1.08); } }
+    .gradient-blobs-block { margin: 2rem 0; }
+
+    /* Noise Overlay */
+    .noise-overlay-block { margin: 2rem 0; }
+
+
     /* Share Buttons */
     #share-bar {
       position: fixed;
@@ -2846,9 +3510,15 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       .timeline-step::after { background: linear-gradient(to bottom, var(--tl-accent, var(--brand-primary)), #334155); }
       .timeline-step-title { color: #f1f5f9; }
       .timeline-step-date { color: #64748b; }
-      .workflow-card:not([data-dark]) { background-color: #1e293b; border-color: #334155; }
+      .workflow-card:not([data-dark]) { border-color: #334155 !important; color: #cbd5e1; }
+      .workflow-card[data-bg-preset="white"], .workflow-card[data-bg-preset="light-gray"] { background-color: #1e293b !important; background-image: none !important; }
+      .workflow-card[data-bg-preset="warm-cream"] { background-color: transparent !important; background-image: linear-gradient(135deg, #2a1a00 0%, #1e1200 100%) !important; }
+      .workflow-card[data-bg-preset="frost"] { background-color: transparent !important; background-image: linear-gradient(135deg, #0f2d47 0%, #0a2035 100%) !important; }
+      .workflow-card[data-bg-preset="dusk"] { background-color: transparent !important; background-image: linear-gradient(135deg, #1f0e40 0%, #33102e 100%) !important; }
+      .workflow-card[data-bg-preset="mint"] { background-color: transparent !important; background-image: linear-gradient(135deg, #0a3d28 0%, #07291b 100%) !important; }
+      .workflow-card[data-bg-preset="shimmer"], .workflow-card[data-bg-preset="pulse-glow"] { background-color: #1e293b !important; background-image: none !important; }
       .workflow-card:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
-      .workflow-step-title { color: #f1f5f9; }
+      .workflow-step-title { color: #f1f5f9 !important; }
       .workflow-step-body { color: #cbd5e1; }
       .workflow-arrow { color: #475569; }
       .card { background-color: #1e293b; border-color: #334155; }
@@ -2873,7 +3543,45 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       .share-btn:hover { background: rgba(30, 41, 59, 1); color: var(--brand-primary); }
       .confetti-block { background: linear-gradient(to bottom, #1e293b, #0f172a); border-color: #334155; }
       .confetti-message { color: #f1f5f9; }
+      .hero-plain h1 { color: #f8fafc !important; }
       body::before { opacity: 0.1; }
+      /* Project Card */
+      .project-card { background: #1e293b; border-color: #334155; }
+      /* About Me */
+      .about-me { background: #1e293b; border-color: #334155; }
+      .about-me-role { color: #94a3b8; }
+      /* Bento Grid */
+      .bento-variant-default { background: #1e293b; border-color: #334155; }
+      .bento-variant-default .bento-title { color: #f1f5f9; }
+      .bento-variant-default .bento-desc { color: #94a3b8; }
+      /* Sticky Scroll */
+      .sticky-scroll { border-color: #334155; }
+      .sticky-scroll-left { background: #1e293b; }
+      .sticky-scroll-step-num { background: rgba(255,255,255,0.1); color: #f1f5f9; }
+      .sticky-scroll-step-label { color: #94a3b8; }
+      .sticky-scroll-right { background: #0f172a; border-left-color: #334155; }
+      /* Tech Stack */
+      .tech-item-label { color: #e2e8f0; }
+      /* Changelog */
+      .changelog-timeline::before { background: #334155; }
+      /* Marquee fades */
+      .marquee-fade-left { background: linear-gradient(to right, #0f172a, transparent); }
+      .marquee-fade-right { background: linear-gradient(to left, #0f172a, transparent); }
+      /* Gradient Border */
+      .gradient-border-block > div > div { background: #1e293b !important; }
+      .gradient-border-block p { color: #f1f5f9 !important; }
+      /* Hover Reveal */
+      .hr-card span[style*="color:#1e293b"] { color: #f1f5f9 !important; }
+      /* Background Section — light presets (dots, grid, diagonal, etc.) */
+      .background-section:not([data-text-color]) { background-color: #1e293b; }
+      .background-section:not([data-text-color]) .background-section-bg { opacity: 0.25 !important; }
+      /* Noise Overlay — light presets */
+      .noise-overlay-block > div[style*="background:#ffffff"],
+      .noise-overlay-block > div[style*="background:#f8fafc"],
+      .noise-overlay-block > div[style*="background:#fefce8"] { background: #0f172a !important; }
+      .noise-overlay-block > div[style*="background:#ffffff"] p,
+      .noise-overlay-block > div[style*="background:#f8fafc"] p,
+      .noise-overlay-block > div[style*="background:#fefce8"] p { color: #f1f5f9 !important; }
     }
 
     html.dark body { background-color: #0f172a; color: #f1f5f9; }
@@ -2923,9 +3631,15 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     html.dark .timeline-step::after { background: linear-gradient(to bottom, var(--tl-accent, var(--brand-primary)), #334155); }
     html.dark .timeline-step-title { color: #f1f5f9; }
     html.dark .timeline-step-date { color: #64748b; }
-    html.dark .workflow-card:not([data-dark]) { background-color: #1e293b; border-color: #334155; }
+    html.dark .workflow-card:not([data-dark]) { border-color: #334155 !important; color: #cbd5e1; }
+    html.dark .workflow-card[data-bg-preset="white"], html.dark .workflow-card[data-bg-preset="light-gray"] { background-color: #1e293b !important; background-image: none !important; }
+    html.dark .workflow-card[data-bg-preset="warm-cream"] { background-color: transparent !important; background-image: linear-gradient(135deg, #2a1a00 0%, #1e1200 100%) !important; }
+    html.dark .workflow-card[data-bg-preset="frost"] { background-color: transparent !important; background-image: linear-gradient(135deg, #0f2d47 0%, #0a2035 100%) !important; }
+    html.dark .workflow-card[data-bg-preset="dusk"] { background-color: transparent !important; background-image: linear-gradient(135deg, #1f0e40 0%, #33102e 100%) !important; }
+    html.dark .workflow-card[data-bg-preset="mint"] { background-color: transparent !important; background-image: linear-gradient(135deg, #0a3d28 0%, #07291b 100%) !important; }
+    html.dark .workflow-card[data-bg-preset="shimmer"], html.dark .workflow-card[data-bg-preset="pulse-glow"] { background-color: #1e293b !important; background-image: none !important; }
     html.dark .workflow-card:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
-    html.dark .workflow-step-title { color: #f1f5f9; }
+    html.dark .workflow-step-title { color: #f1f5f9 !important; }
     html.dark .workflow-step-body { color: #cbd5e1; }
     html.dark .workflow-arrow { color: #475569; }
     html.dark .card { background-color: #1e293b; border-color: #334155; }
@@ -2950,10 +3664,48 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     html.dark .share-btn:hover { background: rgba(30, 41, 59, 1); color: var(--brand-primary); }
     html.dark .confetti-block { background: linear-gradient(to bottom, #1e293b, #0f172a); border-color: #334155; }
     html.dark .confetti-message { color: #f1f5f9; }
+    html.dark .hero-plain h1 { color: #f8fafc !important; }
     html.dark .site-footer { background-color: #0f172a; border-top-color: #1e293b; }
     html.dark .site-footer-links a { color: #94a3b8; }
     html.dark .site-footer-text { color: #94a3b8; }
     html.dark .site-footer-branding, html.dark .site-footer-branding a { color: #475569; }
+    /* Project Card */
+    html.dark .project-card { background: #1e293b; border-color: #334155; }
+    /* About Me */
+    html.dark .about-me { background: #1e293b; border-color: #334155; }
+    html.dark .about-me-role { color: #94a3b8; }
+    /* Bento Grid */
+    html.dark .bento-variant-default { background: #1e293b; border-color: #334155; }
+    html.dark .bento-variant-default .bento-title { color: #f1f5f9; }
+    html.dark .bento-variant-default .bento-desc { color: #94a3b8; }
+    /* Sticky Scroll */
+    html.dark .sticky-scroll { border-color: #334155; }
+    html.dark .sticky-scroll-left { background: #1e293b; }
+    html.dark .sticky-scroll-step-num { background: rgba(255,255,255,0.1); color: #f1f5f9; }
+    html.dark .sticky-scroll-step-label { color: #94a3b8; }
+    html.dark .sticky-scroll-right { background: #0f172a; border-left-color: #334155; }
+    /* Tech Stack */
+    html.dark .tech-item-label { color: #e2e8f0; }
+    /* Changelog */
+    html.dark .changelog-timeline::before { background: #334155; }
+    /* Marquee fades */
+    html.dark .marquee-fade-left { background: linear-gradient(to right, #0f172a, transparent); }
+    html.dark .marquee-fade-right { background: linear-gradient(to left, #0f172a, transparent); }
+    /* Gradient Border */
+    html.dark .gradient-border-block > div > div { background: #1e293b !important; }
+    html.dark .gradient-border-block p { color: #f1f5f9 !important; }
+    /* Hover Reveal */
+    html.dark .hr-card span[style*="color:#1e293b"] { color: #f1f5f9 !important; }
+    /* Background Section — light presets (dots, grid, diagonal, etc.) */
+    html.dark .background-section:not([data-text-color]) { background-color: #1e293b; }
+    html.dark .background-section:not([data-text-color]) .background-section-bg { opacity: 0.25 !important; }
+    /* Noise Overlay — light presets */
+    html.dark .noise-overlay-block > div[style*="background:#ffffff"],
+    html.dark .noise-overlay-block > div[style*="background:#f8fafc"],
+    html.dark .noise-overlay-block > div[style*="background:#fefce8"] { background: #0f172a !important; }
+    html.dark .noise-overlay-block > div[style*="background:#ffffff"] p,
+    html.dark .noise-overlay-block > div[style*="background:#f8fafc"] p,
+    html.dark .noise-overlay-block > div[style*="background:#fefce8"] p { color: #f1f5f9 !important; }
     @media (prefers-color-scheme: dark) {
       .site-footer { background-color: #0f172a; border-top-color: #1e293b; }
       .site-footer-links a { color: #94a3b8; }
@@ -3111,7 +3863,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     </div>
   ` : ''}
   <div class="export-layout">
-    <div class="guide-container prose prose-slate max-w-none">
+    <div class="guide-container prose prose-slate prose-lg max-w-none">
       ${theme?.logoBase64 && !theme?.features?.stickyHeader && !theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none') ? `<div class="brand-header"><img src="${theme.logoBase64}" alt="Brand Logo" class="brand-logo" /></div>` : ''}
       ${!(theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none')) ? renderHeroCover(title, theme) : ''}
       ${processedHTML}
