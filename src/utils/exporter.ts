@@ -1,5 +1,6 @@
 import { ThemeConfig } from './storage';
 import { getSectionBgPreset } from './backgroundPresets';
+import { escapeHtml, sanitizeUrl, sanitizeImageSrc, sanitizeHtml, sanitizeColor } from './sanitize';
 
 // SVG icon map for workflow export (Lucide icons, stroke="currentColor")
 const WORKFLOW_ICON_SVGS: Record<string, string> = {
@@ -127,8 +128,6 @@ const getFontStack = (fontFamily?: string) => {
   }
 };
 
-const escapeHtml = (str: string) =>
-  str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 const darkenHexExport = (hex: string, amount: number): string => {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -143,7 +142,7 @@ function renderHeroCover(title: string, theme?: ThemeConfig): string {
   const style = theme?.hero?.style;
   const isLegacyEnabled = theme?.hero?.enabled;
 
-  const primaryColor = theme?.primaryColor ?? '#2563eb';
+  const primaryColor = sanitizeColor(theme?.primaryColor, '#2563eb');
   const subtitle = theme?.hero?.subtitle ?? '';
   const coverImageBase64 = theme?.hero?.coverImageBase64 ?? null;
   const escapedTitle = escapeHtml(title || 'Untitled Guide');
@@ -156,7 +155,7 @@ function renderHeroCover(title: string, theme?: ThemeConfig): string {
       // Legacy hero banner (enabled=true, no new style)
       return `
     <div class="hero-section" style="background-color: ${primaryColor}; color: white; padding: ${theme?.hero?.layout === 'full' ? '6rem 2rem' : '3rem 2rem'}; text-align: center; position: relative; overflow: hidden;">
-      ${coverImageBase64 ? `<img src="${coverImageBase64}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.3; z-index: 0;" alt="Hero Cover" />` : ''}
+      ${coverImageBase64 ? `<img src="${sanitizeImageSrc(coverImageBase64)}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.3; z-index: 0;" alt="Hero Cover" />` : ''}
       <div style="position: relative; z-index: 1; max-width: 800px; margin: 0 auto;">
         <h1 style="font-size: ${theme?.hero?.layout === 'full' ? '3.5rem' : '2.5rem'}; font-weight: 800; margin-bottom: 1rem; line-height: 1.2;">${escapedTitle}</h1>
         ${subtitle ? `<p style="font-size: 1.25rem; opacity: 0.9; max-width: 600px; margin: 0 auto;">${escapedSubtitle}</p>` : ''}
@@ -173,7 +172,7 @@ function renderHeroCover(title: string, theme?: ThemeConfig): string {
   if (style === 'gradient') {
     return `
     <div style="background: linear-gradient(135deg, ${primaryColor}, ${darkened}); padding: 4rem 3rem; margin-bottom: 2rem; border-radius: 0.75rem; position: relative; overflow: hidden;">
-      ${coverImageBase64 ? `<img src="${coverImageBase64}" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.2; pointer-events: none;" />` : ''}
+      ${coverImageBase64 ? `<img src="${sanitizeImageSrc(coverImageBase64)}" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.2; pointer-events: none;" />` : ''}
       <div style="position: relative; z-index: 1;">
         <h1 style="font-size: 3.5rem; font-weight: 800; color: white; margin: 0 0 0.75rem; line-height: 1.15;">${escapedTitle}</h1>
         ${subtitle ? `<p style="font-size: 1.25rem; color: rgba(255,255,255,0.8); margin: 0;">${escapedSubtitle}</p>` : ''}
@@ -255,6 +254,10 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
   const inlineCSS = extractInlineCSS();
 
   // Parse HTML to generate ToC and add IDs
+  // Note: we do NOT run DOMPurify on the full HTML here — the content comes
+  // from Tiptap's controlled serialization, and each user-supplied value
+  // (titles, URLs, colors) is individually sanitized with escapeHtml /
+  // sanitizeUrl / sanitizeImageSrc / sanitizeColor in the block transforms.
   const parser = new DOMParser();
   const doc = parser.parseFromString(htmlContent, 'text/html');
   const headings = doc.querySelectorAll('h1, h2');
@@ -341,13 +344,21 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     const isHtml5 = /\.(mp4|webm|ogg)(\?.*)?$/i.test(src);
 
     if (ytMatch) {
-      el.innerHTML = `<div class="video-embed-wrapper"><iframe src="https://www.youtube.com/embed/${ytMatch[1]}" title="YouTube video" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" style="border:none;"></iframe></div>`;
+      const vid = ytMatch[1];
+      el.innerHTML = `<div class="video-embed-wrapper video-facade" data-vid="${vid}">` +
+        `<img src="https://img.youtube.com/vi/${vid}/hqdefault.jpg" alt="Video thumbnail" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;cursor:pointer;" />` +
+        `<div class="video-play-btn" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;cursor:pointer;">` +
+          `<div style="width:68px;height:48px;background:rgba(255,0,0,0.9);border-radius:14px;display:flex;align-items:center;justify-content:center;transition:transform 0.15s;">` +
+            `<svg width="24" height="24" viewBox="0 0 24 24" fill="white"><polygon points="9.5 7 9.5 17 18 12"/></svg>` +
+          `</div>` +
+        `</div>` +
+      `</div>`;
     } else if (vimeoMatch) {
       el.innerHTML = `<div class="video-embed-wrapper"><iframe src="https://player.vimeo.com/video/${vimeoMatch[1]}" title="Vimeo video" allowfullscreen style="border:none;"></iframe></div>`;
     } else if (isHtml5 && src) {
-      el.innerHTML = `<video src="${src}" controls style="width:100%;border-radius:0.75rem;aspect-ratio:16/9;"></video>`;
+      el.innerHTML = `<video src="${sanitizeImageSrc(src)}" controls style="width:100%;border-radius:0.75rem;aspect-ratio:16/9;"></video>`;
     } else if (src) {
-      el.innerHTML = `<p style="color:#dc2626;font-size:0.875rem;">Unsupported video URL: ${src}</p>`;
+      el.innerHTML = `<p style="color:#dc2626;font-size:0.875rem;">Unsupported video URL: ${escapeHtml(src)}</p>`;
     }
   });
 
@@ -454,7 +465,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       }
 
       const imageHTML = image
-        ? `<div class="workflow-step-image"><img src="${image}" alt="" style="max-height:160px;width:100%;object-fit:cover;border-radius:0.5rem;" /></div>`
+        ? `<div class="workflow-step-image"><img src="${sanitizeImageSrc(image)}" alt="" style="max-height:160px;width:100%;object-fit:cover;border-radius:0.5rem;" /></div>`
         : '';
 
       step.className = 'workflow-step';
@@ -553,8 +564,8 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
 
   // Transform hero banner blocks
   doc.querySelectorAll('div[data-type="hero-banner"]').forEach((el) => {
-    const gradFrom = el.getAttribute('data-gradient-from') || '#6366f1';
-    const gradTo = el.getAttribute('data-gradient-to') || '#ec4899';
+    const gradFrom = sanitizeColor(el.getAttribute('data-gradient-from'), '#6366f1');
+    const gradTo = sanitizeColor(el.getAttribute('data-gradient-to'), '#ec4899');
     const title = el.getAttribute('data-title') || '';
     const subtitle = el.getAttribute('data-subtitle') || '';
     const ctaText = el.getAttribute('data-cta-text') || '';
@@ -566,7 +577,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       <div class="hero-banner-inner" style="background: linear-gradient(135deg, ${gradFrom}, ${gradTo});">
         <h2 class="hero-banner-title">${escapeHtml(title)}</h2>
         ${subtitle ? `<p class="hero-banner-subtitle">${escapeHtml(subtitle)}</p>` : ''}
-        ${ctaText && ctaUrl ? `<a href="${ctaUrl}" class="hero-banner-cta">${escapeHtml(ctaText)}</a>` : ''}
+        ${ctaText && ctaUrl ? `<a href="${sanitizeUrl(ctaUrl)}" class="hero-banner-cta">${escapeHtml(ctaText)}</a>` : ''}
       </div>
     `;
   });
@@ -578,7 +589,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     const description = el.getAttribute('data-description') || '';
     const liveUrl = el.getAttribute('data-live-url') || '';
     const repoUrl = el.getAttribute('data-repo-url') || '';
-    const accentColor = el.getAttribute('data-accent-color') || '#6366f1';
+    const accentColor = sanitizeColor(el.getAttribute('data-accent-color'), '#6366f1');
     let tags: string[] = [];
     try { tags = JSON.parse(el.getAttribute('data-tags') || '[]'); } catch { /* empty */ }
 
@@ -591,13 +602,13 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       : '';
     const linksHtml = (liveUrl || repoUrl)
       ? `<div class="project-card-links">
-          ${liveUrl ? `<a href="${liveUrl}" class="project-card-link-live" style="color:${accentColor}" target="_blank" rel="noopener">Live Demo ↗</a>` : ''}
-          ${repoUrl ? `<a href="${repoUrl}" class="project-card-link-repo" target="_blank" rel="noopener">Repository ↗</a>` : ''}
+          ${liveUrl ? `<a href="${sanitizeUrl(liveUrl)}" class="project-card-link-live" style="color:${accentColor}" target="_blank" rel="noopener">Live Demo ↗</a>` : ''}
+          ${repoUrl ? `<a href="${sanitizeUrl(repoUrl)}" class="project-card-link-repo" target="_blank" rel="noopener">Repository ↗</a>` : ''}
         </div>`
       : '';
 
     el.innerHTML = `
-      ${thumbnail ? `<div class="project-card-thumbnail"><img src="${thumbnail}" alt="${escapeHtml(title)}" /></div>` : `<div class="project-card-thumbnail project-card-thumbnail--placeholder" style="background:linear-gradient(135deg,${accentColor}22,${accentColor}0a)"></div>`}
+      ${thumbnail ? `<div class="project-card-thumbnail"><img src="${sanitizeImageSrc(thumbnail)}" alt="${escapeHtml(title)}" /></div>` : `<div class="project-card-thumbnail project-card-thumbnail--placeholder" style="background:linear-gradient(135deg,${accentColor}22,${accentColor}0a)"></div>`}
       <div class="project-card-body">
         <h3 class="project-card-title">${escapeHtml(title)}</h3>
         ${description ? `<p class="project-card-description">${escapeHtml(description)}</p>` : ''}
@@ -620,19 +631,19 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
 
     el.innerHTML = cards.map((card: any) => {
       const tags: string[] = Array.isArray(card.tags) ? card.tags : [];
-      const accentColor = card.accentColor || '#6366f1';
+      const accentColor = sanitizeColor(card.accentColor, '#6366f1');
       const tagsHtml = tags.length
         ? `<div class="project-card-tags">${tags.map((t: string) => `<span class="project-card-tag" style="background-color:${accentColor}18;color:${accentColor}">${escapeHtml(t)}</span>`).join('')}</div>`
         : '';
       const linksHtml = (card.liveUrl || card.repoUrl)
         ? `<div class="project-card-links">
-            ${card.liveUrl ? `<a href="${card.liveUrl}" class="project-card-link-live" style="color:${accentColor}" target="_blank" rel="noopener">Live Demo ↗</a>` : ''}
-            ${card.repoUrl ? `<a href="${card.repoUrl}" class="project-card-link-repo" target="_blank" rel="noopener">Repository ↗</a>` : ''}
+            ${card.liveUrl ? `<a href="${sanitizeUrl(card.liveUrl)}" class="project-card-link-live" style="color:${accentColor}" target="_blank" rel="noopener">Live Demo ↗</a>` : ''}
+            ${card.repoUrl ? `<a href="${sanitizeUrl(card.repoUrl)}" class="project-card-link-repo" target="_blank" rel="noopener">Repository ↗</a>` : ''}
           </div>`
         : '';
       return `
         <div class="project-card">
-          ${card.thumbnail ? `<div class="project-card-thumbnail"><img src="${card.thumbnail}" alt="${escapeHtml(card.title || '')}" /></div>` : `<div class="project-card-thumbnail project-card-thumbnail--placeholder" style="background:linear-gradient(135deg,${accentColor}22,${accentColor}0a)"></div>`}
+          ${card.thumbnail ? `<div class="project-card-thumbnail"><img src="${sanitizeImageSrc(card.thumbnail)}" alt="${escapeHtml(card.title || '')}" /></div>` : `<div class="project-card-thumbnail project-card-thumbnail--placeholder" style="background:linear-gradient(135deg,${accentColor}22,${accentColor}0a)"></div>`}
           <div class="project-card-body">
             <h3 class="project-card-title">${escapeHtml(card.title || 'Project Title')}</h3>
             ${card.description ? `<p class="project-card-description">${escapeHtml(card.description)}</p>` : ''}
@@ -649,7 +660,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     const name = el.getAttribute('data-name') || 'Your Name';
     const role = el.getAttribute('data-role') || '';
     const bio = el.getAttribute('data-bio') || '';
-    const accentColor = el.getAttribute('data-accent-color') || '#6366f1';
+    const accentColor = sanitizeColor(el.getAttribute('data-accent-color'), '#6366f1');
     const layout = el.getAttribute('data-layout') || 'left';
 
     el.className = 'about-me';
@@ -658,7 +669,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
 
     const initials = name.split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
     const avatarHtml = avatar
-      ? `<img src="${avatar}" alt="${escapeHtml(name)}" class="about-me-avatar-img" />`
+      ? `<img src="${sanitizeImageSrc(avatar)}" alt="${escapeHtml(name)}" class="about-me-avatar-img" />`
       : `<div class="about-me-avatar-placeholder" style="background:${accentColor};color:#fff;">${escapeHtml(initials)}</div>`;
 
     const avatarCol = `<div class="about-me-avatar-col">${avatarHtml}</div>`;
@@ -676,7 +687,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
   // Transform tech stack blocks
   doc.querySelectorAll('div[data-type="tech-stack"]').forEach((el) => {
     const cols = parseInt(el.getAttribute('data-cols') || '4', 10);
-    const accentColor = el.getAttribute('data-accent-color') || '#6366f1';
+    const accentColor = sanitizeColor(el.getAttribute('data-accent-color'), '#6366f1');
     let items: { icon: string; label: string }[] = [];
     try { items = JSON.parse(el.getAttribute('data-items') || '[]'); } catch { /* empty */ }
 
@@ -736,13 +747,13 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       const href = link.url || '#';
 
       if (style === 'icons') {
-        return `<a href="${href}" class="social-link social-link--icon" style="background:${meta.bg};color:${meta.color};" target="_blank" rel="noopener" title="${escapeHtml(label)}">${svg}</a>`;
+        return `<a href="${sanitizeUrl(href)}" class="social-link social-link--icon" style="background:${meta.bg};color:${meta.color};" target="_blank" rel="noopener" title="${escapeHtml(label)}">${svg}</a>`;
       }
       if (style === 'pills') {
-        return `<a href="${href}" class="social-link social-link--pill" style="background:${meta.bg};color:${meta.color};" target="_blank" rel="noopener">${svg}<span>${escapeHtml(label)}</span></a>`;
+        return `<a href="${sanitizeUrl(href)}" class="social-link social-link--pill" style="background:${meta.bg};color:${meta.color};" target="_blank" rel="noopener">${svg}<span>${escapeHtml(label)}</span></a>`;
       }
       // buttons
-      return `<a href="${href}" class="social-link social-link--button" style="border-color:${meta.color}40;color:${meta.color};background:${meta.bg};" target="_blank" rel="noopener">${svg}<span>${escapeHtml(label)}</span></a>`;
+      return `<a href="${sanitizeUrl(href)}" class="social-link social-link--button" style="border-color:${meta.color}40;color:${meta.color};background:${meta.bg};" target="_blank" rel="noopener">${svg}<span>${escapeHtml(label)}</span></a>`;
     }).join('');
   });
 
@@ -755,8 +766,8 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     const ctaUrl = el.getAttribute('data-cta-url') || '#';
     const ctaSecondaryText = el.getAttribute('data-cta-secondary-text') || '';
     const ctaSecondaryUrl = el.getAttribute('data-cta-secondary-url') || '#';
-    const gradFrom = el.getAttribute('data-gradient-from') || '#6366f1';
-    const gradTo = el.getAttribute('data-gradient-to') || '#ec4899';
+    const gradFrom = sanitizeColor(el.getAttribute('data-gradient-from'), '#6366f1');
+    const gradTo = sanitizeColor(el.getAttribute('data-gradient-to'), '#ec4899');
     const alignment = el.getAttribute('data-alignment') || 'center';
 
     el.className = 'portfolio-hero';
@@ -769,8 +780,8 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       : '';
     const ctaHtml = (ctaText || ctaSecondaryText)
       ? `<div class="portfolio-hero-ctas">
-          ${ctaText ? `<a href="${ctaUrl}" class="portfolio-hero-cta-primary" style="color:${gradFrom};">${escapeHtml(ctaText)}</a>` : ''}
-          ${ctaSecondaryText ? `<a href="${ctaSecondaryUrl}" class="portfolio-hero-cta-secondary">${escapeHtml(ctaSecondaryText)}</a>` : ''}
+          ${ctaText ? `<a href="${sanitizeUrl(ctaUrl)}" class="portfolio-hero-cta-primary" style="color:${gradFrom};">${escapeHtml(ctaText)}</a>` : ''}
+          ${ctaSecondaryText ? `<a href="${sanitizeUrl(ctaSecondaryUrl)}" class="portfolio-hero-cta-secondary">${escapeHtml(ctaSecondaryText)}</a>` : ''}
         </div>`
       : '';
 
@@ -911,9 +922,9 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
 
     el.innerHTML = `
       <div class="before-after-container" data-slider="${sliderPos}">
-        <img class="before-after-after-img" src="${afterImage}" alt="${escapeHtml(afterLabel)}" />
+        <img class="before-after-after-img" src="${sanitizeImageSrc(afterImage)}" alt="${escapeHtml(afterLabel)}" />
         <div class="before-after-before-clip" style="clip-path: inset(0 ${100 - parseFloat(sliderPos)}% 0 0);">
-          <img src="${beforeImage}" alt="${escapeHtml(beforeLabel)}" />
+          <img src="${sanitizeImageSrc(beforeImage)}" alt="${escapeHtml(beforeLabel)}" />
         </div>
         <div class="before-after-divider" style="left: ${sliderPos}%;"></div>
         <span class="before-after-label before-after-label-left">${escapeHtml(beforeLabel)}</span>
@@ -947,9 +958,10 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     const icon = el.getAttribute('data-icon') || '';
     const title = el.getAttribute('data-title') || 'Feature Title';
     const description = el.getAttribute('data-description') || '';
-    const gradient = el.getAttribute('data-gradient') || 'linear-gradient(135deg, #6366f1, #a855f7)';
+    const rawGradient = el.getAttribute('data-gradient') || '';
+    const gradient = /^linear-gradient\(\s*[\d.]+deg\s*,\s*#[0-9a-fA-F]{3,8}\s*,\s*#[0-9a-fA-F]{3,8}\s*\)$/.test(rawGradient) ? rawGradient : 'linear-gradient(135deg, #6366f1, #a855f7)';
     const layout = el.getAttribute('data-layout') || 'image-left';
-    const accentColor = el.getAttribute('data-accent-color') || '#6366f1';
+    const accentColor = sanitizeColor(el.getAttribute('data-accent-color'), '#6366f1');
     let bullets: string[] = [];
     try { bullets = JSON.parse(el.getAttribute('data-bullets') || '[]'); } catch { /* empty */ }
 
@@ -960,7 +972,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
 
     const visualHtml = `
       <div class="feature-spotlight-visual" style="background:${gradient};">
-        ${image ? `<img src="${image}" alt="${escapeHtml(title)}" class="feature-spotlight-img" />` : (icon ? `<span class="feature-spotlight-icon">${icon}</span>` : '')}
+        ${image ? `<img src="${sanitizeImageSrc(image)}" alt="${escapeHtml(title)}" class="feature-spotlight-img" />` : (icon ? `<span class="feature-spotlight-icon">${icon}</span>` : '')}
       </div>
     `;
     const bulletsHtml = bullets.length > 0
@@ -983,7 +995,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
   doc.querySelectorAll('div[data-type="sticky-scroll"]').forEach((el) => {
     const stickyTitle = el.getAttribute('data-sticky-title') || 'How It Works';
     const stickyDescription = el.getAttribute('data-sticky-description') || '';
-    const accentColor = el.getAttribute('data-accent-color') || '#6366f1';
+    const accentColor = sanitizeColor(el.getAttribute('data-accent-color'), '#6366f1');
     let steps: any[] = [];
     try { steps = JSON.parse(el.getAttribute('data-steps') || '[]'); } catch { /* empty */ }
 
@@ -1129,7 +1141,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
         </div>
       </div>
       <div class="browser-screen" style="background:${bodyBg};">
-        ${image ? `<img src="${image}" alt="Browser screenshot" style="display:block;width:100%;" />` : '<div class="browser-empty">No screenshot</div>'}
+        ${image ? `<img src="${sanitizeImageSrc(image)}" alt="Browser screenshot" style="display:block;width:100%;" />` : '<div class="browser-empty">No screenshot</div>'}
       </div>
     `;
     el.setAttribute('style', `border:1px solid ${borderColor};`);
@@ -1163,7 +1175,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     el.innerHTML = `
       <div class="phone-inner" style="background:${phoneBg};border:4px solid ${frameColor};box-shadow:inset 0 0 0 1px ${isDark ? '#1a1a1a' : '#b8b8b8'},0 0 0 1px ${isDark ? '#333' : '#c5c5c5'},0 25px 50px rgba(0,0,0,${isDark ? '0.5' : '0.2'});">
         <div class="phone-screen" style="background:${phoneBg};">
-          ${image ? `<img src="${image}" alt="Phone screenshot" />` : '<div class="phone-empty">No screenshot</div>'}
+          ${image ? `<img src="${sanitizeImageSrc(image)}" alt="Phone screenshot" />` : '<div class="phone-empty">No screenshot</div>'}
           <div class="phone-notch">
             <div class="phone-island" style="background:${notchColor};"></div>
           </div>
@@ -1183,7 +1195,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     const speed = el.getAttribute('data-speed') || 'medium';
     const direction = el.getAttribute('data-direction') || 'left';
     const separator = el.getAttribute('data-separator') || 'star';
-    const accentColor = el.getAttribute('data-accent-color') || '#6366f1';
+    const accentColor = sanitizeColor(el.getAttribute('data-accent-color'), '#6366f1');
     const dur = speed === 'slow' ? 60 : speed === 'fast' ? 18 : 35;
     const animDir = direction === 'right' ? 'reverse' : 'normal';
     const sepChar = separator === 'dot' ? '●' : separator === 'star' ? '✦' : separator === 'dash' ? '—' : '';
@@ -1228,17 +1240,18 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     el.removeAttribute('data-type');
     ['data-cards','data-cols','data-card-bg','data-text-color'].forEach(a => el.removeAttribute(a));
 
-    el.innerHTML = cards.map((card: any) => `
-      <div class="glow-card" style="background:${bgColor};border:${border};border-radius:1rem;padding:1.5rem;position:relative;overflow:hidden;transition:transform 0.2s,box-shadow 0.3s;"
-        onmouseenter="this.querySelector('.glow-overlay').style.opacity='1';this.style.transform='translateY(-2px)';"
-        onmouseleave="this.querySelector('.glow-overlay').style.opacity='0';this.style.transform='';"
-        onmousemove="var r=this.getBoundingClientRect();this.querySelector('.glow-overlay').style.background='radial-gradient(300px circle at '+(event.clientX-r.left)+'px '+(event.clientY-r.top)+'px,${card.glowColor}22,transparent 70%)';">
-        <div class="glow-overlay" style="position:absolute;inset:0;opacity:0;transition:opacity 0.3s;pointer-events:none;border-radius:1rem;"></div>
-        <div style="font-size:2rem;margin-bottom:0.75rem;">${card.emoji || ''}</div>
-        <h3 style="font-weight:600;font-size:1rem;margin:0 0 0.5rem;color:${titleClr};">${escapeHtml(card.title || '')}</h3>
-        <p style="font-size:0.875rem;line-height:1.6;margin:0;color:${descClr};">${escapeHtml(card.description || '')}</p>
+    el.innerHTML = cards.map((card: any) => {
+      const safeGlow = sanitizeColor(card.glowColor, '#6366f1');
+      return `
+      <div class="glow-card" style="background:${bgColor};border:${border};border-radius:1rem;padding:1.5rem;position:relative;overflow:hidden;transition:transform 0.2s,box-shadow 0.3s;--glow-color:${safeGlow};">
+        <div class="glow-overlay" style="position:absolute;inset:0;opacity:0;transition:opacity 0.3s;pointer-events:none;border-radius:1rem;background:radial-gradient(300px circle at 50% 50%,${safeGlow}22,transparent 70%);"></div>
+        <div style="position:relative;z-index:1;">
+          <div style="font-size:2rem;margin-bottom:0.75rem;">${card.emoji || ''}</div>
+          <h3 style="font-weight:600;font-size:1rem;margin:0 0 0.5rem;color:${titleClr};">${escapeHtml(card.title || '')}</h3>
+          <p style="font-size:0.875rem;line-height:1.6;margin:0;color:${descClr};">${escapeHtml(card.description || '')}</p>
+        </div>
       </div>
-    `).join('');
+    `}).join('');
   });
 
   // Transform Gradient Border blocks
@@ -1268,7 +1281,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     ['data-title','data-description','data-preset','data-border-width','data-anim-speed','data-border-radius'].forEach(a => el.removeAttribute(a));
 
     el.innerHTML = `
-      <div style="background:linear-gradient(135deg,${colors.join(',')});background-size:200% 200%;animation:gradient-shift ${dur}s ease infinite;border-radius:${br};padding:${bw}px;">
+      <div style="background:linear-gradient(135deg,${colors.join(',')});background-size:200% 200%;animation:gradient-border-shift ${dur}s ease infinite;border-radius:${br};padding:${bw}px;">
         <div style="border-radius:calc(${br} - ${bw}px);background:#fff;padding:2rem 2.5rem;text-align:center;">
           ${title ? `<p style="font-size:1.5rem;font-weight:700;color:#1e293b;margin:0 0 0.5rem;">${escapeHtml(title)}</p>` : ''}
           ${description ? `<p style="color:#64748b;margin:0;">${escapeHtml(description)}</p>` : ''}
@@ -1292,9 +1305,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     el.innerHTML = cards.map((card: any) => {
       if (revealStyle === 'flip') {
         return `
-          <div class="hr-card" style="height:192px;border-radius:1rem;overflow:hidden;perspective:800px;cursor:pointer;"
-            onmouseenter="this.querySelector('.hr-inner').style.transform='rotateY(180deg)';"
-            onmouseleave="this.querySelector('.hr-inner').style.transform='';">
+          <div class="hr-card hr-flip" style="height:192px;border-radius:1rem;overflow:hidden;perspective:800px;cursor:pointer;">
             <div class="hr-inner" style="width:100%;height:100%;transition:transform 0.5s;transform-style:preserve-3d;position:relative;">
               <div style="position:absolute;inset:0;backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:1rem;background:${card.accentColor}12;border:1px solid ${card.accentColor}30;">
                 <span style="font-size:2.5rem;margin-bottom:0.75rem;">${card.emoji || ''}</span>
@@ -1308,9 +1319,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
         `;
       }
       return `
-        <div class="hr-card" style="height:192px;border-radius:1rem;overflow:hidden;position:relative;cursor:pointer;"
-          onmouseenter="this.querySelector('.hr-front').style.opacity='0';this.querySelector('.hr-front').style.transform='translateY(-100%)';this.querySelector('.hr-back').style.opacity='1';this.querySelector('.hr-back').style.transform='translateY(0)';"
-          onmouseleave="this.querySelector('.hr-front').style.opacity='1';this.querySelector('.hr-front').style.transform='';this.querySelector('.hr-back').style.opacity='0';this.querySelector('.hr-back').style.transform='translateY(100%)';">
+        <div class="hr-card hr-slide" style="height:192px;border-radius:1rem;overflow:hidden;position:relative;cursor:pointer;">
           <div class="hr-front" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:1rem;background:${card.accentColor}12;border:1px solid ${card.accentColor}30;transition:all 0.3s;">
             <span style="font-size:2.5rem;margin-bottom:0.75rem;">${card.emoji || ''}</span>
             <span style="font-weight:600;font-size:1.1rem;color:#1e293b;">${escapeHtml(card.frontTitle || '')}</span>
@@ -1347,16 +1356,18 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     el.removeAttribute('data-type');
     ['data-label','data-message','data-url','data-variant','data-shimmer','data-align'].forEach(a => el.removeAttribute(a));
 
-    const pillInner = `
-      <span style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;border-radius:9999px;background:${c.pill};border:1px solid ${c.pillBorder};color:${c.pillText};font-size:0.875rem;font-weight:500;position:relative;overflow:hidden;">
-        <span style="display:inline-flex;align-items:center;padding:0.125rem 0.5rem;border-radius:9999px;background:${c.badge};color:${c.badgeText};font-size:0.75rem;font-weight:600;">${escapeHtml(label)}</span>
-        <span>${escapeHtml(message)}</span>
-        ${url ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.6;"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>` : ''}
-        ${shimmer ? `<span style="position:absolute;inset:0;background:linear-gradient(110deg,transparent 20%,rgba(255,255,255,0.4) 50%,transparent 80%);background-size:200% 100%;animation:shimmer-sweep 2.5s ease-in-out infinite;pointer-events:none;"></span>` : ''}
-      </span>
-    `;
+    const textAlign = align === 'left' ? 'left' : align === 'right' ? 'right' : 'center';
+    const arrowSvg = url ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.6;flex-shrink:0;width:14px;height:14px;"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>' : '';
+    const shimmerSpan = shimmer ? `<span style="position:absolute;inset:0;background:linear-gradient(110deg,transparent 20%,rgba(255,255,255,0.4) 50%,transparent 80%);background-size:200% 100%;animation:shimmer-sweep 2.5s ease-in-out infinite;pointer-events:none;"></span>` : '';
+    const pillStyle = `display:inline-flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;border-radius:9999px;white-space:nowrap;background:${c.pill};border:1px solid ${c.pillBorder};color:${c.pillText};font-size:0.875rem;font-weight:500;position:relative;overflow:hidden;text-decoration:none;`;
+    const pillInner = `<span style="display:inline-block;padding:0.125rem 0.5rem;border-radius:9999px;background:${c.badge};color:${c.badgeText};font-size:0.75rem;font-weight:600;white-space:nowrap;">${escapeHtml(label)}</span><span>${escapeHtml(message)}</span>${arrowSvg}${shimmerSpan}`;
 
-    el.innerHTML = `<div style="display:flex;justify-content:${justifyStyle};">${url ? `<a href="${url}" style="text-decoration:none;">${pillInner}</a>` : pillInner}</div>`;
+    el.setAttribute('style', `text-align:${textAlign};margin:0.75rem 0;`);
+    if (url) {
+      el.innerHTML = `<a href="${sanitizeUrl(url)}" style="${pillStyle}">${pillInner}</a>`;
+    } else {
+      el.innerHTML = `<span style="${pillStyle}">${pillInner}</span>`;
+    }
   });
 
   // Transform Gradient Blobs blocks
@@ -1412,8 +1423,31 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     ];
     const bg = BG_PRESETS[bgPreset] ?? BG_PRESETS[0];
     const minH = height === 'sm' ? '180px' : height === 'lg' ? '380px' : '280px';
-    const freq = 0.4 + (noiseDensity / 100) * 0.6;
-    const noiseSvg = `<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='${freq}' numOctaves='4' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='200' height='200' filter='url(#n)' opacity='${noiseOpacity}'/></svg>`;
+    // Generate canvas-based noise (SVG feTurbulence filters don't render in CSS background-image on Chrome)
+    const noiseDataUrl = (() => {
+      const size = 256;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d')!;
+      const imageData = ctx.createImageData(size, size);
+      const px = imageData.data;
+      const blockSize = Math.max(1, Math.round(8 - (noiseDensity / 100) * 7));
+      const alpha = Math.floor(noiseOpacity * 255);
+      for (let y = 0; y < size; y += blockSize) {
+        for (let x = 0; x < size; x += blockSize) {
+          const value = Math.floor(Math.random() * 255);
+          for (let dy = 0; dy < blockSize && y + dy < size; dy++) {
+            for (let dx = 0; dx < blockSize && x + dx < size; dx++) {
+              const idx = ((y + dy) * size + (x + dx)) * 4;
+              px[idx] = value; px[idx + 1] = value; px[idx + 2] = value; px[idx + 3] = alpha;
+            }
+          }
+        }
+      }
+      ctx.putImageData(imageData, 0, 0);
+      return canvas.toDataURL('image/png');
+    })();
 
     el.className = 'noise-overlay-block';
     el.removeAttribute('data-type');
@@ -1421,7 +1455,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
 
     el.innerHTML = `
       <div style="position:relative;border-radius:1rem;overflow:hidden;min-height:${minH};background:${bg.value};display:flex;align-items:center;justify-content:center;text-align:center;">
-        <div style="position:absolute;inset:0;background-image:url('data:image/svg+xml,${encodeURIComponent(noiseSvg)}');background-repeat:repeat;background-size:200px 200px;pointer-events:none;"></div>
+        <div style="position:absolute;inset:0;background-image:url('${noiseDataUrl}');background-repeat:repeat;background-size:256px 256px;pointer-events:none;"></div>
         <div style="position:relative;z-index:1;padding:3rem 2rem;">
           ${title ? `<p style="font-size:1.5rem;font-weight:700;margin:0 0 0.5rem;color:${bg.dark ? '#f1f5f9' : '#0f172a'};">${escapeHtml(title)}</p>` : ''}
           ${subtitle ? `<p style="font-size:1rem;opacity:0.7;margin:0;color:${bg.dark ? '#cbd5e1' : '#475569'};">${escapeHtml(subtitle)}</p>` : ''}
@@ -1433,9 +1467,12 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
   // Transform Parallax Section blocks
 
   // processedHTML now contains the headings with their newly injected IDs
+  // Note: sanitization was already applied to the raw HTML before block transforms.
+  // We do NOT sanitize again here — the transforms produce trusted template HTML
+  // (buttons, SVGs, iframes, etc.) that must be preserved.
   const processedHTML = doc.body.innerHTML;
 
-  const primaryColor = theme?.primaryColor || '#2563eb';
+  const primaryColor = sanitizeColor(theme?.primaryColor, '#2563eb');
   const primaryColorRgb = hexToRgb(primaryColor);
   const fontStack = getFontStack(theme?.fontFamily);
 
@@ -1491,6 +1528,28 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
         });
         if (buttons[0]) buttons[0].classList.add('active');
         if (panels[0]) panels[0].classList.add('active');
+      });
+
+      // Click-to-play video facades — swap thumbnail for live iframe,
+      // or open YouTube directly when on file:// (where embeds are blocked)
+      document.querySelectorAll('.video-facade').forEach(wrapper => {
+        wrapper.addEventListener('click', () => {
+          const vid = wrapper.getAttribute('data-vid');
+          if (!vid) return;
+          if (window.location.protocol === 'file:') {
+            window.open('https://www.youtube.com/watch?v=' + vid, '_blank');
+            return;
+          }
+          const iframe = document.createElement('iframe');
+          iframe.src = 'https://www.youtube.com/embed/' + vid + '?autoplay=1';
+          iframe.title = 'YouTube video';
+          iframe.allowFullscreen = true;
+          iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+          iframe.style.cssText = 'border:none;position:absolute;inset:0;width:100%;height:100%;';
+          wrapper.innerHTML = '';
+          wrapper.classList.remove('video-facade');
+          wrapper.appendChild(iframe);
+        });
       });
 
       // Handle accordions/details toggles if any
@@ -2195,6 +2254,9 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       width: 100%;
       height: 100%;
     }
+    .video-facade:hover .video-play-btn div {
+      transform: scale(1.1);
+    }
 
     /* Timeline */
     .timeline {
@@ -2842,9 +2904,15 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     @keyframes gradient-border-shift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
     .gradient-border-block > div { background-size: 200% 200% !important; animation: gradient-border-shift 3.5s ease infinite; }
 
-    /* Hover Reveal */
-    .hr-card { }
+    /* Hover Reveal — CSS-only hover effects */
+    .hr-flip:hover .hr-inner { transform: rotateY(180deg); }
     .hr-inner { transition: transform 0.5s; transform-style: preserve-3d; }
+    .hr-slide:hover .hr-front { opacity: 0; transform: translateY(-100%); }
+    .hr-slide:hover .hr-back  { opacity: 1 !important; transform: translateY(0) !important; }
+
+    /* Glow Cards — CSS-only hover */
+    .glow-card:hover .glow-overlay { opacity: 1 !important; }
+    .glow-card:hover { transform: translateY(-2px); }
 
     /* Announcement Pill */
     @keyframes shimmer-sweep { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
@@ -3858,13 +3926,13 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
   })()}
   ${theme?.features?.stickyHeader && theme?.logoBase64 ? `
     <div class="sticky-header" style="position: sticky; top: 0; z-index: 100; background: ${theme?.features?.darkModeSupport ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.9)'}; backdrop-filter: blur(8px); border-bottom: 1px solid ${theme?.features?.darkModeSupport ? '#1e293b' : '#f1f5f9'}; padding: 1rem 2rem; display: flex; align-items: center;">
-      <img src="${theme.logoBase64}" alt="Brand Logo" style="max-height: 32px; object-fit: contain;" />
+      <img src="${sanitizeImageSrc(theme.logoBase64)}" alt="Brand Logo" style="max-height: 32px; object-fit: contain;" />
       ${theme?.hero?.enabled || (theme?.hero?.style && theme?.hero?.style !== 'none') ? '' : `<span style="margin-left: 1rem; font-weight: 600;">${title || 'Untitled Guide'}</span>`}
     </div>
   ` : ''}
   <div class="export-layout">
     <div class="guide-container prose prose-slate prose-lg max-w-none">
-      ${theme?.logoBase64 && !theme?.features?.stickyHeader && !theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none') ? `<div class="brand-header"><img src="${theme.logoBase64}" alt="Brand Logo" class="brand-logo" /></div>` : ''}
+      ${theme?.logoBase64 && !theme?.features?.stickyHeader && !theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none') ? `<div class="brand-header"><img src="${sanitizeImageSrc(theme.logoBase64)}" alt="Brand Logo" class="brand-logo" /></div>` : ''}
       ${!(theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none')) ? renderHeroCover(title, theme) : ''}
       ${processedHTML}
     </div>
@@ -3875,7 +3943,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     <div class="site-footer-inner">
       ${(theme.footer.links ?? []).length > 0 ? `
       <nav class="site-footer-links">
-        ${theme.footer.links.map(l => `<a href="${l.url}" target="_blank" rel="noopener noreferrer">${l.label}</a>`).join('')}
+        ${theme.footer.links.map(l => `<a href="${sanitizeUrl(l.url)}" target="_blank" rel="noopener noreferrer">${l.label}</a>`).join('')}
       </nav>` : ''}
       ${theme.footer.text ? `<p class="site-footer-text">${theme.footer.text}</p>` : ''}
       ${theme.footer.showBranding ? `<p class="site-footer-branding">Made with <a href="https://github.com/coletrain35/GuideEm" target="_blank" rel="noopener noreferrer">GuideEm</a></p>` : ''}

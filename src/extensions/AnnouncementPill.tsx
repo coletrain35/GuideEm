@@ -20,12 +20,12 @@ const AnnouncementPillNodeView = (props: any) => {
   const alignClass = align === 'left' ? 'justify-start' : align === 'right' ? 'justify-end' : 'justify-center';
 
   return (
-    <NodeViewWrapper className="group/block relative my-6" contentEditable={false}>
+    <NodeViewWrapper className="not-prose group/block relative my-2" contentEditable={false}>
       <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
 
       <div className={`flex ${alignClass}`}>
         <div
-          className={`relative inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium overflow-hidden select-none ${url ? 'cursor-pointer' : ''}`}
+          className="relative inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm leading-5 font-medium overflow-hidden select-none whitespace-nowrap"
           style={{
             backgroundColor: colors.pill,
             border: `1px solid ${colors.pillBorder}`,
@@ -42,13 +42,6 @@ const AnnouncementPillNodeView = (props: any) => {
 
           {/* Message */}
           <span>{message || 'Something exciting just launched'}</span>
-
-          {/* Arrow */}
-          {url && (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-60">
-              <path d="M5 12h14m-7-7 7 7-7 7" />
-            </svg>
-          )}
 
           {/* Shimmer overlay */}
           {shimmer && (

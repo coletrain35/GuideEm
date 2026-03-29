@@ -12,6 +12,11 @@ export const compressImageToWebP = (file: File): Promise<string> => {
       return reject(new Error('File is not an image'));
     }
 
+    // Reject SVG files — they can contain embedded scripts
+    if (file.type === 'image/svg+xml') {
+      return reject(new Error('SVG files are not supported for security reasons'));
+    }
+
     const reader = new FileReader();
 
     reader.onload = (event) => {

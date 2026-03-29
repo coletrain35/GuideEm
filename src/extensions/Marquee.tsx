@@ -1,6 +1,6 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
-import React, { useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 interface MarqueeItem {
@@ -23,6 +23,15 @@ const MarqueeNodeView = (props: any) => {
   const { node, updateAttributes, selected, deleteNode, getPos, editor } = props;
   const { items: itemsJson, speed, direction, separator, accentColor } = node.attrs;
   const editingRef = useRef<HTMLInputElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) => setIsVisible(entry.isIntersecting), { threshold: 0 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const items: MarqueeItem[] = (() => { try { return JSON.parse(itemsJson); } catch { return DEFAULT_ITEMS; } })();
   const dur = SPEED_MAP[speed as keyof typeof SPEED_MAP] ?? 35;
@@ -43,7 +52,7 @@ const MarqueeNodeView = (props: any) => {
       <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
 
       {/* Marquee track */}
-      <div className="overflow-hidden py-3 relative">
+      <div ref={trackRef} className="overflow-hidden py-3 relative">
         {/* Fade masks */}
         <div className="absolute left-0 top-0 bottom-0 w-16 z-10 pointer-events-none"
           style={{ background: 'linear-gradient(to right, white, transparent)' }} />
@@ -53,7 +62,9 @@ const MarqueeNodeView = (props: any) => {
         <div
           className="flex gap-6 w-max"
           style={{
+            willChange: 'transform',
             animation: `marquee-scroll ${dur}s linear infinite ${animDir}`,
+            animationPlayState: isVisible ? 'running' : 'paused',
           }}
         >
           {doubled.map((item, i) => (

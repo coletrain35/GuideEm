@@ -3,12 +3,38 @@ import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import React, { useMemo } from 'react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
-// Generate an inline SVG noise pattern as a data URL
-const buildNoiseSvg = (opacity: number, density: number): string => {
-  // turbulence frequency controls density of grain
-  const freq = 0.4 + (density / 100) * 0.6;
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='${freq}' numOctaves='4' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='200' height='200' filter='url(#n)' opacity='${opacity}'/></svg>`;
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+// Generate a canvas-based grayscale noise pattern as a PNG data URL.
+// SVG feTurbulence filters are silently ignored when used as CSS background-image
+// data URLs in Chrome, so we use the Canvas API instead for reliable rendering.
+const buildNoiseDataUrl = (opacity: number, density: number): string => {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const imageData = ctx.createImageData(size, size);
+  const data = imageData.data;
+  // density 10–100 → blockSize 8px (chunky) to 1px (fine film grain)
+  const blockSize = Math.max(1, Math.round(8 - (density / 100) * 7));
+  const alpha = Math.floor(opacity * 255);
+
+  for (let y = 0; y < size; y += blockSize) {
+    for (let x = 0; x < size; x += blockSize) {
+      const value = Math.floor(Math.random() * 255);
+      for (let dy = 0; dy < blockSize && y + dy < size; dy++) {
+        for (let dx = 0; dx < blockSize && x + dx < size; dx++) {
+          const idx = ((y + dy) * size + (x + dx)) * 4;
+          data[idx] = value;
+          data[idx + 1] = value;
+          data[idx + 2] = value;
+          data[idx + 3] = alpha;
+        }
+      }
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  return `url("${canvas.toDataURL('image/png')}")`;
 };
 
 const BG_PRESETS: { label: string; value: string; dark: boolean }[] = [
@@ -25,7 +51,7 @@ const NoiseOverlayNodeView = (props: any) => {
   const { bgPreset, noiseOpacity, noiseDensity, title, subtitle, height } = node.attrs;
 
   const bg = BG_PRESETS[parseInt(bgPreset) ?? 0] ?? BG_PRESETS[0];
-  const noiseBg = useMemo(() => buildNoiseSvg(parseFloat(noiseOpacity) || 0.15, parseInt(noiseDensity) || 50), [noiseOpacity, noiseDensity]);
+  const noiseBg = useMemo(() => buildNoiseDataUrl(parseFloat(noiseOpacity) || 0.15, parseInt(noiseDensity) || 50), [noiseOpacity, noiseDensity]);
   const h = height === 'sm' ? '180px' : height === 'lg' ? '380px' : '280px';
 
   return (

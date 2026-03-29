@@ -63,7 +63,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
 
   // Re-generate HTML when theme changes
   useEffect(() => {
-    // We add a tiny delay to ensure CSS is loaded if this is the first render
     const timeout = setTimeout(() => {
       let html = generateHTML(landingPageTitle, landingPageHtmlContent, theme);
       if (isDarkMode) {
@@ -302,12 +301,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
              <div className="w-[44px]"></div> {/* Spacer to center the URL bar */}
            </div>
            
-           {/* Hosted iframe perfectly isolating the output */}
+           {/* Hosted iframe isolating the output */}
            <div ref={iframeContainerRef} className="flex-1 relative bg-white overflow-hidden">
              {generatedHtml ? (
                <iframe
                  srcDoc={generatedHtml}
                  title="Exported Document Preview"
+                 sandbox="allow-scripts allow-same-origin allow-presentation"
                  onLoad={(e) => {
                    const doc = (e.target as HTMLIFrameElement).contentDocument;
                    if (!doc) return;
@@ -332,7 +332,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
                    height: '100%',
                    border: 'none',
                  }}
-                 sandbox="allow-scripts allow-same-origin allow-presentation"
                />
              ) : (
                <div className="absolute inset-0 flex items-center justify-center bg-slate-50">

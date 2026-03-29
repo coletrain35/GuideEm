@@ -1,4 +1,5 @@
 import { ThemeConfig } from './storage';
+import { sanitizeHtml } from './sanitize';
 
 /**
  * Result of importing an exported HTML guide.
@@ -1390,7 +1391,7 @@ export function importGuideHTML(rawHtml: string): ImportResult {
   if (!guideContainer) {
     // Fallback: return body content stripped of scripts
     doc.querySelectorAll('script, style, link').forEach(el => el.remove());
-    return { title, content: doc.body.innerHTML, theme };
+    return { title, content: sanitizeHtml(doc.body.innerHTML), theme };
   }
 
   // 4. Remove non-content elements from guide container
@@ -1487,7 +1488,7 @@ export function importGuideHTML(rawHtml: string): ImportResult {
   reverseNoiseOverlays(doc);
 
   // 7. Return cleaned content
-  const content = guideContainer.innerHTML;
+  const content = sanitizeHtml(guideContainer.innerHTML);
 
   return { title, content, theme };
 }

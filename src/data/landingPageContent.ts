@@ -540,6 +540,81 @@ print(f'Done — {len(html) / 1024:.0f} KB')" data-language="python" data-title=
 
 <div data-type="phone-mockup" data-variant="light" data-show-status-bar="true"></div>
 
+<div data-type="section-divider" data-style="dots" class="section-divider"></div>
+
+<h2>35. Announcement Pills</h2>
+<p>A compact pill-shaped banner for surfacing product announcements, feature launches, or status updates. Six color variants, an optional shimmer sweep, and left/center/right alignment. Drop one before a hero banner to create a polished product-page feel.</p>
+
+<div data-type="announcement-pill" data-label="New" data-message="GuideEm v2.1 is live — seven new visual blocks added" data-url="#" data-variant="indigo" data-shimmer="true" data-align="center"></div>
+
+<div data-type="announcement-pill" data-label="Update" data-message="Marquee, Glow Cards, and Gradient Blobs are now available in the slash menu" data-url="#" data-variant="emerald" data-shimmer="true" data-align="center"></div>
+
+<div data-type="announcement-pill" data-label="Breaking" data-message="Legacy export format deprecated in v2.0 — migrate before April 2026" data-url="#" data-variant="rose" data-shimmer="false" data-align="center"></div>
+
+<div data-type="announcement-pill" data-label="Tip" data-message="Pair announcement pills with Hero Banners for a polished product-page opening" data-url="" data-variant="amber" data-shimmer="true" data-align="center"></div>
+
+<div data-type="section-divider" data-style="gradient" class="section-divider"></div>
+
+<h2>36. Marquee</h2>
+<p>A continuously scrolling ticker — useful for feature highlights, social proof items, tech stack lists, or any repeating content. Configurable speed, direction, separator style, and accent color. Pauses automatically when scrolled out of view.</p>
+
+<div data-type="marquee" data-speed="medium" data-direction="left" data-separator="star" data-accent-color="#6366f1" data-items='[{"text":"Zero Dependencies","emoji":"📦"},{"text":"Local-First Storage","emoji":"🔒"},{"text":"Single-File Export","emoji":"📄"},{"text":"30+ Block Types","emoji":"🧩"},{"text":"10× Image Compression","emoji":"🗜️"},{"text":"Offline Ready","emoji":"✈️"},{"text":"Dark Mode Support","emoji":"🌙"},{"text":"Custom Theming","emoji":"🎨"}]'></div>
+
+<div data-type="marquee" data-speed="slow" data-direction="right" data-separator="dot" data-accent-color="#10b981" data-items='[{"text":"TypeScript","emoji":"🟦"},{"text":"React","emoji":"⚛️"},{"text":"Tiptap","emoji":"✏️"},{"text":"Tailwind CSS","emoji":"🌀"},{"text":"Vite","emoji":"⚡"},{"text":"IndexedDB","emoji":"🗄️"},{"text":"WebP Compression","emoji":"🗜️"},{"text":"Canvas API","emoji":"🖼️"}]'></div>
+
+<div data-type="section-divider" data-style="animated-gradient" class="section-divider"></div>
+
+<h2>37. Glow Cards</h2>
+<p>Feature cards with a cursor-tracking spotlight glow. Hover each card to see the radial gradient follow your mouse — the glow color is set per card and renders in both light and dark variants. A glass option adds a frosted backdrop for use over dark or image backgrounds.</p>
+
+<div data-type="glow-cards" data-cols="3" data-card-bg="white" data-text-color="light" data-cards='[{"emoji":"⚡","title":"Lightning Fast","description":"Optimized for performance with sub-millisecond response times and zero server round-trips.","glowColor":"#facc15"},{"emoji":"🔒","title":"Secure by Default","description":"End-to-end encryption, SOC 2 certified, and zero-knowledge architecture keeps your data safe.","glowColor":"#6366f1"},{"emoji":"🚀","title":"Ship Faster","description":"From idea to production in minutes. One file, zero build steps, no deployment pipeline required.","glowColor":"#f43f5e"}]'></div>
+
+<div data-type="glow-cards" data-cols="3" data-card-bg="dark" data-text-color="dark" data-cards='[{"emoji":"🧩","title":"Composable Blocks","description":"Mix and match 30+ block types in any order. Drag to reorder, configure inline, export with fidelity.","glowColor":"#8b5cf6"},{"emoji":"🎨","title":"Live Theming","description":"Change your brand color once — it propagates through the entire exported document instantly.","glowColor":"#ec4899"},{"emoji":"🌐","title":"Works Anywhere","description":"Email it, host it on S3, open it from a USB drive. If a browser can open it, it works.","glowColor":"#10b981"}]'></div>
+
+<div data-type="section-divider" data-style="dots" class="section-divider"></div>
+
+<h2>38. Hover Reveal Cards</h2>
+<p>Cards with a hidden back side revealed on hover. Two animation modes: <strong>flip</strong> (3D card rotation) and <strong>slide</strong> (panel slides up to reveal the back). Great for feature previews, FAQ teasers, or any content where progressive disclosure improves the reading experience.</p>
+
+<h3>Flip style</h3>
+<div data-type="hover-reveal" data-cols="3" data-reveal-style="flip" data-cards='[{"emoji":"🚀","frontTitle":"Ship Faster","backDescription":"Deploy to production in seconds with our automated CI/CD pipeline and one-click rollbacks.","accentColor":"#6366f1"},{"emoji":"🔒","frontTitle":"Stay Secure","backDescription":"End-to-end encryption, SOC 2 certified, and zero-knowledge architecture keeps your data safe.","accentColor":"#10b981"},{"emoji":"📊","frontTitle":"Deep Analytics","backDescription":"Real-time dashboards with custom metrics, funnels, and cohort analysis for data-driven decisions.","accentColor":"#f59e0b"}]'></div>
+
+<h3>Slide style</h3>
+<div data-type="hover-reveal" data-cols="3" data-reveal-style="slide" data-cards='[{"emoji":"📦","frontTitle":"Self-Contained","backDescription":"Every exported file includes all CSS, JS, and images — no CDN, no external fonts, no runtime required.","accentColor":"#0ea5e9"},{"emoji":"🎯","frontTitle":"Precision Export","backDescription":"What you see in the editor is exactly what your readers get. No layout drift, no missing styles.","accentColor":"#8b5cf6"},{"emoji":"✈️","frontTitle":"Works Offline","backDescription":"Open the file on a plane, in a meeting room, or on a corporate intranet with no internet access.","accentColor":"#f43f5e"}]'></div>
+
+<div data-type="section-divider" data-style="gradient" class="section-divider"></div>
+
+<h2>39. Gradient Border</h2>
+<p>A card with an animated gradient border that continuously cycles through two or three color stops. Six presets (Aurora, Sunset, Ocean, Forest, Gold, Mono), configurable border width (1–3 px), animation speed, and corner radius. The border animation is pure CSS — zero JavaScript and zero extra bytes in the export.</p>
+
+<div data-type="gradient-border" data-title="Zero-Dependency Export" data-description="Every byte — styles, scripts, and compressed images — is inlined at export time. Open the file anywhere a browser exists." data-preset="0" data-border-width="2" data-anim-speed="medium" data-border-radius="md"></div>
+
+<div data-type="gradient-border" data-title="Ship Without a Build Step" data-description="No webpack, no Rollup, no CI pipeline required. Click Export — your document is ready in milliseconds." data-preset="1" data-border-width="3" data-anim-speed="fast" data-border-radius="lg"></div>
+
+<div data-type="gradient-border" data-title="Private by Default" data-description="No account, no telemetry, no server. Your documentation stays entirely on your device until you choose to share it." data-preset="2" data-border-width="2" data-anim-speed="slow" data-border-radius="sm"></div>
+
+<div data-type="section-divider" data-style="rainbow" class="section-divider"></div>
+
+<h2>40. Gradient Blobs</h2>
+<p>Soft, blurred radial gradients layered over a dark background — the same effect used in hero sections across Stripe, Linear, and Vercel. Five color presets and an optional CSS animation that drifts the blobs slowly while in view. Everything is pure CSS with no images and no extra bytes in the export.</p>
+
+<div data-type="gradient-blobs" data-preset="0" data-title="Aurora" data-subtitle="Indigo, pink, and violet blobs over near-black — the classic dark SaaS hero palette." data-height="md" data-animate="true"></div>
+
+<div data-type="gradient-blobs" data-preset="1" data-title="Ocean" data-subtitle="Cyan, blue, and indigo on a deep navy background — clean, technical, trustworthy." data-height="md" data-animate="true"></div>
+
+<div data-type="gradient-blobs" data-preset="4" data-title="Minimal" data-subtitle="Soft blobs on white — works with light-mode documents or editorial layouts." data-height="sm" data-animate="true"></div>
+
+<div data-type="section-divider" data-style="dots" class="section-divider"></div>
+
+<h2>41. Noise / Grain Texture</h2>
+<p>An inline SVG fractal-noise texture overlaid on a solid background — no external image file, no extra bytes in the export. Six background presets from white to dark slate, with adjustable grain opacity and density sliders. Pairs especially well with editorial typography or dark-mode section headers.</p>
+
+<div data-type="noise-overlay" data-bg-preset="0" data-noise-opacity="0.15" data-noise-density="50" data-title="Clean Grain on White" data-subtitle="A subtle analog texture that lifts any flat section off the page." data-height="sm"></div>
+
+<div data-type="noise-overlay" data-bg-preset="3" data-noise-opacity="0.20" data-noise-density="60" data-title="Dark Slate + Heavy Grain" data-subtitle="High-density noise on dark slate — strong editorial texture for chapter headers or pull-quote panels." data-height="sm"></div>
+
+<div data-type="noise-overlay" data-bg-preset="5" data-noise-opacity="0.15" data-noise-density="40" data-title="Indigo Night" data-subtitle="Dark indigo with a fine grain overlay — the same texture behind premium SaaS pricing tables." data-height="sm"></div>
+
 <div data-type="section-divider" data-style="rainbow" class="section-divider"></div>
 
 <div data-type="confetti" data-message="You made it to the end!" data-emoji="🎉" data-colors='["#6366f1","#ec4899","#f59e0b","#10b981","#3b82f6"]'></div>

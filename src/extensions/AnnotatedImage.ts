@@ -67,9 +67,11 @@ export const AnnotatedImage = Node.create<AnnotatedImageOptions>({
     const effectClass = effect !== 'none' ? ` image-effect-${effect}` : '';
 
     const markers = annotations.map((ann: any, index: number) => {
+      const safeX = Math.min(100, Math.max(0, parseFloat(ann.x) || 0));
+      const safeY = Math.min(100, Math.max(0, parseFloat(ann.y) || 0));
       return ['div', {
         class: 'annotation-marker',
-        style: `position: absolute; left: ${ann.x}%; top: ${ann.y}%; transform: translate(-50%, -50%); width: 28px; height: 28px; border-radius: 50%; background-color: var(--brand-primary, #2563eb); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; border: 2px solid #fff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); cursor: help; z-index: 20; flex-shrink: 0;`,
+        style: `position: absolute; left: ${safeX}%; top: ${safeY}%; transform: translate(-50%, -50%); width: 28px; height: 28px; border-radius: 50%; background-color: var(--brand-primary, #2563eb); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; border: 2px solid #fff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); cursor: help; z-index: 20; flex-shrink: 0;`,
         'data-text': ann.text
       }, (index + 1).toString()];
     });

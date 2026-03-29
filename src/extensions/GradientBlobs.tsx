@@ -1,6 +1,6 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 interface Blob {
@@ -67,11 +67,22 @@ const GradientBlobsNodeView = (props: any) => {
   const isDark = p.bg.startsWith('#0') || p.bg.startsWith('#1');
   const h = height === 'sm' ? '200px' : height === 'lg' ? '400px' : '300px';
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) => setIsVisible(entry.isIntersecting), { threshold: 0 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <NodeViewWrapper className="group/block relative my-8" contentEditable={false}>
       <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
 
       <div
+        ref={containerRef}
         className="relative rounded-2xl overflow-hidden flex flex-col items-center justify-center text-center"
         style={{ backgroundColor: p.bg, minHeight: h }}
       >
@@ -90,7 +101,9 @@ const GradientBlobsNodeView = (props: any) => {
               backgroundColor: blob.color,
               opacity: blob.opacity,
               filter: 'blur(80px)',
+              willChange: 'transform',
               animation: animate ? `blob-drift-${i % 3} ${8 + i * 2}s ease-in-out infinite` : undefined,
+              animationPlayState: (animate && isVisible) ? 'running' : 'paused',
             }}
           />
         ))}

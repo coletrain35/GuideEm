@@ -65,6 +65,7 @@ import type { Node as PmNode } from 'prosemirror-model';
 import { TextSelection } from 'prosemirror-state';
 import { PlusMenu } from './PlusMenu';
 import { compressImageToWebP } from '../utils/imageCompressor';
+import { sanitizeHtml, sanitizeUrl } from '../utils/sanitize';
 import { BLOCK_ITEMS } from '../utils/blockItems';
 import { SECTION_BG_PRESETS } from '../utils/backgroundPresets';
 import { useEffect, useState, useRef, useCallback } from 'react';
@@ -249,7 +250,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
   };
   const sanitizedContent = initialContent && typeof initialContent === 'object'
     ? stripUnknownNodes(initialContent)
-    : initialContent;
+    : (typeof initialContent === 'string' ? sanitizeHtml(initialContent) : initialContent);
 
   const editor = useEditor({
     extensions: [
@@ -490,7 +491,6 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
     },
     onSelectionUpdate: ({ editor }) => {
       setHasSelection(!editor.state.selection.empty);
-      setSelectionVersion(v => v + 1);
     },
   });
 
@@ -529,9 +529,20 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
 
     const container = getScrollContainer();
     const target = container ?? window;
-    target.addEventListener('scroll', updateActiveHeading, { passive: true });
+    let rafId: number | null = null;
+    const throttledUpdate = () => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        updateActiveHeading();
+        rafId = null;
+      });
+    };
+    target.addEventListener('scroll', throttledUpdate, { passive: true });
     updateActiveHeading();
-    return () => target.removeEventListener('scroll', updateActiveHeading);
+    return () => {
+      target.removeEventListener('scroll', throttledUpdate);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
   }, [showOutline, editor]);
 
   // Clear all drop-target indicators from the editor DOM
@@ -705,7 +716,9 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       editor.chain().focus().extendMarkRange('link').unsetLink().run()
       return
     }
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+    const safeUrl = sanitizeUrl(url)
+    if (!safeUrl) return
+    editor.chain().focus().extendMarkRange('link').setLink({ href: safeUrl }).run()
   }
 
   return (
@@ -719,7 +732,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       <div className={`sticky top-4 z-40 flex items-center justify-center w-full mb-8 pointer-events-none transition-all duration-300 ${zenMode ? 'opacity-0 pointer-events-none' : ''}`}>
         {/* Outer pill — no overflow clipping so popups can escape */}
         <div
-          className={`flex flex-col bg-white/80 backdrop-blur-md border border-slate-200 shadow-sm pointer-events-auto transition-all duration-150 ${editor.isActive('table') ? 'rounded-xl' : 'rounded-full'}`}
+          className={`flex flex-col bg-white/80 backdrop-blur-sm border border-slate-200 shadow-sm pointer-events-auto transition-all duration-150 ${editor.isActive('table') ? 'rounded-xl' : 'rounded-full'}`}
           onMouseDown={e => e.preventDefault()}
         >
           {/* Table editing toolbar — shown only when cursor is inside a table */}
