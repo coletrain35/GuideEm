@@ -4,7 +4,7 @@ export interface CalloutOptions {
   HTMLAttributes: Record<string, any>
 }
 
-export type CalloutType = 'info' | 'warning' | 'success'
+export type CalloutType = 'info' | 'warning' | 'success' | 'danger'
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -47,6 +47,7 @@ export const Callout = Node.create<CalloutOptions>({
       { tag: 'div[data-type="info"]' },
       { tag: 'div[data-type="warning"]' },
       { tag: 'div[data-type="success"]' },
+      { tag: 'div[data-type="danger"]' },
       { tag: 'div.callout' },
     ]
   },

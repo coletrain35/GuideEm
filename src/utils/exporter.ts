@@ -1979,6 +1979,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     .guide-container {
       flex: 1;
       min-width: 0;
+      overflow-x: clip;
     }
 
     .brand-header {
@@ -2486,6 +2487,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       overflow-y: auto;
       padding-left: 1rem;
       border-left: 1px solid #f1f5f9;
+      z-index: 10;
     }
     .toc-sidebar h3 {
       font-size: 0.875rem;
@@ -3063,6 +3065,15 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>');
     }
 
+    .callout[data-type="danger"] {
+      background-color: #fef2f2;
+      border-color: #fee2e2;
+      color: #7f1d1d;
+    }
+    .callout[data-type="danger"]::before {
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>');
+    }
+
     /* Glass Callouts */
     .callout[data-type="glass-info"] {
       background: rgba(59, 130, 246, 0.08);
@@ -3134,6 +3145,17 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     table[data-table-style="minimal"] td, table[data-table-style="minimal"] th { border-top: none; border-left: none; border-right: none; border-bottom: 1px solid #e2e8f0; padding-left: 0.25rem; padding-right: 0.25rem; }
     table[data-table-style="minimal"] th { background-color: transparent !important; color: #94a3b8 !important; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; }
     table[data-table-style="minimal"] tr:hover td { background-color: transparent; }
+
+    table[data-table-style="striped"] tbody tr:nth-child(even) td { background-color: #f8fafc; }
+    table[data-table-style="striped"] tr:hover td { background-color: #f1f5f9; }
+
+    table[data-table-style="dark"] th { background-color: #0f172a !important; color: #f8fafc !important; border-color: #1e293b !important; }
+    table[data-table-style="dark"] tr:hover td { background-color: rgba(15, 23, 42, 0.04); }
+
+    table[data-table-style="accent"] th { background-color: var(--brand-primary) !important; color: #fff !important; border-color: var(--brand-primary) !important; }
+    table[data-table-style="accent"] tr:hover td { background-color: rgba(59, 130, 246, 0.05); }
+
+    table[data-table-style="compact"] td, table[data-table-style="compact"] th { padding: 0.375rem 0.625rem; font-size: 0.8125rem; }
 
     /* Highlight */
     mark {
@@ -3554,6 +3576,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       .callout[data-type="info"] { background-color: rgba(37, 99, 235, 0.1); border-color: rgba(37, 99, 235, 0.2); color: #60a5fa; }
       .callout[data-type="warning"] { background-color: rgba(217, 119, 6, 0.1); border-color: rgba(217, 119, 6, 0.2); color: #fbbf24; }
       .callout[data-type="success"] { background-color: rgba(5, 150, 105, 0.1); border-color: rgba(5, 150, 105, 0.2); color: #34d399; }
+      .callout[data-type="danger"] { background-color: rgba(220, 38, 38, 0.1); border-color: rgba(220, 38, 38, 0.2); color: #fca5a5; }
       .callout[data-type="glass-info"] { background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.3); color: #93c5fd; }
       .callout[data-type="glass-warning"] { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.3); color: #fcd34d; }
       .callout[data-type="glass-success"] { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.3); color: #6ee7b7; }
@@ -3675,6 +3698,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     html.dark .callout[data-type="info"] { background-color: rgba(37, 99, 235, 0.1); border-color: rgba(37, 99, 235, 0.2); color: #60a5fa; }
     html.dark .callout[data-type="warning"] { background-color: rgba(217, 119, 6, 0.1); border-color: rgba(217, 119, 6, 0.2); color: #fbbf24; }
     html.dark .callout[data-type="success"] { background-color: rgba(5, 150, 105, 0.1); border-color: rgba(5, 150, 105, 0.2); color: #34d399; }
+    html.dark .callout[data-type="danger"] { background-color: rgba(220, 38, 38, 0.1); border-color: rgba(220, 38, 38, 0.2); color: #fca5a5; }
     html.dark .callout[data-type="glass-info"] { background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.3); color: #93c5fd; }
     html.dark .callout[data-type="glass-warning"] { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.3); color: #fcd34d; }
     html.dark .callout[data-type="glass-success"] { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.3); color: #6ee7b7; }
@@ -3931,7 +3955,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     </div>
   ` : ''}
   <div class="export-layout">
-    <div class="guide-container prose prose-slate prose-lg max-w-none">
+    <div class="guide-container prose prose-slate prose-lg max-w-none prose-h1:text-4xl prose-h2:text-2xl prose-h3:text-xl prose-h4:text-lg prose-headings:font-bold prose-headings:tracking-tight">
       ${theme?.logoBase64 && !theme?.features?.stickyHeader && !theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none') ? `<div class="brand-header"><img src="${sanitizeImageSrc(theme.logoBase64)}" alt="Brand Logo" class="brand-logo" /></div>` : ''}
       ${!(theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none')) ? renderHeroCover(title, theme) : ''}
       ${processedHTML}

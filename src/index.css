@@ -88,12 +88,12 @@
 
     /* Callout Panels */
     .callout {
-      @apply flex gap-4 p-5 my-6 rounded-xl border leading-relaxed;
+      @apply relative p-5 pl-14 my-6 rounded-xl border leading-relaxed;
     }
 
     .callout::before {
       content: '';
-      @apply flex-shrink-0 w-6 h-6 mt-0.5 bg-no-repeat bg-center bg-contain;
+      @apply absolute left-5 top-5 w-6 h-6 bg-no-repeat bg-center bg-contain;
     }
 
     /* Info Callout */
@@ -118,6 +118,14 @@
     }
     .callout[data-type="success"]::before {
       background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>');
+    }
+
+    /* Danger Callout */
+    .callout[data-type="danger"] {
+      @apply bg-red-50 border-red-100 text-red-900;
+    }
+    .callout[data-type="danger"]::before {
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>');
     }
 
     /* Tables */
@@ -454,6 +462,16 @@ table[data-table-style="bordered"] tr:hover td { background-color: #f8fafc; }
 
 table[data-table-style="minimal"] td     { border-top: none; border-left: none; border-right: none; border-bottom: 1px solid #e2e8f0; padding-left: 0.25rem; padding-right: 0.25rem; }
 table[data-table-style="minimal"] tr:hover td { background-color: transparent; }
+
+table[data-table-style="striped"] tbody tr:nth-child(even) td { background-color: #f8fafc; }
+table[data-table-style="striped"] tr:hover td { background-color: #f1f5f9; }
+
+table[data-table-style="dark"] tr:hover td { background-color: rgba(15, 23, 42, 0.04); }
+
+table[data-table-style="accent"] tr:hover td { background-color: rgba(59, 130, 246, 0.05); }
+
+table[data-table-style="compact"] td,
+table[data-table-style="compact"] th { padding: 0.375rem 0.625rem; font-size: 0.8125rem; }
 
 
 /* Block Palette drop target indicator */

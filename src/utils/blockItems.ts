@@ -5,7 +5,7 @@ import {
   Image as ImageIcon, Columns, ChevronsUpDown, Layers, GripHorizontal, Video,
   Milestone, LayoutGrid, Hash, MessageSquareQuote, PanelTop, BarChart3,
   GitCompare, SplitSquareHorizontal, PartyPopper, Info, AlertTriangle,
-  CheckCircle, Minus, PaintBucket, Table2, Briefcase, GalleryHorizontal, UserCircle2,
+  CheckCircle, XCircle, Minus, PaintBucket, Table2, Briefcase, GalleryHorizontal, UserCircle2,
   Cpu, Share2, Star, Monitor, Smartphone, SquareCode, Sparkles, ScrollText, PanelLeft, AppWindow,
   Megaphone, Zap, Square, Cloud, Film, ArrowLeftRight,
 } from 'lucide-react';
@@ -133,6 +133,15 @@ export const BLOCK_ITEMS: BlockItem[] = [
     category: 'Callouts',
     keywords: ['callout', 'success', 'done', 'check'],
     action: (e) => e.chain().focus().toggleCallout('success').run(),
+  },
+  {
+    id: 'calloutDanger',
+    label: 'Danger Callout',
+    description: 'Red danger box',
+    icon: XCircle,
+    category: 'Callouts',
+    keywords: ['callout', 'danger', 'error', 'critical'],
+    action: (e) => e.chain().focus().toggleCallout('danger').run(),
   },
 
   // ── Media ──

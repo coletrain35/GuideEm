@@ -74,8 +74,8 @@ import type { ThemeConfig } from '../utils/storage';
 import {
   Link as LinkIcon, Highlighter, AlignLeft, AlignCenter, AlignRight,
   Minus, Undo, Redo, Bold, Italic, Strikethrough, Columns,
-  Sparkles, Rows3, Columns3, Trash2, Palette,
-  Search, X as XIcon, ChevronUp, ChevronDown, List,
+  Sparkles, Trash2, Palette, Plus,
+  Search, X as XIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, List,
 } from 'lucide-react';
 import { TableInsertModal } from './TableInsertModal';
 
@@ -96,10 +96,11 @@ interface ThStyles {
 const TABLE_TH_STYLES: Record<string, ThStyles> = {
   default:  { backgroundColor: '#f8fafc', color: '#0f172a', borderColor: '#e2e8f0' },
   bordered: { backgroundColor: '#f1f5f9', color: '#1e293b', borderColor: '#cbd5e1' },
-  minimal:  {
-    backgroundColor: 'transparent', color: '#94a3b8', borderColor: '#e2e8f0',
-    fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.06em',
-  },
+  minimal:  { backgroundColor: 'transparent', color: '#94a3b8', borderColor: '#e2e8f0', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.06em' },
+  striped:  { backgroundColor: '#f8fafc', color: '#0f172a', borderColor: '#e2e8f0' },
+  dark:     { backgroundColor: '#0f172a', color: '#f8fafc', borderColor: '#1e293b' },
+  accent:   { backgroundColor: '#3b82f6', color: '#ffffff', borderColor: '#2563eb' },
+  compact:  { backgroundColor: '#f8fafc', color: '#0f172a', borderColor: '#e2e8f0' },
 };
 
 // Subclass of the Tiptap TableView that stamps data-table-style directly on
@@ -139,10 +140,14 @@ class StyledTableView extends TableView {
 }
 
 const TABLE_STYLES = [
-  { id: 'default',  label: 'Default',  swatch: 'bg-slate-100' },
+  { id: 'default',  label: 'Default',  swatch: 'bg-slate-100 border border-slate-200' },
   { id: 'bordered', label: 'Bordered', swatch: 'border-2 border-slate-400 bg-white' },
   { id: 'minimal',  label: 'Minimal',  swatch: 'border-b-2 border-slate-400 bg-white' },
-] as const;
+  { id: 'striped',  label: 'Striped',  swatch: 'bg-gradient-to-b from-slate-100 via-white to-slate-100 border border-slate-200' },
+  { id: 'dark',     label: 'Dark',     swatch: 'bg-slate-900' },
+  { id: 'accent',   label: 'Accent',   swatch: 'bg-blue-500' },
+  { id: 'compact',  label: 'Compact',  swatch: 'bg-slate-50 border border-slate-200' },
+];
 
 interface EditorProps {
   initialContent: any;
@@ -163,6 +168,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
   const [wordCount, setWordCount] = useState(0);
 
   const [hasSelection, setHasSelection] = useState(false);
+  const [inTable, setInTable] = useState(false);
   const [, setSelectionVersion] = useState(0);
   const [showRevealPop, setShowRevealPop] = useState(false);
   const [showGradientPop, setShowGradientPop] = useState(false);
@@ -185,6 +191,23 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
 
   const isFirstRender = useRef(true);
   const editorRef = useRef<import('@tiptap/core').Editor | null>(null);
+  const hasPendingSave = useRef(false);
+  const latestSaveArgs = useRef({ html: htmlContent, json: content, t: title, fn: onUpdate });
+
+  // Keep latest args current so the unmount flush always uses the most recent values.
+  useEffect(() => {
+    latestSaveArgs.current = { html: htmlContent, json: content, t: title, fn: onUpdate };
+  });
+
+  // Flush any pending debounced save when the Editor unmounts (e.g. user switches docs).
+  useEffect(() => {
+    return () => {
+      if (hasPendingSave.current) {
+        const { html, json, t, fn } = latestSaveArgs.current;
+        fn(html, json, t);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -192,7 +215,9 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       return;
     }
 
+    hasPendingSave.current = true;
     const timeoutId = setTimeout(() => {
+      hasPendingSave.current = false;
       onUpdate(htmlContent, content, title);
     }, 1000);
 
@@ -354,7 +379,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
     content: sanitizedContent || '',
     editorProps: {
       attributes: {
-        class: 'prose prose-slate prose-lg max-w-none focus:outline-none prose-headings:font-bold prose-headings:tracking-tight prose-h1:text-4xl prose-h2:text-2xl prose-p:text-slate-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-img:shadow-md min-h-[500px] pb-32',
+        class: 'prose prose-slate prose-lg max-w-none focus:outline-none prose-headings:font-bold prose-headings:tracking-tight prose-h1:text-4xl prose-h2:text-2xl prose-h3:text-xl prose-h4:text-lg prose-p:text-slate-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-img:shadow-md min-h-[500px] pb-32',
       },
       handleKeyDown: (_view, event) => {
         if (event.ctrlKey && event.key === 'f') {
@@ -491,6 +516,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
     },
     onSelectionUpdate: ({ editor }) => {
       setHasSelection(!editor.state.selection.empty);
+      setInTable(editor.isActive('tableCell') || editor.isActive('tableHeader'));
     },
   });
 
@@ -732,21 +758,37 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       <div className={`sticky top-4 z-40 flex items-center justify-center w-full mb-8 pointer-events-none transition-all duration-300 ${zenMode ? 'opacity-0 pointer-events-none' : ''}`}>
         {/* Outer pill — no overflow clipping so popups can escape */}
         <div
-          className={`flex flex-col bg-white/80 backdrop-blur-sm border border-slate-200 shadow-sm pointer-events-auto transition-all duration-150 ${editor.isActive('table') ? 'rounded-xl' : 'rounded-full'}`}
+          className={`flex flex-col bg-white/80 backdrop-blur-sm border border-slate-200 shadow-sm pointer-events-auto transition-all duration-150 ${inTable ? 'rounded-xl' : 'rounded-full'}`}
           onMouseDown={e => e.preventDefault()}
         >
           {/* Table editing toolbar — shown only when cursor is inside a table */}
-          {editor.isActive('table') && (
+          {inTable && (
             <div className="flex items-center gap-0.5 px-2 sm:px-3 py-1.5 border-b border-slate-100">
               <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider border-l-2 border-blue-400 pl-2 mr-1">Table</span>
               <div className="w-px h-4 bg-slate-200 mx-0.5" />
-              <button onClick={() => editor.chain().focus().addRowBefore().run()} className="p-1.5 rounded hover:bg-slate-200 text-slate-600" title="Add row above"><Rows3 size={14} /></button>
-              <button onClick={() => editor.chain().focus().addRowAfter().run()} className="p-1.5 rounded hover:bg-slate-200 text-slate-600" title="Add row below"><Rows3 size={14} /></button>
-              <button onClick={() => editor.chain().focus().deleteRow().run()} className="p-1.5 rounded hover:bg-red-50 text-red-400" title="Delete row"><Rows3 size={14} /></button>
+              {/* Row actions */}
+              <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider px-0.5 select-none">Row</span>
+              <button onClick={() => editor.chain().focus().addRowBefore().run()} className="flex items-center gap-0.5 px-1.5 py-1 rounded text-[11px] font-medium hover:bg-slate-100 text-slate-600" title="Add row above">
+                <Plus size={10} /><ChevronUp size={10} />
+              </button>
+              <button onClick={() => editor.chain().focus().addRowAfter().run()} className="flex items-center gap-0.5 px-1.5 py-1 rounded text-[11px] font-medium hover:bg-slate-100 text-slate-600" title="Add row below">
+                <Plus size={10} /><ChevronDown size={10} />
+              </button>
+              <button onClick={() => editor.chain().focus().deleteRow().run()} className="flex items-center gap-0.5 px-1.5 py-1 rounded text-[11px] font-medium hover:bg-red-50 text-red-400" title="Delete row">
+                <Minus size={10} />Row
+              </button>
               <div className="w-px h-4 bg-slate-200 mx-0.5" />
-              <button onClick={() => editor.chain().focus().addColumnBefore().run()} className="p-1.5 rounded hover:bg-slate-200 text-slate-600" title="Add column left"><Columns3 size={14} /></button>
-              <button onClick={() => editor.chain().focus().addColumnAfter().run()} className="p-1.5 rounded hover:bg-slate-200 text-slate-600" title="Add column right"><Columns3 size={14} /></button>
-              <button onClick={() => editor.chain().focus().deleteColumn().run()} className="p-1.5 rounded hover:bg-red-50 text-red-400" title="Delete column"><Columns3 size={14} /></button>
+              {/* Column actions */}
+              <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider px-0.5 select-none">Col</span>
+              <button onClick={() => editor.chain().focus().addColumnBefore().run()} className="flex items-center gap-0.5 px-1.5 py-1 rounded text-[11px] font-medium hover:bg-slate-100 text-slate-600" title="Add column left">
+                <Plus size={10} /><ChevronLeft size={10} />
+              </button>
+              <button onClick={() => editor.chain().focus().addColumnAfter().run()} className="flex items-center gap-0.5 px-1.5 py-1 rounded text-[11px] font-medium hover:bg-slate-100 text-slate-600" title="Add column right">
+                <Plus size={10} /><ChevronRight size={10} />
+              </button>
+              <button onClick={() => editor.chain().focus().deleteColumn().run()} className="flex items-center gap-0.5 px-1.5 py-1 rounded text-[11px] font-medium hover:bg-red-50 text-red-400" title="Delete column">
+                <Minus size={10} />Col
+              </button>
               <div className="w-px h-4 bg-slate-200 mx-0.5" />
               {/* Style picker */}
               <div className="relative">
@@ -756,21 +798,20 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
                   title="Table style"
                 >
                   <Palette size={13} />
-                  <span>Style</span>
+                  <span>{TABLE_STYLES.find(s => s.id === (editor.getAttributes('table').tableStyle || 'default'))?.label ?? 'Style'}</span>
                 </button>
                 {showTableStylePop && (
-                  <div className="absolute top-full mt-2 left-0 bg-white rounded-lg shadow-xl border border-slate-200 p-1.5 z-50 flex flex-col gap-0.5 min-w-[130px]">
+                  <div className="absolute top-full mt-2 right-0 bg-white rounded-lg shadow-xl border border-slate-200 p-1.5 z-50 grid grid-cols-2 gap-0.5 w-[200px]">
                     {TABLE_STYLES.map(({ id, label, swatch }) => {
                       const active = (editor.getAttributes('table').tableStyle || 'default') === id;
                       return (
                         <button
                           key={id}
                           onClick={() => { editor.chain().focus().updateAttributes('table', { tableStyle: id }).run(); setShowTableStylePop(false); }}
-                          className={`text-xs text-left px-2 py-1.5 rounded flex items-center gap-2 ${active ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-700 hover:bg-slate-100'}`}
+                          className={`text-xs text-left px-2 py-1.5 rounded flex items-center gap-2 ${active ? 'bg-blue-50 text-blue-700 font-medium ring-1 ring-blue-300' : 'text-slate-700 hover:bg-slate-100'}`}
                         >
-                          <span className={`w-3.5 h-3.5 rounded-sm flex-shrink-0 ${swatch}`} />
-                          <span className="flex-1">{label}</span>
-                          {active && <span className="text-blue-500 text-[10px]">✓</span>}
+                          <span className={`w-4 h-4 rounded-sm flex-shrink-0 ${swatch}`} />
+                          <span className="flex-1 truncate">{label}</span>
                         </button>
                       );
                     })}
