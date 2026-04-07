@@ -617,5 +617,12 @@ print(f'Done — {len(html) / 1024:.0f} KB')" data-language="python" data-title=
 
 <div data-type="section-divider" data-style="rainbow" class="section-divider"></div>
 
+<h2>42. Interactive Demo</h2>
+<p>Build click-through image walkthroughs that simulate real UI interactions. Upload multiple frames — screenshots of your app, dashboard, or workflow — then draw rectangular hotspot regions that link to other frames. Readers click through the demo just like they would use the real product. Supports fade and directional slide transitions, optional branching (one hotspot can jump to any frame), navigation dots, and a back button. Everything exports as self-contained HTML with zero dependencies.</p>
+
+<div data-type="interactive-demo" data-frames='[{"id":"frame1","image":"https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80","label":"Dashboard"},{"id":"frame2","image":"https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80","label":"Analytics"},{"id":"frame3","image":"https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?auto=format&fit=crop&w=1200&q=80","label":"Reports"}]' data-hotspots='[{"id":"hs1","frameId":"frame1","x":65,"y":15,"width":25,"height":10,"targetFrameId":"frame2","tooltip":"View Analytics"},{"id":"hs2","frameId":"frame2","x":10,"y":70,"width":20,"height":10,"targetFrameId":"frame3","tooltip":"Open Reports"},{"id":"hs3","frameId":"frame2","x":70,"y":70,"width":20,"height":10,"targetFrameId":"frame1","tooltip":"Back to Dashboard"},{"id":"hs4","frameId":"frame3","x":40,"y":80,"width":20,"height":8,"targetFrameId":"frame1","tooltip":"Return Home"}]' data-transition="slide-left" data-show-nav="true"></div>
+
+<div data-type="section-divider" data-style="rainbow" class="section-divider"></div>
+
 <div data-type="confetti" data-message="You made it to the end!" data-emoji="🎉" data-colors='["#6366f1","#ec4899","#f59e0b","#10b981","#3b82f6"]'></div>
 `;

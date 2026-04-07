@@ -7,7 +7,7 @@ import {
   GitCompare, SplitSquareHorizontal, PartyPopper, Info, AlertTriangle,
   CheckCircle, XCircle, Minus, PaintBucket, Table2, Briefcase, GalleryHorizontal, UserCircle2,
   Cpu, Share2, Star, Monitor, Smartphone, SquareCode, Sparkles, ScrollText, PanelLeft, AppWindow,
-  Megaphone, Zap, Square, Cloud, Film, ArrowLeftRight,
+  Megaphone, Zap, Square, Cloud, Film, ArrowLeftRight, MousePointerClick,
 } from 'lucide-react';
 
 export type BlockCategory = 'Text' | 'Callouts' | 'Media' | 'Layout' | 'Data' | 'Showcase';
@@ -190,6 +190,15 @@ export const BLOCK_ITEMS: BlockItem[] = [
       type: 'beforeAfter',
       attrs: { beforeImage: '', afterImage: '', sliderPosition: 50, beforeLabel: 'Before', afterLabel: 'After' },
     }).run(),
+  },
+  {
+    id: 'interactiveDemo',
+    label: 'Interactive Demo',
+    description: 'Click-through image walkthrough',
+    icon: MousePointerClick,
+    category: 'Media',
+    keywords: ['interactive', 'demo', 'walkthrough', 'click', 'prototype', 'simulation', 'tutorial', 'clickthrough'],
+    action: (e) => e.chain().focus().insertContent({ type: 'interactiveDemo' }).run(),
   },
 
   // ── Layout ──

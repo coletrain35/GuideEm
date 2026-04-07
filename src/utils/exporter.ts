@@ -933,6 +933,45 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     `;
   });
 
+  // Transform Interactive Demo blocks
+  doc.querySelectorAll('div[data-type="interactive-demo"]').forEach((el) => {
+    let frames: any[] = [];
+    let hotspots: any[] = [];
+    try { frames = JSON.parse(el.getAttribute('data-frames') || '[]'); } catch { /* empty */ }
+    try { hotspots = JSON.parse(el.getAttribute('data-hotspots') || '[]'); } catch { /* empty */ }
+    const transition = el.getAttribute('data-transition') || 'fade';
+    const showNav = el.getAttribute('data-show-nav') !== 'false';
+
+    el.className = 'interactive-demo';
+    el.removeAttribute('data-type');
+    ['data-frames', 'data-hotspots', 'data-transition', 'data-show-nav', 'data-active-frame-id'].forEach((a) => el.removeAttribute(a));
+
+    if (frames.length === 0) {
+      el.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:2rem;">Interactive Demo: no frames added</p>';
+      return;
+    }
+
+    const framesHtml = frames.map((frame: any, fi: number) => {
+      const frameHotspots = hotspots.filter((h: any) => h.frameId === frame.id);
+      const hotspotsHtml = frameHotspots.map((h: any) => {
+        const targetAttr = h.targetFrameId ? ` data-target="${escapeHtml(h.targetFrameId)}"` : '';
+        const tooltipAttr = h.tooltip ? ` title="${escapeHtml(h.tooltip)}"` : ' title="Click to continue"';
+        const transitionAttr = h.transition ? ` data-transition="${escapeHtml(h.transition)}"` : '';
+        return `<div class="id-hotspot"${targetAttr}${tooltipAttr}${transitionAttr} style="left:${h.x}%;top:${h.y}%;width:${h.width}%;height:${h.height}%;"></div>`;
+      }).join('');
+      return `<div class="id-frame${fi === 0 ? ' active' : ''}" data-frame-id="${escapeHtml(frame.id)}">${frame.image ? `<img src="${sanitizeImageSrc(frame.image)}" alt="${escapeHtml(frame.label || '')}" />` : ''}${hotspotsHtml}</div>`;
+    }).join('');
+
+    const navHtml = showNav ? `<div class="id-nav">${frames.map((f: any, i: number) => `<button class="id-nav-dot${i === 0 ? ' active' : ''}" data-frame-id="${escapeHtml(f.id)}" title="${escapeHtml(f.label || 'Frame ' + (i + 1))}"></button>`).join('')}<button class="id-back-btn" disabled>&#8592; Back</button></div>` : '';
+
+    // Use first frame image as a hidden sizer to establish viewport height
+    const sizerSrc = frames[0]?.image ? sanitizeImageSrc(frames[0].image) : '';
+    const sizerHtml = sizerSrc ? `<img class="id-sizer" src="${sizerSrc}" alt="" />` : '';
+
+    el.setAttribute('data-transition', transition);
+    el.innerHTML = `<div class="id-viewport">${sizerHtml}${framesHtml}</div>${navHtml}`;
+  });
+
   // Transform Bento Grid blocks
   doc.querySelectorAll('div[data-type="bento-grid"]').forEach((el) => {
     let cells: any[] = [];
@@ -1777,6 +1816,99 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
         document.addEventListener('touchmove', (e) => { if (dragging && e.touches[0]) setPos(e.touches[0].clientX); }, { passive: true });
         document.addEventListener('mouseup', () => { dragging = false; });
         document.addEventListener('touchend', () => { dragging = false; });
+      });
+
+      // --- INTERACTIVE DEMO ---
+      document.querySelectorAll('.interactive-demo').forEach(demo => {
+        const viewport = demo.querySelector('.id-viewport');
+        if (!viewport) return;
+        const allFrames = viewport.querySelectorAll('.id-frame');
+        const navDots = demo.querySelectorAll('.id-nav-dot');
+        const backBtn = demo.querySelector('.id-back-btn');
+        const transitionType = demo.getAttribute('data-transition') || 'fade';
+        const history = [];
+        let currentId = allFrames[0] ? allFrames[0].getAttribute('data-frame-id') : null;
+        let animating = false;
+
+        function getFrame(id) {
+          return viewport.querySelector('.id-frame[data-frame-id="' + id + '"]');
+        }
+        function getFrameIds() {
+          return Array.from(allFrames).map(f => f.getAttribute('data-frame-id'));
+        }
+        function getNextId(id) {
+          const ids = getFrameIds();
+          const idx = ids.indexOf(id);
+          return idx >= 0 && idx < ids.length - 1 ? ids[idx + 1] : null;
+        }
+
+        function getTransitionClasses(type, reverse) {
+          if (type === 'slide-left') {
+            return { exitCls: reverse ? 'id-exit-slide-right' : 'id-exit-slide-left', enterCls: reverse ? 'id-enter-slide-right' : 'id-enter-slide-left' };
+          } else if (type === 'slide-right') {
+            return { exitCls: reverse ? 'id-exit-slide-left' : 'id-exit-slide-right', enterCls: reverse ? 'id-enter-slide-left' : 'id-enter-slide-right' };
+          } else if (type === 'slide-up') {
+            return { exitCls: reverse ? 'id-exit-slide-down' : 'id-exit-slide-up', enterCls: reverse ? 'id-enter-slide-down' : 'id-enter-slide-up' };
+          } else if (type === 'slide-down') {
+            return { exitCls: reverse ? 'id-exit-slide-up' : 'id-exit-slide-down', enterCls: reverse ? 'id-enter-slide-up' : 'id-enter-slide-down' };
+          }
+          return { exitCls: 'id-exit-fade', enterCls: 'id-enter-fade' };
+        }
+
+        function goTo(targetId, reverse, overrideTransition) {
+          if (animating || targetId === currentId || !targetId) return;
+          animating = true;
+          const cur = getFrame(currentId);
+          const next = getFrame(targetId);
+          if (!cur || !next) { animating = false; return; }
+
+          var type = overrideTransition || transitionType;
+          var { exitCls, enterCls } = getTransitionClasses(type, reverse);
+
+          next.classList.add('active', enterCls);
+          cur.classList.add(exitCls);
+
+          setTimeout(function() {
+            cur.classList.remove('active', exitCls);
+            next.classList.remove(enterCls);
+            currentId = targetId;
+            animating = false;
+            // Update nav dots
+            navDots.forEach(d => d.classList.toggle('active', d.getAttribute('data-frame-id') === targetId));
+            if (backBtn) backBtn.disabled = history.length === 0;
+          }, 350);
+        }
+
+        // Hotspot clicks
+        demo.querySelectorAll('.id-hotspot').forEach(hs => {
+          hs.addEventListener('click', function() {
+            var target = hs.getAttribute('data-target') || getNextId(currentId);
+            if (!target) return;
+            var hsTransition = hs.getAttribute('data-transition') || null;
+            history.push(currentId);
+            goTo(target, false, hsTransition);
+          });
+        });
+
+        // Nav dot clicks
+        navDots.forEach(dot => {
+          dot.addEventListener('click', function() {
+            var target = dot.getAttribute('data-frame-id');
+            if (target && target !== currentId) {
+              history.push(currentId);
+              goTo(target, false, null);
+            }
+          });
+        });
+
+        // Back button
+        if (backBtn) {
+          backBtn.addEventListener('click', function() {
+            if (history.length === 0) return;
+            var prev = history.pop();
+            goTo(prev, true, null);
+          });
+        }
       });
 
       // --- PER-ELEMENT SCROLL REVEAL ---
@@ -2786,6 +2918,40 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     .before-after-label { position: absolute; top: 0.75rem; padding: 0.25rem 0.75rem; background: rgba(0,0,0,0.5); color: white; font-size: 0.75rem; font-weight: 600; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; }
     .before-after-label-left { left: 0.75rem; }
     .before-after-label-right { right: 0.75rem; }
+
+    /* Interactive Demo */
+    .interactive-demo { margin: 2rem 0; border-radius: 0.75rem; overflow: hidden; border: 1px solid #e2e8f0; background: #0f172a; }
+    .id-viewport { position: relative; overflow: hidden; }
+    .id-sizer { display: block; width: 100%; height: auto; visibility: hidden; }
+    .id-frame { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; transition: opacity 0.35s ease, transform 0.35s ease; }
+    .id-frame.active { opacity: 1; pointer-events: auto; z-index: 1; }
+    .id-frame img { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .id-hotspot { position: absolute; cursor: pointer; border-radius: 6px; z-index: 5; background: rgba(59,130,246,0.12); box-shadow: inset 0 0 0 2px rgba(59,130,246,0.4); transition: background 0.15s ease, box-shadow 0.15s ease; animation: idHotspotPulse 2s ease-in-out infinite; }
+    .id-hotspot:hover { background: rgba(59,130,246,0.3); box-shadow: inset 0 0 0 2px rgba(59,130,246,0.8); animation: none; }
+    @keyframes idHotspotPulse { 0%, 100% { box-shadow: inset 0 0 0 2px rgba(59,130,246,0.4); } 50% { box-shadow: inset 0 0 0 2px rgba(59,130,246,0.7), 0 0 12px rgba(59,130,246,0.25); } }
+    .id-nav { display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.75rem; background: #1e293b; }
+    .id-nav-dot { width: 10px; height: 10px; border-radius: 50%; background: #475569; border: none; cursor: pointer; padding: 0; transition: background 0.2s, transform 0.2s; }
+    .id-nav-dot.active { background: #3b82f6; transform: scale(1.3); }
+    .id-nav-dot:hover { background: #64748b; }
+    .id-back-btn { background: #334155; color: #cbd5e1; border: none; padding: 0.25rem 0.75rem; border-radius: 0.375rem; font-size: 0.75rem; cursor: pointer; margin-left: 0.75rem; transition: background 0.15s; }
+    .id-back-btn:hover:not(:disabled) { background: #475569; }
+    .id-back-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    /* Transition animations */
+    .id-exit-fade { opacity: 0 !important; }
+    .id-enter-fade { opacity: 0; animation: idFadeIn 0.35s ease forwards; }
+    @keyframes idFadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .id-exit-slide-left { transform: translateX(-100%); opacity: 0 !important; }
+    .id-enter-slide-left { animation: idSlideInFromRight 0.35s ease forwards; }
+    @keyframes idSlideInFromRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .id-exit-slide-right { transform: translateX(100%); opacity: 0 !important; }
+    .id-enter-slide-right { animation: idSlideInFromLeft 0.35s ease forwards; }
+    @keyframes idSlideInFromLeft { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .id-exit-slide-up { transform: translateY(-100%); opacity: 0 !important; }
+    .id-enter-slide-up { animation: idSlideInFromBottom 0.35s ease forwards; }
+    @keyframes idSlideInFromBottom { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .id-exit-slide-down { transform: translateY(100%); opacity: 0 !important; }
+    .id-enter-slide-down { animation: idSlideInFromTop 0.35s ease forwards; }
+    @keyframes idSlideInFromTop { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
     /* Bento Grid */
     .bento-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 2rem 0; }

@@ -103,7 +103,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
 
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-slate-900 mb-8 leading-[1.1]">
             Zero-Dependency <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-violet-600">User Guides.</span>
+            <span className="hero-shimmer">User Guides.</span>
           </h1>
           
           <p className="text-xl md:text-2xl text-slate-600 max-w-2xl mx-auto mb-10 leading-relaxed font-light">

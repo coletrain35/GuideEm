@@ -301,6 +301,20 @@
     50% { opacity: 0.4; }
   }
 
+  /* Hero "User Guides." shimmer — matches logo teal→blue gradient */
+  .hero-shimmer {
+    background: linear-gradient(90deg, #0ea5e9 0%, #06b6d4 25%, #2563eb 50%, #06b6d4 75%, #0ea5e9 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: hero-shimmer-move 3s linear infinite;
+  }
+
+  @keyframes hero-shimmer-move {
+    to { background-position: 200% center; }
+  }
+
   /* Animated Dividers */
   .divider-animated-gradient {
     background: linear-gradient(90deg, #6366f1, #ec4899, #f59e0b, #6366f1);

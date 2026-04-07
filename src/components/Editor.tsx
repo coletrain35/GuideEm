@@ -39,6 +39,7 @@ import { PortfolioHero } from '../extensions/PortfolioHero';
 import { StatRow } from '../extensions/StatRow';
 import { CodeDiff } from '../extensions/CodeDiff';
 import { BeforeAfter } from '../extensions/BeforeAfter';
+import { InteractiveDemo } from '../extensions/InteractiveDemo';
 import { Confetti } from '../extensions/Confetti';
 import { BackgroundSection } from '../extensions/BackgroundSection';
 import { BentoGrid } from '../extensions/BentoGrid';
@@ -263,7 +264,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
     'statRow','codeDiff','beforeAfter','confetti','backgroundSection','bentoGrid',
     'featureSpotlight','stickyScroll','codeWindow','changelogTimeline','browserMockup',
     'phoneMockup','marquee','glowCards','gradientBorder','hoverReveal','announcementPill',
-    'gradientBlobs','noiseOverlay','scrollReveal',
+    'gradientBlobs','noiseOverlay','scrollReveal','interactiveDemo',
   ]);
   const stripUnknownNodes = (node: any): any => {
     if (!node || typeof node !== 'object') return node;
@@ -354,6 +355,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       StatRow,
       CodeDiff,
       BeforeAfter,
+      InteractiveDemo,
       Confetti,
       BackgroundSection,
       BentoGrid,
