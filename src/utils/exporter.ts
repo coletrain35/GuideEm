@@ -2,6 +2,12 @@ import { ThemeConfig } from './storage';
 import { getSectionBgPreset } from './backgroundPresets';
 import { escapeHtml, sanitizeUrl, sanitizeImageSrc, sanitizeHtml, sanitizeColor } from './sanitize';
 
+export interface ExportOptions {
+  mode?: 'standalone' | 'rise';
+  includeToc?: boolean;   // default: auto (true for standalone, false for rise)
+  includeHero?: boolean;  // default: auto
+}
+
 // SVG icon map for workflow export (Lucide icons, stroke="currentColor")
 const WORKFLOW_ICON_SVGS: Record<string, string> = {
   'circle-dot': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="1"/></svg>',
@@ -250,7 +256,12 @@ const extractInlineCSS = (): string => {
  * @param htmlContent - The raw HTML content from the editor.
  * @param theme - The document theme.
  */
-export const generateHTML = (title: string, htmlContent: string, theme?: ThemeConfig): string => {
+export const generateHTML = (title: string, htmlContent: string, theme?: ThemeConfig, options?: ExportOptions): string => {
+  const isRise = options?.mode === 'rise';
+  const includeToc = options?.includeToc ?? !isRise;
+  const includeHero = options?.includeHero ?? true;
+
+  // Include the Tailwind dump for Rise mode as well, otherwise all component formatting breaks
   const inlineCSS = extractInlineCSS();
 
   // Parse HTML to generate ToC and add IDs
@@ -263,20 +274,36 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
   const headings = doc.querySelectorAll('h1, h2');
   let tocHTML = '';
   
-  if (headings.length > 0) {
+  // Always add heading IDs (needed for anchor links), but only build ToC HTML if requested
+  headings.forEach((heading, index) => {
+    const id = `heading-${index}`;
+    heading.setAttribute('id', id);
+  });
+
+  if (includeToc && headings.length > 0) {
     tocHTML = `<aside class="toc-sidebar">
       <h3 class="font-semibold text-slate-900 mb-4 text-sm uppercase tracking-wider">On this page</h3>
       <nav class="flex flex-col">`;
     
     headings.forEach((heading, index) => {
       const id = `heading-${index}`;
-      heading.setAttribute('id', id); // Inject ID into the DOM node to ensure it persists in processedHTML
       const level = heading.tagName.toLowerCase() === 'h1' ? 1 : 2;
       tocHTML += `<a class="toc-link level-${level}" href="#${id}">${heading.textContent}</a>`;
     });
     
     tocHTML += `</nav></aside>`;
   }
+
+  // Wrap all tables in a tableWrapper div so they can scroll horizontally
+  doc.querySelectorAll('table').forEach((table) => {
+    // Only wrap if it's not already wrapped by a tableWrapper
+    if (!table.parentElement?.classList.contains('tableWrapper')) {
+      const wrapper = doc.createElement('div');
+      wrapper.className = 'tableWrapper';
+      table.parentNode?.insertBefore(wrapper, table);
+      wrapper.appendChild(table);
+    }
+  });
 
   // Transform accordion blocks into export-ready HTML
   doc.querySelectorAll('div[data-type="accordion"]').forEach((accordion) => {
@@ -970,6 +997,23 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
 
     el.setAttribute('data-transition', transition);
     el.innerHTML = `<div class="id-viewport">${sizerHtml}${framesHtml}</div>${navHtml}`;
+  });
+
+  // Transform Mermaid diagram blocks — inline cached SVG for static export
+  doc.querySelectorAll('div[data-type="mermaid"]').forEach((el) => {
+    const definition = el.getAttribute('data-definition') || '';
+    const theme = el.getAttribute('data-theme') || 'default';
+    const cachedSvg = el.getAttribute('data-cached-svg') || '';
+    el.className = 'mermaid-block';
+    el.removeAttribute('data-type');
+    el.removeAttribute('data-cached-svg');
+    if (cachedSvg) {
+      el.innerHTML = cachedSvg;
+      const svg = el.querySelector('svg');
+      if (svg) { svg.style.maxWidth = '100%'; svg.style.height = 'auto'; }
+    } else {
+      el.innerHTML = `<pre style="color:#94a3b8;text-align:center;padding:2rem;font-size:0.875rem;white-space:pre-wrap;">${escapeHtml(definition || '# Empty diagram')}</pre>`;
+    }
   });
 
   // Transform Bento Grid blocks
@@ -2068,13 +2112,16 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     });
   `;
 
+
+
+
   const fullHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${title || 'Untitled Guide'}</title>
-  ${theme?.hero?.style === 'editorial' ? `
+  ${!isRise && theme?.hero?.style === 'editorial' ? `
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&display=swap">` : ''}
   <style>
@@ -3273,7 +3320,8 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     table {
       border-collapse: collapse;
       table-layout: auto;
-      width: 100%;
+      width: max-content;
+      min-width: 100%;
       margin: 2rem 0;
       text-align: left;
     }
@@ -3301,6 +3349,15 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     .tableWrapper {
       padding: 1rem 0;
       overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      /* visual hint that content scrolls */
+      background: linear-gradient(to right, white 30%, rgba(255,255,255,0)),
+                  linear-gradient(to right, rgba(255,255,255,0), white 70%) 100% 0,
+                  linear-gradient(to right, rgba(0,0,0,0.08), rgba(255,255,255,0)),
+                  linear-gradient(to right, rgba(255,255,255,0), rgba(0,0,0,0.08)) 100% 0;
+      background-repeat: no-repeat;
+      background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+      background-attachment: local, local, scroll, scroll;
     }
 
     /* Table style variants */
@@ -4091,12 +4148,12 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
   ${theme?.customCSS ? `<style>${theme.customCSS}</style>` : ''}
 </head>
 <body>
-  ${theme?.features?.readingProgressBar ? `<div id="reading-progress"></div>` : ''}
-  ${theme?.features?.backToTop ? `
+  ${theme?.features?.readingProgressBar && !isRise ? `<div id="reading-progress"></div>` : ''}
+  ${theme?.features?.backToTop && !isRise ? `
   <button id="back-to-top" aria-label="Back to top">
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
   </button>` : ''}
-  ${theme?.features?.shareButtons ? `
+  ${theme?.features?.shareButtons && !isRise ? `
   <div id="share-bar">
     <button class="share-btn" id="copy-link-btn" aria-label="Copy link">
       <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
@@ -4107,14 +4164,11 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       Print
     </button>
   </div>` : ''}
-  ${(() => {
-    // Only the legacy hero (enabled=true, no explicit style) renders full-bleed outside the layout.
-    // New named cover styles (gradient/dark/mesh/editorial) render inside the guide-container
-    // so they stay contained within the content width, matching the editor view.
+  ${!isRise ? (() => {
     const isLegacyFullBleed = !!(theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none'));
     return isLegacyFullBleed ? renderHeroCover(title, theme) : '';
-  })()}
-  ${theme?.features?.stickyHeader && theme?.logoBase64 ? `
+  })() : ''}
+  ${!isRise && theme?.features?.stickyHeader && theme?.logoBase64 ? `
     <div class="sticky-header" style="position: sticky; top: 0; z-index: 100; background: ${theme?.features?.darkModeSupport ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.9)'}; backdrop-filter: blur(8px); border-bottom: 1px solid ${theme?.features?.darkModeSupport ? '#1e293b' : '#f1f5f9'}; padding: 1rem 2rem; display: flex; align-items: center;">
       <img src="${sanitizeImageSrc(theme.logoBase64)}" alt="Brand Logo" style="max-height: 32px; object-fit: contain;" />
       ${theme?.hero?.enabled || (theme?.hero?.style && theme?.hero?.style !== 'none') ? '' : `<span style="margin-left: 1rem; font-weight: 600;">${title || 'Untitled Guide'}</span>`}
@@ -4126,9 +4180,9 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       ${!(theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none')) ? renderHeroCover(title, theme) : ''}
       ${processedHTML}
     </div>
-    ${tocHTML}
+    ${!isRise ? tocHTML : ''}
   </div>
-  ${theme?.footer?.enabled ? `
+  ${!isRise && theme?.footer?.enabled ? `
   <footer class="site-footer">
     <div class="site-footer-inner">
       ${(theme.footer.links ?? []).length > 0 ? `
@@ -4154,9 +4208,8 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       }, { threshold: 0.1 });
       revealEls.forEach(function(el) { observer.observe(el); });
     }
-    ${theme?.features?.scrollReveal ? `
+    ${!isRise && theme?.features?.scrollReveal ? `
     document.addEventListener('DOMContentLoaded', () => {
-      // Apply fade-up to top-level blocks that don't have a per-element reveal
       document.querySelectorAll('.guide-container > *:not([data-scroll-reveal])').forEach(el => {
         el.classList.add('reveal-fade-up');
       });

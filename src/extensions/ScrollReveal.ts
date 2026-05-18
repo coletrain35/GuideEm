@@ -9,7 +9,7 @@ export const BLOCK_TYPES = [
   'blockquote', 'codeBlock', 'callout', 'grid', 'accordion', 'tabGroup',
   'sectionDivider', 'videoEmbed', 'timeline', 'cardGrid', 'counter',
   'testimonial', 'heroBanner', 'statRow', 'codeDiff', 'beforeAfter',
-  'annotatedImage', 'confetti', 'backgroundSection',
+  'annotatedImage', 'confetti', 'backgroundSection', 'mermaid',
 ];
 
 declare module '@tiptap/core' {

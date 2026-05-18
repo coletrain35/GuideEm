@@ -1367,6 +1367,21 @@ function reverseNoiseOverlays(doc: Document) {
   });
 }
 
+function reverseMermaid(doc: Document) {
+  doc.querySelectorAll('.mermaid-block').forEach((el) => {
+    if (el.getAttribute('data-type')) return;
+    const nodes = el.getAttribute('data-nodes') || '';
+    const edges = el.getAttribute('data-edges') || '';
+    const theme = el.getAttribute('data-theme') || 'default';
+    const node = makeBlock(doc, 'mermaid', {
+      'data-nodes': nodes,
+      'data-edges': edges,
+      'data-theme': theme,
+    });
+    replaceElement(el, node);
+  });
+}
+
 // ── Main Import Function ────────────────────────────────────────────
 
 export function importGuideHTML(rawHtml: string): ImportResult {
@@ -1486,6 +1501,7 @@ export function importGuideHTML(rawHtml: string): ImportResult {
   reverseAnnouncementPills(doc);
   reverseGradientBlobs(doc);
   reverseNoiseOverlays(doc);
+  reverseMermaid(doc);
 
   // 7. Return cleaned content
   const content = sanitizeHtml(guideContainer.innerHTML);

@@ -56,6 +56,7 @@ import { HoverReveal } from '../extensions/HoverReveal';
 import { AnnouncementPill } from '../extensions/AnnouncementPill';
 import { GradientBlobs } from '../extensions/GradientBlobs';
 import { NoiseOverlay } from '../extensions/NoiseOverlay';
+import { Mermaid } from '../extensions/Mermaid';
 import { ScrollReveal, REVEAL_TYPES, BLOCK_TYPES } from '../extensions/ScrollReveal';
 import { InlineCode, type InlineCodeLanguage } from '../extensions/InlineCode';
 import { FontSize, type FontSizeValue } from '../extensions/FontSize';
@@ -372,6 +373,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       AnnouncementPill,
       GradientBlobs,
       NoiseOverlay,
+      Mermaid,
       ScrollReveal,
       SlashCommand,
       SearchReplace,

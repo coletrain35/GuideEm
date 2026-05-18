@@ -7,6 +7,7 @@ import { ConfirmDialog } from './components/ConfirmDialog';
 import { TemplatePickerModal } from './components/TemplatePickerModal';
 import { loadDocuments, saveDocument, deleteDocument, Document, ThemeConfig } from './utils/storage';
 import { generateHTML } from './utils/exporter';
+import type { ExportOptions } from './utils/exporter';
 import { tiptapJsonToMarkdown } from './utils/markdownExporter';
 import { exportToPDF } from './utils/pdfExporter';
 import { LandingPage } from './components/LandingPage';
@@ -60,6 +61,7 @@ export default function App() {
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [isZenMode, setIsZenMode] = useState(false);
   const [showBlockPalette, setShowBlockPalette] = useState(true);
+  const [isRiseMode, setIsRiseMode] = useState(false);
   const [editorInstance, setEditorInstance] = useState<import('@tiptap/core').Editor | null>(null);
   const markdownImportRef = useRef<HTMLInputElement>(null);
   const htmlImportRef = useRef<HTMLInputElement>(null);
@@ -237,7 +239,8 @@ export default function App() {
 
   const handleOpenPreview = () => {
     if (!currentDoc) return;
-    setPreviewHtml(generateHTML(currentDoc.title, currentDoc.htmlContent, currentDoc.theme || DEFAULT_THEME));
+    const opts: ExportOptions = isRiseMode ? { mode: 'rise' } : undefined;
+    setPreviewHtml(generateHTML(currentDoc.title, currentDoc.htmlContent, currentDoc.theme || DEFAULT_THEME, opts));
     setIsPreviewOpen(true);
   };
 
@@ -245,7 +248,8 @@ export default function App() {
     if (!currentDoc) return;
 
     // 1. Compile the final HTML string using your engine
-    const finalHtmlString = generateHTML(currentDoc.title, currentDoc.htmlContent, currentDoc.theme || DEFAULT_THEME);
+    const opts: ExportOptions = isRiseMode ? { mode: 'rise' } : undefined;
+    const finalHtmlString = generateHTML(currentDoc.title, currentDoc.htmlContent, currentDoc.theme || DEFAULT_THEME, opts);
 
     // 2. Create a "Blob" (Binary Large Object) of text/html
     const blob = new Blob([finalHtmlString], { type: 'text/html;charset=utf-8' });
@@ -747,6 +751,8 @@ export default function App() {
           theme={currentDoc.theme || DEFAULT_THEME}
           setTheme={handleThemeChange}
           documentTitle={currentDoc.title}
+          isRiseMode={isRiseMode}
+          onRiseModeChange={setIsRiseMode}
         />
       )}
 

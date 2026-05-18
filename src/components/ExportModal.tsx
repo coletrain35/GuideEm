@@ -4,7 +4,7 @@ import {
   FileDown, Loader2, X,
   FileCode2, FileText, FileType2,
   Pin, Moon, Sparkles, BarChart2, ArrowUp, Printer, Share2,
-  Info
+  Info, Layout
 } from 'lucide-react';
 
 interface ExportModalProps {
@@ -16,12 +16,14 @@ interface ExportModalProps {
   theme: ThemeConfig;
   setTheme: (themeUpdates: Partial<ThemeConfig>) => void;
   documentTitle: string;
+  isRiseMode: boolean;
+  onRiseModeChange: (enabled: boolean) => void;
 }
 
 type ExportFormat = 'html' | 'md' | 'pdf';
 
 export const ExportModal: React.FC<ExportModalProps> = ({
-  isOpen, onClose, onExport, onExportMarkdown, onExportPDF, theme, setTheme, documentTitle
+  isOpen, onClose, onExport, onExportMarkdown, onExportPDF, theme, setTheme, documentTitle, isRiseMode, onRiseModeChange
 }) => {
   const [fileName, setFileName] = useState(documentTitle || 'Untitled Guide');
   const [isPDFExporting, setIsPDFExporting] = useState(false);
@@ -174,7 +176,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 {features.map(({ key, icon, label, description, default: def }) => (
                   <label
                     key={key}
-                    className="flex items-center justify-between gap-3 py-2 px-2 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors group"
+                    className={`flex items-center justify-between gap-3 py-2 px-2 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors group ${isRiseMode && ['readingProgressBar','backToTop','shareButtons'].includes(key) ? 'opacity-40 pointer-events-none' : ''}`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <span className="text-slate-400 flex-shrink-0 group-hover:text-slate-600 transition-colors">
@@ -197,6 +199,32 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     </div>
                   </label>
                 ))}
+              </div>
+
+              {/* Rise Compatible toggle */}
+              <div className="mt-3 pt-3 border-t border-slate-100">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Embed Mode</p>
+                <label className="flex items-center justify-between gap-3 py-2 px-2 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors group">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="text-slate-400 flex-shrink-0 group-hover:text-slate-600 transition-colors">
+                      <Layout size={14} />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">Rise Compatible</p>
+                      <p className="text-xs text-slate-400 truncate">Optimize for Articulate Rise embedding</p>
+                    </div>
+                  </div>
+                  <div className="relative flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={isRiseMode}
+                      onChange={() => onRiseModeChange(!isRiseMode)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 rounded-full bg-slate-200 peer-checked:bg-indigo-500 transition-colors duration-200" />
+                    <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-4" />
+                  </div>
+                </label>
               </div>
             </div>
           ) : (

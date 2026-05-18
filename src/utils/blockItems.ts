@@ -7,7 +7,7 @@ import {
   GitCompare, SplitSquareHorizontal, PartyPopper, Info, AlertTriangle,
   CheckCircle, XCircle, Minus, PaintBucket, Table2, Briefcase, GalleryHorizontal, UserCircle2,
   Cpu, Share2, Star, Monitor, Smartphone, SquareCode, Sparkles, ScrollText, PanelLeft, AppWindow,
-  Megaphone, Zap, Square, Cloud, Film, ArrowLeftRight, MousePointerClick,
+  Megaphone, Zap, Square, Cloud, Film, ArrowLeftRight,   MousePointerClick, GitMerge,
 } from 'lucide-react';
 
 export type BlockCategory = 'Text' | 'Callouts' | 'Media' | 'Layout' | 'Data' | 'Showcase';
@@ -145,6 +145,15 @@ export const BLOCK_ITEMS: BlockItem[] = [
   },
 
   // ── Media ──
+  {
+    id: 'mermaid',
+    label: 'Diagram',
+    description: 'Flowchart, sequence, Gantt — Mermaid diagrams',
+    icon: GitMerge,
+    category: 'Media',
+    keywords: ['diagram', 'mermaid', 'flowchart', 'sequence', 'gantt', 'chart', 'uml'],
+    action: (e) => e.chain().focus().insertContent({ type: 'mermaid', attrs: {} }).run(),
+  },
   {
     id: 'image',
     label: 'Image',
