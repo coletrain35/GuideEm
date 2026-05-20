@@ -1,7 +1,6 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import React from 'react';
-import { Trash2 } from 'lucide-react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 const DEFAULT_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'];
@@ -26,7 +25,7 @@ const ConfettiNodeView = (props: any) => {
 
   return (
     <NodeViewWrapper
-      className={`group/block relative my-6 transition-all ${selected ? 'ring-2 ring-slate-200 rounded-xl' : ''}`}
+      className={`group/block relative my-6 transition-all ${selected ? 'ring-2 ring-indigo-200 rounded-xl' : ''}`}
       contentEditable={false}
     >
       <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
@@ -50,45 +49,26 @@ const ConfettiNodeView = (props: any) => {
             />
           ))}
         </div>
-        <div className="relative">
-          <div className="text-5xl mb-3 select-none">{emoji || '🎉'}</div>
-          <div className="text-xl font-bold text-slate-900">{message || 'Congratulations!'}</div>
+        
+        {/* Content editing elements inline */}
+        <div className="relative flex flex-col items-center justify-center space-y-1">
+          {/* Centered Emoji Input */}
+          <input
+            value={emoji || ''}
+            onChange={(e) => updateAttributes({ emoji: e.target.value })}
+            placeholder="🎉"
+            className="text-5xl text-center bg-transparent border-none outline-none w-20 py-1 cursor-text select-all"
+          />
+
+          {/* Centered Message Input */}
+          <input
+            value={message || ''}
+            onChange={(e) => updateAttributes({ message: e.target.value })}
+            placeholder="Congratulations!"
+            className="text-xl font-bold text-slate-900 text-center bg-transparent border-b border-transparent hover:border-slate-200 focus:border-indigo-400 outline-none w-full max-w-md py-0.5 transition-colors"
+          />
         </div>
       </div>
-
-      {selected && (
-        <div className="mt-2 p-3 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col gap-2">
-          <div className="flex gap-2 items-center">
-            <label className="text-xs text-slate-500 w-16 shrink-0">Message</label>
-            <input
-              type="text"
-              value={message || ''}
-              onChange={(e) => updateAttributes({ message: e.target.value })}
-              className="flex-1 text-sm border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-blue-400"
-              placeholder="Congratulations!"
-            />
-          </div>
-          <div className="flex gap-2 items-center">
-            <label className="text-xs text-slate-500 w-16 shrink-0">Emoji</label>
-            <input
-              type="text"
-              value={emoji || ''}
-              onChange={(e) => updateAttributes({ emoji: e.target.value })}
-              className="w-20 text-sm border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-blue-400"
-              placeholder="🎉"
-            />
-          </div>
-          <div className="flex justify-end">
-            <button
-              onClick={() => deleteNode()}
-              className="p-1.5 text-red-500 hover:bg-red-50 rounded-full transition-colors"
-              title="Delete block"
-            >
-              <Trash2 size={14} />
-            </button>
-          </div>
-        </div>
-      )}
     </NodeViewWrapper>
   );
 };

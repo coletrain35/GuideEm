@@ -1,7 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
-import React, { useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Plus, X, Paintbrush, Code } from 'lucide-react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 type ScrollStep = { title: string; description: string; code?: string };
@@ -27,153 +27,221 @@ const DEFAULT_STEPS: ScrollStep[] = [
 const StickyScrollNodeView = (props: any) => {
   const { node, updateAttributes, selected, deleteNode, getPos, editor } = props;
   const { stickyTitle, stickyDescription, accentColor, steps: stepsJson } = node.attrs;
+  const [activeStep, setActiveStep] = useState(0);
+  const [showStyle, setShowStyle] = useState(false);
+  const styleRef = useRef<HTMLDivElement>(null);
 
   const steps: ScrollStep[] = (() => {
     try { return JSON.parse(stepsJson); } catch { return DEFAULT_STEPS; }
   })();
 
-  const [activeStep, setActiveStep] = useState(0);
-
   const setSteps = (s: ScrollStep[]) => updateAttributes({ steps: JSON.stringify(s) });
-  const addStep = () => setSteps([...steps, { title: 'New Step', description: 'Describe this step.' }]);
-  const removeStep = (i: number) => setSteps(steps.filter((_, idx) => idx !== i));
-  const updateStep = (i: number, key: keyof ScrollStep, value: string) =>
+  
+  const addStep = () => {
+    const next = [...steps, { title: 'New Step', description: 'Describe this step.' }];
+    setSteps(next);
+    setActiveStep(next.length - 1);
+  };
+  
+  const removeStep = (i: number) => {
+    if (steps.length <= 1) return;
+    const next = steps.filter((_, idx) => idx !== i);
+    setSteps(next);
+    setActiveStep(Math.max(0, Math.min(activeStep, next.length - 1)));
+  };
+  
+  const updateStep = (i: number, key: keyof ScrollStep, value: string) => {
     setSteps(steps.map((s, idx) => idx === i ? { ...s, [key]: value } : s));
+  };
 
   const safeActive = Math.min(activeStep, steps.length - 1);
+  const currentStep = steps[safeActive];
 
   return (
     <NodeViewWrapper className="group/block relative my-10" contentEditable={false}>
       <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
 
+      {/* Floating Style/Settings Toolbar */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-30 text-sm opacity-0 group-hover/block:opacity-100 pointer-events-none group-hover/block:pointer-events-auto transition-opacity">
+        <div ref={styleRef} className="relative">
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setShowStyle(!showStyle)}
+            className={`flex items-center gap-1 px-3 py-1 rounded-full transition-colors ${showStyle ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-600'}`}
+          >
+            <Paintbrush size={14} /> Color Accent
+          </button>
+          {showStyle && (
+            <div
+              onMouseDown={(e) => e.stopPropagation()}
+              className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-white border border-slate-200 rounded-xl shadow-xl p-3 w-48 space-y-3"
+            >
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Accent Color</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    className="w-8 h-8 rounded cursor-pointer border border-slate-200 shrink-0"
+                    value={accentColor || '#6366f1'}
+                    onChange={(e) => updateAttributes({ accentColor: e.target.value })}
+                  />
+                  <span className="text-xs text-slate-500 font-mono">{accentColor}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       <div
-        className="grid rounded-2xl overflow-hidden border border-slate-200"
+        className={`grid rounded-2xl overflow-hidden border transition-all ${
+          selected ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-slate-200'
+        }`}
         style={{ gridTemplateColumns: '1fr 1fr' }}
       >
         {/* Left sticky panel */}
         <div
           className="p-8 flex flex-col justify-center"
-          style={{ background: `linear-gradient(160deg, ${accentColor}18 0%, ${accentColor}06 100%)`, borderRight: '1px solid #e2e8f0' }}
+          style={{ background: `linear-gradient(160deg, ${accentColor}12 0%, ${accentColor}03 100%)`, borderRight: '1px solid #e2e8f0' }}
         >
           <div className="w-10 h-1 rounded-full mb-5" style={{ backgroundColor: accentColor }} />
-          <h2 className="text-xl font-bold text-slate-900 mb-2.5 mt-0">{stickyTitle || 'How It Works'}</h2>
-          <p className="text-slate-500 text-sm leading-relaxed mb-6 m-0">
-            {stickyDescription || 'Follow these steps to get started.'}
-          </p>
+          
+          {/* Header Title Input */}
+          <input
+            value={stickyTitle || ''}
+            onChange={(e) => updateAttributes({ stickyTitle: e.target.value })}
+            placeholder="How It Works"
+            className="text-xl font-bold text-slate-900 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 outline-none w-full mb-2 py-0.5 mt-0 transition-colors"
+          />
+
+          {/* Header Description Textarea */}
+          <textarea
+            value={stickyDescription || ''}
+            onChange={(e) => updateAttributes({ stickyDescription: e.target.value })}
+            placeholder="Follow these steps to get started."
+            rows={2}
+            className="text-slate-500 text-sm leading-relaxed bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 outline-none w-full py-0.5 mb-6 m-0 resize-none transition-colors"
+            style={{ fieldSizing: 'content' } as any}
+          />
+
+          {/* Steps List */}
           <div className="flex flex-col gap-1.5">
             {steps.map((s, i) => (
-              <button
-                key={i}
-                onClick={() => setActiveStep(i)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${safeActive === i ? 'text-white shadow-sm' : 'text-slate-500 hover:bg-white/50'}`}
-                style={safeActive === i ? { backgroundColor: accentColor } : {}}
-              >
-                <span
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                  style={safeActive === i
-                    ? { backgroundColor: 'rgba(255,255,255,0.25)', color: '#fff' }
-                    : { backgroundColor: `${accentColor}20`, color: accentColor }}
+              <div key={i} className="group/item relative flex items-center">
+                <button
+                  onClick={() => setActiveStep(i)}
+                  className={`flex-1 flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${safeActive === i ? 'text-white shadow-sm font-semibold' : 'text-slate-600 hover:bg-white/70'}`}
+                  style={safeActive === i ? { backgroundColor: accentColor } : {}}
                 >
-                  {i + 1}
-                </span>
-                <span className="text-sm font-medium leading-tight">{s.title}</span>
-              </button>
+                  <span
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                    style={safeActive === i
+                      ? { backgroundColor: 'rgba(255,255,255,0.25)', color: '#fff' }
+                      : { backgroundColor: `${accentColor}20`, color: accentColor }}
+                  >
+                    {i + 1}
+                  </span>
+                  <span className="text-sm leading-tight">{s.title || 'Empty Step'}</span>
+                </button>
+
+                {/* Remove Step Trigger (visible on step hover if selected) */}
+                {selected && steps.length > 1 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeStep(i);
+                    }}
+                    className={`absolute right-2 p-1 rounded-full border border-slate-100 shadow-sm transition-opacity opacity-0 group-hover/item:opacity-100 ${
+                      safeActive === i ? 'bg-white text-red-500 hover:bg-red-50' : 'bg-slate-50 text-slate-400 hover:text-red-500'
+                    }`}
+                    title="Delete Step"
+                  >
+                    <X size={10} />
+                  </button>
+                )}
+              </div>
             ))}
+
+            {/* Inline Add Step */}
+            {selected && (
+              <button
+                onClick={addStep}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl text-left border border-dashed border-slate-300 hover:border-indigo-400 hover:bg-white/50 text-xs font-semibold text-slate-400 hover:text-indigo-600 transition-all mt-1"
+              >
+                <Plus size={14} className="shrink-0" />
+                <span>Add Step</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Right content panel */}
-        <div className="p-8 bg-white flex flex-col justify-center">
-          {steps[safeActive] ? (
-            <div>
-              <h3 className="font-bold text-lg text-slate-900 mb-2 mt-0">{steps[safeActive].title}</h3>
-              <p className="text-slate-600 text-sm leading-relaxed mb-4 m-0">{steps[safeActive].description}</p>
-              {steps[safeActive].code && (
-                <pre className="p-4 rounded-xl text-xs font-mono overflow-x-auto m-0" style={{ backgroundColor: '#0f172a', color: '#e2e8f0', lineHeight: '1.7' }}>
-                  {steps[safeActive].code}
-                </pre>
-              )}
+        {/* Right content panel (edit active step inline!) */}
+        <div className="p-8 bg-white flex flex-col justify-center relative">
+          {currentStep ? (
+            <div className="space-y-4">
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Active Step Title</p>
+                <input
+                  value={currentStep.title}
+                  onChange={(e) => updateStep(safeActive, 'title', e.target.value)}
+                  placeholder="Step title"
+                  className="font-bold text-lg text-slate-900 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 outline-none w-full py-0.5 transition-colors"
+                />
+              </div>
+
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Step Description</p>
+                <textarea
+                  value={currentStep.description}
+                  onChange={(e) => updateStep(safeActive, 'description', e.target.value)}
+                  placeholder="Describe this step..."
+                  rows={3}
+                  className="text-slate-600 text-sm leading-relaxed bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 outline-none w-full py-0.5 resize-none transition-colors"
+                  style={{ fieldSizing: 'content' } as any}
+                />
+              </div>
+
+              {/* Code Snippet */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Code Snippet (Optional)</p>
+                  {selected && !currentStep.code && (
+                    <button
+                      onClick={() => updateStep(safeActive, 'code', '// Code snippet here')}
+                      className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-700 transition-colors"
+                    >
+                      <Plus size={10} /> Add Code
+                    </button>
+                  )}
+                  {selected && currentStep.code && (
+                    <button
+                      onClick={() => updateStep(safeActive, 'code', '')}
+                      className="flex items-center gap-1 text-[10px] font-semibold text-red-500 hover:text-red-600 transition-colors"
+                    >
+                      <X size={10} /> Remove Code
+                    </button>
+                  )}
+                </div>
+
+                {currentStep.code ? (
+                  <div className="relative group/code font-mono text-xs rounded-xl overflow-hidden bg-[#0f172a] text-[#e2e8f0] p-4">
+                    <textarea
+                      value={currentStep.code}
+                      onChange={(e) => updateStep(safeActive, 'code', e.target.value)}
+                      placeholder="// Type code here..."
+                      rows={4}
+                      className="w-full bg-transparent border-none outline-none resize-none font-mono text-xs leading-relaxed text-[#e2e8f0] focus:ring-0 p-0"
+                      style={{ fieldSizing: 'content' } as any}
+                    />
+                  </div>
+                ) : null}
+              </div>
             </div>
           ) : (
-            <div className="text-slate-400 text-sm">Add steps to get started.</div>
+            <div className="text-slate-400 text-sm text-center py-6">Select or add a step on the left to edit.</div>
           )}
         </div>
       </div>
-
-      {selected && (
-        <div className="mt-4 border border-slate-200 rounded-xl bg-white p-4 shadow-sm space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-slate-500 block mb-1">Panel Title</label>
-              <input
-                className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                value={stickyTitle || ''}
-                onChange={(e) => updateAttributes({ stickyTitle: e.target.value })}
-                placeholder="How It Works"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-500 block mb-1">Accent Color</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  className="w-8 h-8 rounded cursor-pointer border border-slate-200"
-                  value={accentColor || '#6366f1'}
-                  onChange={(e) => updateAttributes({ accentColor: e.target.value })}
-                />
-                <span className="text-xs text-slate-500 font-mono">{accentColor}</span>
-              </div>
-            </div>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-slate-500 block mb-1">Panel Description</label>
-            <textarea
-              className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none resize-none"
-              rows={2}
-              value={stickyDescription || ''}
-              onChange={(e) => updateAttributes({ stickyDescription: e.target.value })}
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-slate-700">Steps ({steps.length})</span>
-            <button
-              onClick={addStep}
-              className="flex items-center gap-1.5 text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition-colors"
-            >
-              <Plus size={12} /> Add Step
-            </button>
-          </div>
-          {steps.map((step, i) => (
-            <div key={i} className="border border-slate-100 rounded-lg p-3 space-y-1.5">
-              <div className="flex items-center gap-2">
-                <input
-                  className="flex-1 px-2 py-1 text-sm border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                  value={step.title}
-                  onChange={(e) => updateStep(i, 'title', e.target.value)}
-                  placeholder="Step title"
-                />
-                <button onClick={() => removeStep(i)} className="text-slate-400 hover:text-red-500">
-                  <X size={14} />
-                </button>
-              </div>
-              <textarea
-                className="w-full px-2 py-1 text-xs border border-slate-200 rounded focus:outline-none resize-none"
-                rows={2}
-                value={step.description}
-                onChange={(e) => updateStep(i, 'description', e.target.value)}
-                placeholder="Description"
-              />
-              <textarea
-                className="w-full px-2 py-1 text-xs font-mono border border-slate-200 rounded focus:outline-none resize-none"
-                rows={3}
-                value={step.code || ''}
-                onChange={(e) => updateStep(i, 'code', e.target.value)}
-                placeholder="// Optional code snippet"
-              />
-            </div>
-          ))}
-        </div>
-      )}
     </NodeViewWrapper>
   );
 };

@@ -143,7 +143,7 @@ const TimelineNodeView = (props: any) => {
       data-marker-style={markerStyle}
     >
       <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-10 text-sm opacity-0 group-hover/block:opacity-100 pointer-events-none group-hover/block:pointer-events-auto transition-opacity">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-30 text-sm opacity-0 group-hover/block:opacity-100 pointer-events-none group-hover/block:pointer-events-auto transition-opacity">
         <button
           onClick={addStep}
           className="flex items-center gap-1 px-3 py-1 rounded-full hover:bg-slate-100 text-slate-600"

@@ -1,7 +1,17 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
-import React from 'react';
+import React, { useRef, useState } from 'react';
+import { Paintbrush } from 'lucide-react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
+
+const GRADIENT_PRESETS = [
+  { from: '#6366f1', to: '#ec4899' },
+  { from: '#3b82f6', to: '#06b6d4' },
+  { from: '#10b981', to: '#059669' },
+  { from: '#f97316', to: '#ef4444' },
+  { from: '#8b5cf6', to: '#6366f1' },
+  { from: '#334155', to: '#1e293b' },
+];
 
 const PortfolioHeroNodeView = (props: any) => {
   const { node, updateAttributes, selected, deleteNode, getPos, editor } = props;
@@ -10,203 +20,116 @@ const PortfolioHeroNodeView = (props: any) => {
     ctaText, ctaUrl, ctaSecondaryText, ctaSecondaryUrl,
     gradientFrom, gradientTo, alignment,
   } = node.attrs;
+  const [showStyle, setShowStyle] = useState(false);
+  const styleRef = useRef<HTMLDivElement>(null);
 
   const alignClass = alignment === 'left' ? 'items-start text-left' : 'items-center text-center';
   const ctaRowClass = alignment === 'center' ? 'justify-center' : '';
+  const inputAlign = alignment === 'center' ? 'text-center' : 'text-left';
 
   return (
     <NodeViewWrapper className="group/block relative my-6" contentEditable={false}>
       <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
-      <div
-        className={`rounded-2xl border-2 overflow-hidden transition-all ${
-          selected ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-slate-200'
-        }`}
-      >
-        {/* Hero Preview */}
-        <div
-          className={`flex flex-col ${alignClass} gap-5 px-10 py-16`}
-          style={{ background: `linear-gradient(135deg, ${gradientFrom}, ${gradientTo})` }}
-        >
-          {badgeText && (
-            <div
-              className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-semibold"
-              style={{ background: 'rgba(255,255,255,0.18)', color: '#fff', backdropFilter: 'blur(6px)', width: 'fit-content' }}
-            >
-              <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0 inline-block" />
-              {badgeText}
-            </div>
-          )}
 
-          <h1
-            className="text-4xl font-black tracking-tight text-white leading-tight m-0"
-            style={{ textShadow: '0 2px 12px rgba(0,0,0,0.2)' }}
+      {/* Floating style toolbar */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-30 text-sm opacity-0 group-hover/block:opacity-100 pointer-events-none group-hover/block:pointer-events-auto transition-opacity">
+        <div ref={styleRef} className="relative">
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setShowStyle(!showStyle)}
+            className={`flex items-center gap-1 px-3 py-1 rounded-full transition-colors ${showStyle ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-600'}`}
           >
-            {name || 'Your Name'}
-          </h1>
-
-          {tagline && (
-            <p className="text-lg m-0 max-w-xl leading-relaxed" style={{ color: 'rgba(255,255,255,0.82)' }}>
-              {tagline}
-            </p>
-          )}
-
-          {(ctaText || ctaSecondaryText) && (
-            <div className={`flex flex-wrap gap-3 mt-1 ${ctaRowClass}`}>
-              {ctaText && (
-                <span
-                  className="inline-flex items-center px-6 py-2.5 rounded-xl font-semibold text-sm bg-white shadow-sm"
-                  style={{ color: gradientFrom }}
-                >
-                  {ctaText}
-                </span>
-              )}
-              {ctaSecondaryText && (
-                <span
-                  className="inline-flex items-center px-6 py-2.5 rounded-xl font-semibold text-sm border-2 text-white"
-                  style={{ borderColor: 'rgba(255,255,255,0.45)' }}
-                >
-                  {ctaSecondaryText}
-                </span>
-              )}
+            <Paintbrush size={14} /> Style
+          </button>
+          {showStyle && (
+            <div
+              onMouseDown={(e) => e.stopPropagation()}
+              className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-white border border-slate-200 rounded-xl shadow-xl p-3 w-72"
+            >
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Gradient</p>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {GRADIENT_PRESETS.map((p, pi) => (
+                  <button key={pi} onMouseDown={(e) => e.preventDefault()} onClick={() => updateAttributes({ gradientFrom: p.from, gradientTo: p.to })}
+                    className="w-8 h-8 rounded-full border-2 hover:scale-110 transition-all"
+                    style={{ background: `linear-gradient(135deg, ${p.from}, ${p.to})`, borderColor: gradientFrom === p.from ? '#1e293b' : 'transparent' }} />
+                ))}
+              </div>
+              <div className="flex items-center gap-3 border-t border-slate-100 pt-2 mb-2">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[10px] text-slate-400">From</label>
+                  <input type="color" value={gradientFrom} onChange={(e) => updateAttributes({ gradientFrom: e.target.value })} className="w-7 h-7 rounded border border-slate-200 cursor-pointer" />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[10px] text-slate-400">To</label>
+                  <input type="color" value={gradientTo} onChange={(e) => updateAttributes({ gradientTo: e.target.value })} className="w-7 h-7 rounded border border-slate-200 cursor-pointer" />
+                </div>
+              </div>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Alignment</p>
+              <div className="flex gap-1.5 mb-2">
+                {['left', 'center'].map((a) => (
+                  <button key={a} onMouseDown={(e) => e.preventDefault()} onClick={() => updateAttributes({ alignment: a })}
+                    className={`flex-1 py-1 text-xs rounded border capitalize transition-all ${alignment === a ? 'bg-indigo-600 text-white border-indigo-600' : 'border-slate-200 text-slate-600'}`}
+                  >{a}</button>
+                ))}
+              </div>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">CTA URLs</p>
+              <input value={ctaUrl} onChange={(e) => updateAttributes({ ctaUrl: e.target.value })} placeholder="Primary URL" className="w-full px-2 py-1 text-xs border rounded border-slate-200 outline-none focus:border-blue-400 mb-1" />
+              <input value={ctaSecondaryUrl} onChange={(e) => updateAttributes({ ctaSecondaryUrl: e.target.value })} placeholder="Secondary URL" className="w-full px-2 py-1 text-xs border rounded border-slate-200 outline-none focus:border-blue-400" />
             </div>
           )}
         </div>
+      </div>
 
-        {/* Edit Panel */}
-        {selected && (
-          <div className="border-t border-slate-200 bg-slate-50 p-4 space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-slate-500 block mb-0.5">Name / Headline</label>
-                <input
-                  value={name}
-                  onChange={(e) => updateAttributes({ name: e.target.value })}
-                  placeholder="Your Name"
-                  className="w-full px-2 py-1 text-sm border rounded border-slate-200 outline-none focus:border-indigo-400 bg-white"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-slate-500 block mb-0.5">Badge Text</label>
-                <input
-                  value={badgeText}
-                  onChange={(e) => updateAttributes({ badgeText: e.target.value })}
-                  placeholder="Open to work"
-                  className="w-full px-2 py-1 text-sm border rounded border-slate-200 outline-none focus:border-indigo-400 bg-white"
-                />
-              </div>
-            </div>
+      <div className={`rounded-2xl border-2 overflow-hidden transition-all ${selected ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-slate-200'}`}>
+        <div
+          className={`flex flex-col ${alignClass} gap-4 px-10 py-16`}
+          style={{ background: `linear-gradient(135deg, ${gradientFrom}, ${gradientTo})` }}
+        >
+          {/* Badge */}
+          <input
+            value={badgeText}
+            onChange={(e) => updateAttributes({ badgeText: e.target.value })}
+            placeholder="Open to work"
+            className={`${inputAlign} inline-block bg-white/20 text-white text-xs font-semibold px-3.5 py-1 rounded-full outline-none border border-transparent hover:border-white/40 focus:border-white/70 placeholder:text-white/40 transition-colors`}
+            style={{ width: 'fit-content', backdropFilter: 'blur(6px)' }}
+          />
 
-            <div>
-              <label className="text-xs font-medium text-slate-500 block mb-0.5">Tagline</label>
-              <textarea
-                value={tagline}
-                onChange={(e) => updateAttributes({ tagline: e.target.value })}
-                placeholder="I build fast, accessible web experiences..."
-                rows={2}
-                className="w-full px-2 py-1 text-sm border rounded border-slate-200 outline-none focus:border-indigo-400 resize-none bg-white"
-              />
-            </div>
+          {/* Name / Headline */}
+          <input
+            value={name}
+            onChange={(e) => updateAttributes({ name: e.target.value })}
+            placeholder="Your Name"
+            className={`${inputAlign} text-4xl font-black tracking-tight text-white bg-transparent outline-none border-b-2 border-transparent hover:border-white/40 focus:border-white/70 transition-colors w-full placeholder:text-white/40`}
+            style={{ textShadow: '0 2px 12px rgba(0,0,0,0.2)' }}
+          />
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-slate-500 block mb-0.5">Primary CTA</label>
-                <input
-                  value={ctaText}
-                  onChange={(e) => updateAttributes({ ctaText: e.target.value })}
-                  placeholder="View My Work"
-                  className="w-full px-2 py-1 text-sm border rounded border-slate-200 outline-none focus:border-indigo-400 bg-white"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-slate-500 block mb-0.5">Primary CTA URL</label>
-                <input
-                  value={ctaUrl}
-                  onChange={(e) => updateAttributes({ ctaUrl: e.target.value })}
-                  placeholder="#work"
-                  className="w-full px-2 py-1 text-sm border rounded border-slate-200 outline-none focus:border-indigo-400 bg-white"
-                />
-              </div>
-            </div>
+          {/* Tagline */}
+          <textarea
+            value={tagline}
+            onChange={(e) => updateAttributes({ tagline: e.target.value })}
+            placeholder="Your tagline or role..."
+            rows={2}
+            className={`${inputAlign} text-lg bg-transparent outline-none border-b border-transparent hover:border-white/30 focus:border-white/60 transition-colors w-full max-w-xl resize-none placeholder:text-white/40`}
+            style={{ color: 'rgba(255,255,255,0.85)', fieldSizing: 'content' } as any}
+          />
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-slate-500 block mb-0.5">Secondary CTA</label>
-                <input
-                  value={ctaSecondaryText}
-                  onChange={(e) => updateAttributes({ ctaSecondaryText: e.target.value })}
-                  placeholder="Contact Me"
-                  className="w-full px-2 py-1 text-sm border rounded border-slate-200 outline-none focus:border-indigo-400 bg-white"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-slate-500 block mb-0.5">Secondary CTA URL</label>
-                <input
-                  value={ctaSecondaryUrl}
-                  onChange={(e) => updateAttributes({ ctaSecondaryUrl: e.target.value })}
-                  placeholder="mailto:you@email.com"
-                  className="w-full px-2 py-1 text-sm border rounded border-slate-200 outline-none focus:border-indigo-400 bg-white"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-slate-500 block mb-0.5">Gradient From</label>
-                <div className="flex gap-1.5">
-                  <input
-                    type="color"
-                    value={gradientFrom}
-                    onChange={(e) => updateAttributes({ gradientFrom: e.target.value })}
-                    className="w-9 h-[30px] cursor-pointer rounded border border-slate-200 flex-shrink-0"
-                  />
-                  <input
-                    value={gradientFrom}
-                    onChange={(e) => updateAttributes({ gradientFrom: e.target.value })}
-                    className="flex-1 px-2 py-1 text-sm border rounded border-slate-200 outline-none focus:border-indigo-400 bg-white"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-slate-500 block mb-0.5">Gradient To</label>
-                <div className="flex gap-1.5">
-                  <input
-                    type="color"
-                    value={gradientTo}
-                    onChange={(e) => updateAttributes({ gradientTo: e.target.value })}
-                    className="w-9 h-[30px] cursor-pointer rounded border border-slate-200 flex-shrink-0"
-                  />
-                  <input
-                    value={gradientTo}
-                    onChange={(e) => updateAttributes({ gradientTo: e.target.value })}
-                    className="flex-1 px-2 py-1 text-sm border rounded border-slate-200 outline-none focus:border-indigo-400 bg-white"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-slate-500 block mb-0.5">Alignment</label>
-              <div className="flex gap-2">
-                {[
-                  { value: 'left', label: 'Left aligned' },
-                  { value: 'center', label: 'Centered' },
-                ].map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => updateAttributes({ alignment: opt.value })}
-                    className={`px-3 py-1 text-sm rounded border transition-colors ${
-                      alignment === opt.value
-                        ? 'border-indigo-400 bg-indigo-50 text-indigo-700 font-medium'
-                        : 'border-slate-200 text-slate-600 hover:bg-white'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+          {/* CTA buttons */}
+          <div className={`flex flex-wrap gap-3 mt-1 ${ctaRowClass}`}>
+            <input
+              value={ctaText}
+              onChange={(e) => updateAttributes({ ctaText: e.target.value })}
+              placeholder="View My Work"
+              className="inline-flex items-center px-6 py-2.5 rounded-xl font-semibold text-sm bg-white outline-none border-2 border-transparent hover:border-white/60 focus:border-indigo-300 transition-colors placeholder:text-slate-300"
+              style={{ color: gradientFrom }}
+            />
+            <input
+              value={ctaSecondaryText}
+              onChange={(e) => updateAttributes({ ctaSecondaryText: e.target.value })}
+              placeholder="Contact Me"
+              className="inline-flex items-center px-6 py-2.5 rounded-xl font-semibold text-sm text-white bg-transparent outline-none border-2 border-white/40 hover:border-white/70 focus:border-white transition-colors placeholder:text-white/40"
+            />
           </div>
-        )}
+        </div>
       </div>
     </NodeViewWrapper>
   );

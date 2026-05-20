@@ -1,7 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
-import React from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Plus, X, Paintbrush } from 'lucide-react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 interface SocialLink {
@@ -27,6 +27,8 @@ const PLATFORMS = Object.keys(PLATFORM_META);
 const SocialLinksNodeView = (props: any) => {
   const { node, updateAttributes, selected, deleteNode, getPos, editor } = props;
   const { style, alignment } = node.attrs;
+  const [showStyle, setShowStyle] = useState(false);
+  const styleRef = useRef<HTMLDivElement>(null);
 
   const links: SocialLink[] = (() => {
     try { return JSON.parse(node.attrs.links); } catch { return []; }
@@ -37,7 +39,10 @@ const SocialLinksNodeView = (props: any) => {
     updateLinks(links.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
 
   const addLink = () => updateLinks([...links, { platform: 'GitHub', url: '', label: '' }]);
-  const removeLink = (idx: number) => updateLinks(links.filter((_, i) => i !== idx));
+  const removeLink = (idx: number) => {
+    if (links.length <= 1) return;
+    updateLinks(links.filter((_, i) => i !== idx));
+  };
 
   const alignClass =
     alignment === 'center' ? 'justify-center' :
@@ -51,7 +56,7 @@ const SocialLinksNodeView = (props: any) => {
       return (
         <div
           key={i}
-          className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold"
+          className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold transition-all shadow-sm"
           style={{ background: meta.bg, color: meta.color }}
           title={display}
         >
@@ -63,7 +68,7 @@ const SocialLinksNodeView = (props: any) => {
       return (
         <div
           key={i}
-          className="flex items-center gap-2 px-3.5 py-1.5 rounded-full text-sm font-semibold"
+          className="flex items-center gap-2 px-3.5 py-1.5 rounded-full text-sm font-semibold shadow-sm"
           style={{ background: meta.bg, color: meta.color }}
         >
           <span className="text-xs font-bold">{meta.initials}</span>
@@ -75,8 +80,8 @@ const SocialLinksNodeView = (props: any) => {
     return (
       <div
         key={i}
-        className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border"
-        style={{ borderColor: `${meta.color}40`, color: meta.color, background: meta.bg }}
+        className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border shadow-sm"
+        style={{ borderColor: `${meta.color}33`, color: meta.color, background: meta.bg }}
       >
         <span className="text-xs font-bold">{meta.initials}</span>
         <span>{display}</span>
@@ -87,95 +92,148 @@ const SocialLinksNodeView = (props: any) => {
   return (
     <NodeViewWrapper className="group/block relative my-6" contentEditable={false}>
       <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
+
+      {/* Floating Style/Settings Toolbar */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-30 text-sm opacity-0 group-hover/block:opacity-100 pointer-events-none group-hover/block:pointer-events-auto transition-opacity">
+        <div ref={styleRef} className="relative">
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setShowStyle(!showStyle)}
+            className={`flex items-center gap-1 px-3 py-1 rounded-full transition-colors ${showStyle ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-600'}`}
+          >
+            <Paintbrush size={14} /> Style & Align
+          </button>
+          {showStyle && (
+            <div
+              onMouseDown={(e) => e.stopPropagation()}
+              className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-white border border-slate-200 rounded-xl shadow-xl p-3 w-52 space-y-3"
+            >
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Pill Style</label>
+                <div className="flex gap-1">
+                  {['icons', 'pills', 'buttons'].map((s) => (
+                    <button
+                      key={s}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => updateAttributes({ style: s })}
+                      className={`flex-1 py-1 text-[10px] rounded border capitalize transition-colors ${
+                        style === s
+                          ? 'bg-indigo-600 text-white border-indigo-600 font-bold'
+                          : 'border-slate-200 text-slate-600 bg-white hover:bg-slate-50'
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Alignment</label>
+                <div className="flex gap-1">
+                  {['left', 'center', 'right'].map((a) => (
+                    <button
+                      key={a}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => updateAttributes({ alignment: a })}
+                      className={`flex-1 py-1 text-xs rounded border capitalize transition-colors ${
+                        alignment === a
+                          ? 'bg-indigo-600 text-white border-indigo-600 font-bold'
+                          : 'border-slate-200 text-slate-600 bg-white hover:bg-slate-50'
+                      }`}
+                    >
+                      {a}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       <div
-        className={`rounded-2xl border-2 bg-white shadow-sm transition-all ${
-          selected ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-slate-200'
+        className={`rounded-2xl border transition-all ${
+          selected ? 'border-indigo-400 ring-2 ring-indigo-100 bg-slate-50/20' : 'border-slate-200 bg-transparent'
         }`}
       >
-        {/* Preview */}
+        {/* Preview row */}
         <div className={`flex flex-wrap gap-3 p-5 ${alignClass}`}>
           {links.length === 0 ? (
-            <span className="text-sm text-slate-300 italic">No links yet — add some below</span>
+            <span className="text-sm text-slate-350 italic">No links yet — click block to add</span>
           ) : (
             links.map((link, i) => renderLink(link, i))
           )}
         </div>
 
-        {/* Edit Panel */}
+        {/* Clean, premium Inline Config Panel */}
         {selected && (
-          <div className="border-t border-slate-200 bg-slate-50 p-4 space-y-3">
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-xs font-semibold text-slate-600">Social Links</span>
-              <div className="flex items-center gap-1 ml-auto">
-                <span className="text-xs text-slate-400 mr-1">Style:</span>
-                {(['icons', 'pills', 'buttons'] as const).map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => updateAttributes({ style: s })}
-                    className={`px-2 py-0.5 text-xs rounded border capitalize transition-colors ${
-                      style === s
-                        ? 'bg-indigo-500 text-white border-indigo-500'
-                        : 'border-slate-200 text-slate-600 bg-white hover:border-indigo-300'
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-slate-400 mr-1">Align:</span>
-                {(['left', 'center', 'right'] as const).map((a) => (
-                  <button
-                    key={a}
-                    onClick={() => updateAttributes({ alignment: a })}
-                    className={`px-2 py-0.5 text-xs rounded border capitalize transition-colors ${
-                      alignment === a
-                        ? 'bg-indigo-500 text-white border-indigo-500'
-                        : 'border-slate-200 text-slate-600 bg-white hover:border-indigo-300'
-                    }`}
-                  >
-                    {a}
-                  </button>
-                ))}
-              </div>
+          <div className="border-t border-slate-200 bg-white/70 p-4 space-y-3 rounded-b-2xl">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Configure Links</span>
+              <button
+                onClick={addLink}
+                className="flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+              >
+                <Plus size={12} /> Add Link
+              </button>
             </div>
 
             <div className="space-y-2">
-              {links.map((link, idx) => (
-                <div
-                  key={idx}
-                  className="grid items-center gap-2 bg-white rounded-lg border border-slate-200 p-2"
-                  style={{ gridTemplateColumns: '148px 1fr auto' }}
-                >
-                  <select
-                    value={link.platform}
-                    onChange={(e) => updateLink(idx, { platform: e.target.value })}
-                    className="text-sm border rounded border-slate-200 outline-none focus:border-indigo-400 bg-white px-1.5 py-1"
+              {links.map((link, idx) => {
+                const meta = PLATFORM_META[link.platform] || { color: '#6366f1', bg: '#eef2ff', initials: '?' };
+                return (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-2 bg-white rounded-xl border border-slate-200 p-2 shadow-sm"
                   >
-                    {PLATFORMS.map((p) => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                  <input
-                    value={link.url}
-                    onChange={(e) => updateLink(idx, { url: e.target.value })}
-                    placeholder="https://..."
-                    className="px-2 py-1 text-sm border rounded border-slate-200 outline-none focus:border-indigo-400 bg-white"
-                  />
-                  <button
-                    onClick={() => removeLink(idx)}
-                    className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              ))}
-            </div>
+                    {/* Visual color tag */}
+                    <div
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0"
+                      style={{ backgroundColor: meta.bg, color: meta.color }}
+                    >
+                      {meta.initials}
+                    </div>
 
-            <button
-              onClick={addLink}
-              className="flex items-center gap-2 px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors w-full justify-center font-medium border border-dashed border-indigo-200"
-            >
-              <Plus size={14} /> Add Link
-            </button>
+                    {/* Platform select */}
+                    <select
+                      value={link.platform}
+                      onChange={(e) => updateLink(idx, { platform: e.target.value })}
+                      className="text-xs font-semibold border border-slate-200 rounded-lg outline-none focus:border-indigo-400 bg-slate-50 px-2 py-1 shrink-0"
+                      style={{ color: meta.color }}
+                    >
+                      {PLATFORMS.map((p) => <option key={p} value={p}>{p}</option>)}
+                    </select>
+
+                    {/* Target Link input */}
+                    <input
+                      value={link.url}
+                      onChange={(e) => updateLink(idx, { url: e.target.value })}
+                      placeholder="https://..."
+                      className="flex-1 px-2.5 py-1 text-xs border border-slate-200 rounded-lg outline-none focus:border-indigo-400 bg-transparent transition-colors"
+                    />
+
+                    {/* Label Link input */}
+                    <input
+                      value={link.label}
+                      onChange={(e) => updateLink(idx, { label: e.target.value })}
+                      placeholder="Optional label"
+                      className="w-24 px-2.5 py-1 text-xs border border-slate-200 rounded-lg outline-none focus:border-indigo-400 bg-transparent transition-colors"
+                    />
+
+                    {/* Delete button */}
+                    {links.length > 1 && (
+                      <button
+                        onClick={() => removeLink(idx)}
+                        className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-slate-100 transition-colors"
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

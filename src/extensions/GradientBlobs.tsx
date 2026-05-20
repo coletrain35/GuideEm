@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import React, { useEffect, useRef, useState } from 'react';
+import { Paintbrush } from 'lucide-react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 interface Blob {
@@ -62,6 +63,8 @@ const PRESETS: { label: string; blobs: Blob[]; bg: string }[] = [
 const GradientBlobsNodeView = (props: any) => {
   const { node, updateAttributes, selected, deleteNode, getPos, editor } = props;
   const { preset, title, subtitle, height, animate } = node.attrs;
+  const [showStyle, setShowStyle] = useState(false);
+  const styleRef = useRef<HTMLDivElement>(null);
 
   const p = PRESETS[parseInt(preset) ?? 0] ?? PRESETS[0];
   const isDark = p.bg.startsWith('#0') || p.bg.startsWith('#1');
@@ -81,9 +84,75 @@ const GradientBlobsNodeView = (props: any) => {
     <NodeViewWrapper className="group/block relative my-8" contentEditable={false}>
       <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
 
+      {/* Floating Style/Settings Toolbar */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-30 text-sm opacity-0 group-hover/block:opacity-100 pointer-events-none group-hover/block:pointer-events-auto transition-opacity">
+        <div ref={styleRef} className="relative">
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setShowStyle(!showStyle)}
+            className={`flex items-center gap-1 px-3 py-1 rounded-full transition-colors ${showStyle ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-600'}`}
+          >
+            <Paintbrush size={14} /> Style Background
+          </button>
+          {showStyle && (
+            <div
+              onMouseDown={(e) => e.stopPropagation()}
+              className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-white border border-slate-200 rounded-xl shadow-xl p-3 w-52 space-y-3"
+            >
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Color Preset</label>
+                <div className="flex gap-1.5 flex-wrap">
+                  {PRESETS.map((p, i) => (
+                    <button
+                      key={i}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => updateAttributes({ preset: String(i) })}
+                      title={p.label}
+                      className={`w-7 h-7 rounded-lg border-2 overflow-hidden transition-all ${preset === String(i) ? 'border-indigo-600 scale-110' : 'border-slate-200 hover:scale-105'}`}
+                      style={{ backgroundColor: p.bg }}
+                    >
+                      <div className="w-full h-full" style={{
+                        background: `radial-gradient(circle at 30% 30%, ${p.blobs[0].color}88, transparent 70%),
+                                     radial-gradient(circle at 70% 70%, ${p.blobs[1].color}88, transparent 70%)`
+                      }} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Height</label>
+                <select
+                  value={height}
+                  onChange={e => updateAttributes({ height: e.target.value })}
+                  className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-700 outline-none"
+                >
+                  <option value="sm">Small</option>
+                  <option value="md">Medium</option>
+                  <option value="lg">Large</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="blob-animate"
+                  checked={animate}
+                  onChange={e => updateAttributes({ animate: e.target.checked })}
+                  className="rounded text-indigo-650 focus:ring-indigo-400 cursor-pointer"
+                />
+                <label htmlFor="blob-animate" className="text-xs font-semibold text-slate-600 cursor-pointer select-none">Animate Blobs</label>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       <div
         ref={containerRef}
-        className="relative rounded-2xl overflow-hidden flex flex-col items-center justify-center text-center"
+        className={`relative rounded-2xl overflow-hidden flex flex-col items-center justify-center text-center transition-all ${
+          selected ? 'ring-2 ring-indigo-200' : ''
+        }`}
         style={{ backgroundColor: p.bg, minHeight: h }}
       >
         {/* Blobs */}
@@ -108,77 +177,32 @@ const GradientBlobsNodeView = (props: any) => {
           />
         ))}
 
-        {/* Content */}
-        <div className="relative z-10 px-8 py-12">
-          {title && (
-            <p className="text-2xl font-bold mb-2" style={{ color: isDark ? '#f1f5f9' : '#0f172a' }}>
-              {title}
-            </p>
-          )}
-          {subtitle && (
-            <p className="text-base opacity-70" style={{ color: isDark ? '#cbd5e1' : '#475569' }}>
-              {subtitle}
-            </p>
-          )}
-          {!title && !subtitle && (
-            <p className="text-sm opacity-40" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>
-              Add title & subtitle in settings
-            </p>
-          )}
+        {/* Content Panel (inline editing fields!) */}
+        <div className="relative z-10 px-8 py-12 w-full max-w-xl flex flex-col items-center justify-center space-y-2">
+          {/* Title Input */}
+          <input
+            value={title}
+            onChange={e => updateAttributes({ title: e.target.value })}
+            placeholder="Section Title"
+            className="text-2xl font-bold text-center w-full bg-transparent border-b border-transparent hover:border-slate-400 focus:border-indigo-400 outline-none py-0.5 transition-colors"
+            style={{ color: isDark ? '#f1f5f9' : '#0f172a' }}
+          />
+
+          {/* Subtitle Textarea */}
+          <textarea
+            value={subtitle}
+            onChange={e => updateAttributes({ subtitle: e.target.value })}
+            placeholder="Add supporting subtitle text..."
+            rows={1}
+            className="text-base text-center w-full bg-transparent border-b border-transparent hover:border-slate-400 focus:border-indigo-400 outline-none py-0.5 resize-none transition-colors"
+            style={{
+              color: isDark ? '#cbd5e1' : '#475569',
+              opacity: 0.85,
+              fieldSizing: 'content',
+            } as any}
+          />
         </div>
       </div>
-
-      {selected && (
-        <div className="mt-4 border border-slate-200 rounded-xl bg-white p-4 space-y-3">
-          <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Gradient Blobs</p>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-xs text-slate-500 mb-1">Title</label>
-              <input value={title} onChange={e => updateAttributes({ title: e.target.value })}
-                placeholder="Section title" className="w-full text-sm border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700" />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-500 mb-1">Subtitle</label>
-              <input value={subtitle} onChange={e => updateAttributes({ subtitle: e.target.value })}
-                placeholder="Supporting text" className="w-full text-sm border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700" />
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-3 items-center">
-            <div>
-              <label className="block text-xs text-slate-500 mb-1">Color Preset</label>
-              <div className="flex gap-1.5">
-                {PRESETS.map((p, i) => (
-                  <button key={i} onClick={() => updateAttributes({ preset: String(i) })}
-                    title={p.label}
-                    className={`w-8 h-8 rounded-lg border-2 overflow-hidden transition-all ${preset === String(i) ? 'border-slate-700 scale-110' : 'border-slate-200'}`}
-                    style={{ backgroundColor: p.bg }}>
-                    <div className="w-full h-full" style={{
-                      background: `radial-gradient(circle at 30% 30%, ${p.blobs[0].color}88, transparent 70%),
-                                   radial-gradient(circle at 70% 70%, ${p.blobs[1].color}88, transparent 70%)`
-                    }} />
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs text-slate-500 mb-1">Height</label>
-              <select value={height} onChange={e => updateAttributes({ height: e.target.value })}
-                className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-700">
-                <option value="sm">Small</option>
-                <option value="md">Medium</option>
-                <option value="lg">Large</option>
-              </select>
-            </div>
-            <div className="flex items-center gap-2 mt-4">
-              <input type="checkbox" id="blob-animate" checked={animate} onChange={e => updateAttributes({ animate: e.target.checked })}
-                className="rounded" />
-              <label htmlFor="blob-animate" className="text-xs text-slate-600">Animate blobs</label>
-            </div>
-          </div>
-        </div>
-      )}
 
       <style>{`
         @keyframes blob-drift-0 {

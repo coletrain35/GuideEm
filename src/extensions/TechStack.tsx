@@ -1,7 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
-import React from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Plus, X, Paintbrush } from 'lucide-react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 interface TechItem {
@@ -19,6 +19,8 @@ const DEFAULT_ITEMS: TechItem[] = [
 const TechStackNodeView = (props: any) => {
   const { node, updateAttributes, selected, deleteNode, getPos, editor } = props;
   const { accentColor, cols } = node.attrs;
+  const [showStyle, setShowStyle] = useState(false);
+  const styleRef = useRef<HTMLDivElement>(null);
 
   const items: TechItem[] = (() => {
     try { return JSON.parse(node.attrs.items); } catch { return DEFAULT_ITEMS; }
@@ -29,107 +31,129 @@ const TechStackNodeView = (props: any) => {
     updateItems(items.map((item, i) => (i === idx ? { ...item, ...patch } : item)));
 
   const addItem = () => updateItems([...items, { icon: '🔧', label: 'Tool' }]);
-  const removeItem = (idx: number) => updateItems(items.filter((_, i) => i !== idx));
+  
+  const removeItem = (idx: number) => {
+    if (items.length <= 1) return;
+    updateItems(items.filter((_, i) => i !== idx));
+  };
 
   return (
     <NodeViewWrapper className="group/block relative my-6" contentEditable={false}>
       <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
-      <div
-        className={`rounded-2xl border-2 bg-white shadow-sm transition-all ${
-          selected ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-slate-200'
-        }`}
-      >
-        {/* Preview Grid */}
-        <div className="p-5">
-          {items.length === 0 ? (
-            <div className="py-10 text-center text-slate-300 text-sm">
-              No items yet — add some below
-            </div>
-          ) : (
+
+      {/* Floating Style/Settings Toolbar */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-30 text-sm opacity-0 group-hover/block:opacity-100 pointer-events-none group-hover/block:pointer-events-auto transition-opacity">
+        <div ref={styleRef} className="relative">
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setShowStyle(!showStyle)}
+            className={`flex items-center gap-1 px-3 py-1 rounded-full transition-colors ${showStyle ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-600'}`}
+          >
+            <Paintbrush size={14} /> Style Layout
+          </button>
+          {showStyle && (
             <div
-              className="grid gap-3"
-              style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-white border border-slate-200 rounded-xl shadow-xl p-3 w-52 space-y-3"
             >
-              {items.map((item, i) => (
-                <div
-                  key={i}
-                  className="flex flex-col items-center gap-2 py-4 px-2 rounded-xl border text-center"
-                  style={{ borderColor: `${accentColor}30`, background: `${accentColor}08` }}
-                >
-                  <span className="text-2xl leading-none">{item.icon}</span>
-                  <span className="text-xs font-semibold text-slate-700 leading-tight">{item.label}</span>
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Columns</label>
+                <div className="flex gap-1 flex-wrap">
+                  {[3, 4, 5, 6].map((n) => (
+                    <button
+                      key={n}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => updateAttributes({ cols: n })}
+                      className={`flex-1 min-w-[20px] py-1 text-xs rounded border transition-colors ${
+                        cols === n
+                          ? 'bg-indigo-600 text-white border-indigo-600 font-bold'
+                          : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
                 </div>
-              ))}
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Accent Color</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    className="w-8 h-8 rounded cursor-pointer border border-slate-200 shrink-0"
+                    value={accentColor || '#6366f1'}
+                    onChange={(e) => updateAttributes({ accentColor: e.target.value })}
+                  />
+                  <span className="text-xs text-slate-500 font-mono">{accentColor}</span>
+                </div>
+              </div>
             </div>
           )}
         </div>
+      </div>
 
-        {/* Edit Panel */}
-        {selected && (
-          <div className="border-t border-slate-200 bg-slate-50 p-4 space-y-3">
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-xs font-semibold text-slate-600">Tech Stack</span>
-              <div className="flex items-center gap-1 ml-auto">
-                <span className="text-xs text-slate-400 mr-1">Columns:</span>
-                {[3, 4, 5, 6].map((n) => (
-                  <button
-                    key={n}
-                    onClick={() => updateAttributes({ cols: n })}
-                    className={`px-2 py-0.5 text-xs rounded border transition-colors ${
-                      cols === n
-                        ? 'bg-indigo-500 text-white border-indigo-500'
-                        : 'border-slate-200 text-slate-600 bg-white hover:border-indigo-300'
-                    }`}
-                  >
-                    {n}
-                  </button>
-                ))}
-                <input
-                  type="color"
-                  value={accentColor}
-                  onChange={(e) => updateAttributes({ accentColor: e.target.value })}
-                  title="Accent color"
-                  className="w-7 h-7 cursor-pointer rounded border border-slate-200 p-0.5 ml-1"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              {items.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center gap-2 bg-white rounded-lg border border-slate-200 px-2 py-1.5"
+      <div
+        className={`p-4 rounded-2xl border transition-all ${
+          selected ? 'border-indigo-400 ring-2 ring-indigo-100 bg-slate-50/20' : 'border-transparent bg-transparent'
+        }`}
+      >
+        <div
+          className="grid gap-3"
+          style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+        >
+          {items.map((item, i) => (
+            <div
+              key={i}
+              className={`group/card relative flex flex-col items-center gap-1.5 py-4 px-2.5 rounded-xl border text-center transition-all ${
+                selected ? 'bg-white shadow-sm border-slate-200 hover:border-indigo-300' : ''
+              }`}
+              style={{
+                borderColor: selected ? undefined : `${accentColor}30`,
+                background: selected ? undefined : `${accentColor}08`
+              }}
+            >
+              {/* Individual Card Delete trigger */}
+              {selected && items.length > 1 && (
+                <button
+                  onClick={() => removeItem(i)}
+                  className="absolute top-1.5 right-1.5 p-0.5 rounded-full bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 border border-slate-100 transition-opacity opacity-0 group-hover/card:opacity-100"
+                  title="Delete Tech"
                 >
-                  <input
-                    value={item.icon}
-                    onChange={(e) => updateItem(idx, { icon: e.target.value })}
-                    placeholder="🔧"
-                    className="w-14 text-center text-sm border rounded border-slate-200 outline-none focus:border-indigo-400 bg-white py-0.5"
-                  />
-                  <input
-                    value={item.label}
-                    onChange={(e) => updateItem(idx, { label: e.target.value })}
-                    placeholder="Tool name"
-                    className="flex-1 px-2 py-0.5 text-sm border rounded border-slate-200 outline-none focus:border-indigo-400 bg-white"
-                  />
-                  <button
-                    onClick={() => removeItem(idx)}
-                    className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              ))}
-            </div>
+                  <X size={10} />
+                </button>
+              )}
 
+              {/* Emoji Icon Input */}
+              <input
+                value={item.icon}
+                onChange={e => updateItem(i, { icon: e.target.value })}
+                placeholder="⚛️"
+                className="w-10 text-center text-2xl bg-transparent border-none outline-none p-0 text-slate-800 cursor-text shrink-0"
+              />
+
+              {/* Label Name Input */}
+              <input
+                value={item.label}
+                onChange={e => updateItem(i, { label: e.target.value })}
+                placeholder="Tool name"
+                className="text-xs font-semibold text-slate-700 bg-transparent border-b border-transparent hover:border-slate-350 focus:border-indigo-500 outline-none w-full text-center py-0.5 transition-colors"
+              />
+            </div>
+          ))}
+
+          {/* Dash Add Item Card Trigger */}
+          {selected && (
             <button
               onClick={addItem}
-              className="flex items-center gap-2 px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors w-full justify-center font-medium border border-dashed border-indigo-200"
+              className="flex flex-col items-center justify-center py-4 px-2.5 border border-dashed border-slate-300 hover:border-indigo-400 rounded-xl bg-slate-50/50 hover:bg-indigo-50/20 text-slate-400 hover:text-indigo-600 transition-all gap-1"
+              style={{ minHeight: '84px' }}
             >
-              <Plus size={14} /> Add Item
+              <Plus size={18} />
+              <span className="text-[10px] font-bold">Add Tech</span>
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </NodeViewWrapper>
   );

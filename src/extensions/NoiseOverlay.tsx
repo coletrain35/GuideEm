@@ -1,11 +1,10 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
+import { Paintbrush } from 'lucide-react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 // Generate a canvas-based grayscale noise pattern as a PNG data URL.
-// SVG feTurbulence filters are silently ignored when used as CSS background-image
-// data URLs in Chrome, so we use the Canvas API instead for reliable rendering.
 const buildNoiseDataUrl = (opacity: number, density: number): string => {
   const size = 256;
   const canvas = document.createElement('canvas');
@@ -14,7 +13,6 @@ const buildNoiseDataUrl = (opacity: number, density: number): string => {
   const ctx = canvas.getContext('2d')!;
   const imageData = ctx.createImageData(size, size);
   const data = imageData.data;
-  // density 10–100 → blockSize 8px (chunky) to 1px (fine film grain)
   const blockSize = Math.max(1, Math.round(8 - (density / 100) * 7));
   const alpha = Math.floor(opacity * 255);
 
@@ -49,6 +47,8 @@ const BG_PRESETS: { label: string; value: string; dark: boolean }[] = [
 const NoiseOverlayNodeView = (props: any) => {
   const { node, updateAttributes, selected, deleteNode, getPos, editor } = props;
   const { bgPreset, noiseOpacity, noiseDensity, title, subtitle, height } = node.attrs;
+  const [showStyle, setShowStyle] = useState(false);
+  const styleRef = useRef<HTMLDivElement>(null);
 
   const bg = BG_PRESETS[parseInt(bgPreset) ?? 0] ?? BG_PRESETS[0];
   const noiseBg = useMemo(() => buildNoiseDataUrl(parseFloat(noiseOpacity) || 0.15, parseInt(noiseDensity) || 50), [noiseOpacity, noiseDensity]);
@@ -58,8 +58,88 @@ const NoiseOverlayNodeView = (props: any) => {
     <NodeViewWrapper className="group/block relative my-8" contentEditable={false}>
       <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
 
+      {/* Floating Style/Settings Toolbar */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-30 text-sm opacity-0 group-hover/block:opacity-100 pointer-events-none group-hover/block:pointer-events-auto transition-opacity">
+        <div ref={styleRef} className="relative">
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setShowStyle(!showStyle)}
+            className={`flex items-center gap-1 px-3 py-1 rounded-full transition-colors ${showStyle ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-600'}`}
+          >
+            <Paintbrush size={14} /> Style Noise
+          </button>
+          {showStyle && (
+            <div
+              onMouseDown={(e) => e.stopPropagation()}
+              className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-white border border-slate-200 rounded-xl shadow-xl p-3 w-56 space-y-3"
+            >
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Background Presets</label>
+                <div className="flex gap-1.5 flex-wrap">
+                  {BG_PRESETS.map((p, i) => (
+                    <button
+                      key={i}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => updateAttributes({ bgPreset: String(i) })}
+                      title={p.label}
+                      className={`w-7 h-7 rounded-full border-2 transition-all ${bgPreset === String(i) ? 'border-indigo-650 scale-110' : 'border-slate-200 hover:scale-105'}`}
+                      style={{ backgroundColor: p.value }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                  Grain Opacity: {Math.round(parseFloat(noiseOpacity) * 100)}%
+                </label>
+                <input
+                  type="range"
+                  min="0.05"
+                  max="0.5"
+                  step="0.05"
+                  value={noiseOpacity}
+                  onChange={e => updateAttributes({ noiseOpacity: e.target.value })}
+                  className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                  Grain Density: {noiseDensity}
+                </label>
+                <input
+                  type="range"
+                  min="10"
+                  max="100"
+                  step="10"
+                  value={noiseDensity}
+                  onChange={e => updateAttributes({ noiseDensity: e.target.value })}
+                  className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Height</label>
+                <select
+                  value={height}
+                  onChange={e => updateAttributes({ height: e.target.value })}
+                  className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-700 outline-none"
+                >
+                  <option value="sm">Small</option>
+                  <option value="md">Medium</option>
+                  <option value="lg">Large</option>
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       <div
-        className="relative rounded-2xl overflow-hidden flex flex-col items-center justify-center text-center"
+        className={`relative rounded-2xl overflow-hidden flex flex-col items-center justify-center text-center transition-all ${
+          selected ? 'ring-2 ring-indigo-200' : ''
+        }`}
         style={{ backgroundColor: bg.value, minHeight: h }}
       >
         {/* Noise texture layer */}
@@ -68,80 +148,32 @@ const NoiseOverlayNodeView = (props: any) => {
           style={{ backgroundImage: noiseBg, backgroundRepeat: 'repeat', backgroundSize: '200px 200px' }}
         />
 
-        {/* Content */}
-        <div className="relative z-10 px-8 py-12">
-          {title && (
-            <p className="text-2xl font-bold mb-2" style={{ color: bg.dark ? '#f1f5f9' : '#0f172a' }}>
-              {title}
-            </p>
-          )}
-          {subtitle && (
-            <p className="text-base opacity-70" style={{ color: bg.dark ? '#cbd5e1' : '#475569' }}>
-              {subtitle}
-            </p>
-          )}
-          {!title && !subtitle && (
-            <p className="text-sm opacity-40" style={{ color: bg.dark ? '#94a3b8' : '#64748b' }}>
-              Noise/grain texture overlay — add title & subtitle in settings
-            </p>
-          )}
+        {/* Content (fully inline editing fields) */}
+        <div className="relative z-10 px-8 py-12 w-full max-w-xl flex flex-col items-center justify-center space-y-2">
+          {/* Title Input */}
+          <input
+            value={title}
+            onChange={e => updateAttributes({ title: e.target.value })}
+            placeholder="Section Title"
+            className="text-2xl font-bold text-center w-full bg-transparent border-b border-transparent hover:border-slate-450 focus:border-indigo-400 outline-none py-0.5 transition-colors"
+            style={{ color: bg.dark ? '#f1f5f9' : '#0f172a' }}
+          />
+
+          {/* Subtitle Textarea */}
+          <textarea
+            value={subtitle}
+            onChange={e => updateAttributes({ subtitle: e.target.value })}
+            placeholder="Add supporting subtitle text..."
+            rows={1}
+            className="text-base text-center w-full bg-transparent border-b border-transparent hover:border-slate-450 focus:border-indigo-400 outline-none py-0.5 resize-none transition-colors"
+            style={{
+              color: bg.dark ? '#cbd5e1' : '#475569',
+              opacity: 0.85,
+              fieldSizing: 'content',
+            } as any}
+          />
         </div>
       </div>
-
-      {selected && (
-        <div className="mt-4 border border-slate-200 rounded-xl bg-white p-4 space-y-3">
-          <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Noise / Grain Texture</p>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-xs text-slate-500 mb-1">Title</label>
-              <input value={title} onChange={e => updateAttributes({ title: e.target.value })}
-                placeholder="Section title" className="w-full text-sm border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700" />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-500 mb-1">Subtitle</label>
-              <input value={subtitle} onChange={e => updateAttributes({ subtitle: e.target.value })}
-                placeholder="Supporting text" className="w-full text-sm border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700" />
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-4 items-end">
-            <div>
-              <label className="block text-xs text-slate-500 mb-1">Background</label>
-              <div className="flex gap-1.5">
-                {BG_PRESETS.map((p, i) => (
-                  <button key={i} onClick={() => updateAttributes({ bgPreset: String(i) })}
-                    title={p.label}
-                    className={`w-7 h-7 rounded-full border-2 transition-all ${bgPreset === String(i) ? 'border-indigo-500 scale-110' : 'border-slate-200'}`}
-                    style={{ backgroundColor: p.value }}
-                  />
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs text-slate-500 mb-1">Grain opacity: {Math.round(parseFloat(noiseOpacity) * 100)}%</label>
-              <input type="range" min="0.05" max="0.5" step="0.05" value={noiseOpacity}
-                onChange={e => updateAttributes({ noiseOpacity: e.target.value })}
-                className="w-28" />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-500 mb-1">Grain density: {noiseDensity}</label>
-              <input type="range" min="10" max="100" step="10" value={noiseDensity}
-                onChange={e => updateAttributes({ noiseDensity: e.target.value })}
-                className="w-28" />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-500 mb-1">Height</label>
-              <select value={height} onChange={e => updateAttributes({ height: e.target.value })}
-                className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-700">
-                <option value="sm">Small</option>
-                <option value="md">Medium</option>
-                <option value="lg">Large</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      )}
     </NodeViewWrapper>
   );
 };
