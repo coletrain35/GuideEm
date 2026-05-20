@@ -1,134 +1,196 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
-import { Plus, X, GripVertical } from 'lucide-react';
+import { ChevronDown, AlertCircle, Loader2, HelpCircle, X } from 'lucide-react';
 
-type Theme = 'default' | 'dark' | 'forest' | 'neutral';
-type NodeType = 'start' | 'process' | 'decision' | 'subprocess' | 'end';
+/* ── Diagram templates ─────────────────────────────────────────────── */
 
-interface FlowNode {
+interface DiagramTemplate {
   id: string;
   label: string;
-  type: NodeType;
-  x: number;
-  y: number;
+  icon: string;
+  definition: string;
 }
 
-interface FlowEdge {
-  from: string;
-  to: string;
-  label: string;
-}
+const TEMPLATES: DiagramTemplate[] = [
+  {
+    id: 'flowchart-td',
+    label: 'Flowchart',
+    icon: '⬇️',
+    definition: `flowchart TD
+    Start([Start]) --> Process[Do Something]
+    Process --> Decision{Is it done?}
+    Decision -->|Yes| Success([Done])
+    Decision -->|No| Process`,
+  },
+  {
+    id: 'flowchart-lr',
+    label: 'Flow (Left → Right)',
+    icon: '➡️',
+    definition: `flowchart LR
+    Input([Input]) --> Step1[Step 1]
+    Step1 --> Step2[Step 2]
+    Step2 --> Output([Output])`,
+  },
+  {
+    id: 'sequence',
+    label: 'Sequence',
+    icon: '↕️',
+    definition: `sequenceDiagram
+    participant User
+    participant App
+    participant Server
 
-const THEMES: { value: Theme; label: string; preview: string }[] = [
-  { value: 'default', label: 'Default', preview: '#f8fafc' },
-  { value: 'dark', label: 'Dark', preview: '#1e293b' },
-  { value: 'forest', label: 'Forest', preview: '#14532d' },
-  { value: 'neutral', label: 'Neutral', preview: '#737373' },
+    User->>App: Click button
+    App->>Server: API request
+    Server-->>App: Response
+    App-->>User: Show result`,
+  },
+  {
+    id: 'gantt',
+    label: 'Gantt Chart',
+    icon: '📊',
+    definition: `gantt
+    title Project Timeline
+    dateFormat YYYY-MM-DD
+    section Planning
+        Research       :a1, 2024-01-01, 7d
+        Design         :a2, after a1, 5d
+    section Development
+        Build          :b1, after a2, 14d
+        Testing        :b2, after b1, 7d
+    section Launch
+        Deploy         :c1, after b2, 3d`,
+  },
+  {
+    id: 'pie',
+    label: 'Pie Chart',
+    icon: '🥧',
+    definition: `pie title Traffic Sources
+    "Organic Search" : 42
+    "Direct" : 28
+    "Social Media" : 18
+    "Referral" : 12`,
+  },
+  {
+    id: 'er',
+    label: 'ER Diagram',
+    icon: '🗄️',
+    definition: `erDiagram
+    USER ||--o{ ORDER : places
+    ORDER ||--|{ LINE_ITEM : contains
+    PRODUCT ||--o{ LINE_ITEM : "ordered in"
+    USER {
+        string name
+        string email
+    }
+    ORDER {
+        int id
+        date created
+    }`,
+  },
+  {
+    id: 'state',
+    label: 'State Machine',
+    icon: '🔄',
+    definition: `stateDiagram-v2
+    [*] --> Idle
+    Idle --> Loading : fetch
+    Loading --> Success : resolve
+    Loading --> Error : reject
+    Error --> Loading : retry
+    Success --> [*]`,
+  },
+  {
+    id: 'mindmap',
+    label: 'Mind Map',
+    icon: '🧠',
+    definition: `mindmap
+  root((Project))
+    Planning
+      Research
+      Requirements
+    Design
+      Wireframes
+      Prototypes
+    Development
+      Frontend
+      Backend
+    Launch
+      Testing
+      Deploy`,
+  },
 ];
 
-const NODE_TYPES: { value: NodeType; label: string; color: string; icon: string }[] = [
-  { value: 'start', label: 'Start/End', color: '#10b981', icon: '●' },
-  { value: 'process', label: 'Process', color: '#3b82f6', icon: '▭' },
-  { value: 'decision', label: 'Decision', color: '#f59e0b', icon: '◆' },
-  { value: 'subprocess', label: 'Sub-process', color: '#8b5cf6', icon: '▭▭' },
-  { value: 'end', label: 'End', color: '#ef4444', icon: '●' },
+const DEFAULT_DEFINITION = TEMPLATES[0].definition;
+
+/* ── Theme config ──────────────────────────────────────────────────── */
+
+type Theme = 'default' | 'dark' | 'forest' | 'neutral';
+
+const THEMES: { value: Theme; label: string; editorBg: string; editorText: string; previewBg: string }[] = [
+  { value: 'default', label: 'Light', editorBg: '#1e293b', editorText: '#e2e8f0', previewBg: '#ffffff' },
+  { value: 'dark', label: 'Dark', editorBg: '#0f172a', editorText: '#94a3b8', previewBg: '#1e293b' },
+  { value: 'forest', label: 'Forest', editorBg: '#14532d', editorText: '#bbf7d0', previewBg: '#f0fdf4' },
+  { value: 'neutral', label: 'Neutral', editorBg: '#27272a', editorText: '#d4d4d8', previewBg: '#fafafa' },
 ];
 
-let nid = 0;
-const nextId = () => `n${++nid}`;
+/* ── Node view component ───────────────────────────────────────────── */
 
-function toMermaid(nodes: FlowNode[], edges: FlowEdge[]): string {
-  const lines = ['flowchart TD'];
-  // Build node definitions with styles
-  nodes.forEach((n) => {
-    const safeLabel = n.label.replace(/"/g, '#quot;');
-    switch (n.type) {
-      case 'start':
-      case 'end':
-        lines.push(`  ${n.id}(["${safeLabel}"])`);
-        break;
-      case 'decision':
-        lines.push(`  ${n.id}{"${safeLabel}"}`);
-        break;
-      case 'subprocess':
-        lines.push(`  ${n.id}[["${safeLabel}"]]`);
-        break;
-      default:
-        lines.push(`  ${n.id}["${safeLabel}"]`);
-    }
-  });
-  // Style classes
-  const typeColors: Record<NodeType, string> = {
-    start: '#10b981',
-    process: '#3b82f6',
-    decision: '#f59e0b',
-    subprocess: '#8b5cf6',
-    end: '#ef4444',
-  };
-  NODE_TYPES.forEach((t) => {
-    const nodesOfType = nodes.filter((n) => n.type === t.value);
-    if (nodesOfType.length) {
-      lines.push(`  classDef ${t.value} fill:${typeColors[t.value]}15,stroke:${typeColors[t.value]},stroke-width:2px,color:#334155`);
-      lines.push(`  class ${nodesOfType.map((n) => n.id).join(',')} ${t.value}`);
-    }
-  });
-  // Edges
-  const seen = new Set<string>();
-  edges.forEach((e) => {
-    const key = `${e.from}-${e.to}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    const label = e.label ? `|"${e.label.replace(/"/g, '#quot;')}"|` : '';
-    lines.push(`  ${e.from} -->${label} ${e.to}`);
-  });
-  // Auto-connect if no edges
-  if (edges.length === 0 && nodes.length > 1) {
-    for (let i = 0; i < nodes.length - 1; i++) {
-      lines.push(`  ${nodes[i].id} --> ${nodes[i + 1].id}`);
-    }
-  }
-  return lines.join('\n');
-}
-
-const DEFAULT_NODES: FlowNode[] = [
-  { id: nextId(), label: 'Start', type: 'start', x: 0, y: 0 },
-  { id: nextId(), label: 'Process', type: 'process', x: 0, y: 0 },
-  { id: nextId(), label: 'End', type: 'end', x: 0, y: 0 },
-];
-
-const FlowchartNodeView = (props: any) => {
+const DiagramNodeView = (props: any) => {
   const { node, updateAttributes, selected, deleteNode, getPos, editor } = props;
-  const { theme, cachedSvg } = node.attrs;
 
-  const [nodes, setNodes] = useState<FlowNode[]>(() => {
-    try {
-      return JSON.parse(node.attrs.nodes || '[]');
-    } catch {
-      return [];
-    }
-  });
-  const [edges, setEdges] = useState<FlowEdge[]>(() => {
-    try {
-      return JSON.parse(node.attrs.edges || '[]');
-    } catch {
-      return [];
-    }
-  });
-  const [svg, setSvg] = useState(cachedSvg || '');
+  // ─ Derive state reactively from node.attrs (fixes undo/redo) ─
+  const definition = node.attrs.definition || '';
+  const theme = (node.attrs.theme || 'default') as Theme;
+  const cachedSvg = node.attrs.cachedSvg || '';
+
+  const [svg, setSvg] = useState(cachedSvg);
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const renderTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const renderTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const templateDropdownRef = useRef<HTMLDivElement>(null);
+  const lastRenderedRef = useRef<string>('');
 
-  const render = useCallback(
-    async (ns: FlowNode[], es: FlowEdge[], th: Theme) => {
-      if (!ns.length) {
+  const themeConfig = useMemo(
+    () => THEMES.find((t) => t.value === theme) || THEMES[0],
+    [theme]
+  );
+
+  // ─ Close template dropdown on outside click ─
+  useEffect(() => {
+    if (!templateOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (templateDropdownRef.current && !templateDropdownRef.current.contains(e.target as HTMLElement)) {
+        setTemplateOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [templateOpen]);
+
+  // ─ Render Mermaid diagram ─
+  const renderDiagram = useCallback(
+    async (def: string, th: Theme) => {
+      const trimmed = def.trim();
+      if (!trimmed) {
         setSvg('');
+        setError('');
+        lastRenderedRef.current = '';
         return;
       }
+
+      // Skip if we already rendered this exact combo
+      const renderKey = `${trimmed}::${th}`;
+      if (renderKey === lastRenderedRef.current) return;
+
       setLoading(true);
+      setError('');
       try {
-        const def = toMermaid(ns, es);
         const m = await import('mermaid');
         const mermaid = m.default;
         mermaid.initialize({
@@ -137,12 +199,18 @@ const FlowchartNodeView = (props: any) => {
           theme: th,
           flowchart: { curve: 'basis', padding: 16 },
         });
-        const id = 'flow-' + Math.random().toString(36).slice(2, 8);
-        const { svg: out } = await mermaid.render(id, def);
+        const id = 'mmd-' + Math.random().toString(36).slice(2, 8);
+        const { svg: out } = await mermaid.render(id, trimmed);
         setSvg(out);
+        setError('');
+        lastRenderedRef.current = renderKey;
         updateAttributes({ cachedSvg: out });
-      } catch {
-        // Silently fail — user will see stale preview
+      } catch (e: any) {
+        const msg = e?.message || 'Invalid diagram syntax';
+        // Strip Mermaid's verbose noise — keep only the useful part
+        const cleaned = msg.replace(/^.*?Parse error on line/s, 'Parse error on line').slice(0, 200);
+        setError(cleaned);
+        lastRenderedRef.current = '';
       } finally {
         setLoading(false);
       }
@@ -150,257 +218,417 @@ const FlowchartNodeView = (props: any) => {
     [updateAttributes]
   );
 
-  // Debounced render on changes
+  // ─ Debounced render when definition or theme changes ─
   useEffect(() => {
     if (renderTimeoutRef.current) clearTimeout(renderTimeoutRef.current);
     renderTimeoutRef.current = setTimeout(() => {
-      render(nodes, edges, theme);
-      updateAttributes({
-        nodes: JSON.stringify(nodes),
-        edges: JSON.stringify(edges),
-      });
-    }, 300);
+      renderDiagram(definition, theme);
+    }, 500);
     return () => {
       if (renderTimeoutRef.current) clearTimeout(renderTimeoutRef.current);
     };
-  }, [nodes, edges, theme, render, updateAttributes]);
+  }, [definition, theme, renderDiagram]);
 
-  const addNode = (type: NodeType = 'process') => {
-    const newNode: FlowNode = {
-      id: nextId(),
-      label: type === 'start' ? 'Start' : type === 'end' ? 'End' : 'Step',
-      type,
-      x: 0,
-      y: 0,
-    };
-    setNodes([...nodes, newNode]);
-    // Auto-connect to previous
-    if (nodes.length > 0) {
-      const prev = nodes[nodes.length - 1];
-      if (prev.type !== 'end') {
-        setEdges([...edges, { from: prev.id, to: newNode.id, label: '' }]);
-      }
+  // ─ Sync cachedSvg from attrs when it changes externally (undo/redo) ─
+  useEffect(() => {
+    if (cachedSvg && cachedSvg !== svg) {
+      setSvg(cachedSvg);
     }
+  }, [cachedSvg]);
+
+  // ─ Auto-resize textarea ─
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+    }
+  }, [definition, selected]);
+
+  const handleDefinitionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    updateAttributes({ definition: e.target.value });
   };
 
-  const updateNode = (id: string, key: keyof FlowNode, value: any) => {
-    setNodes(nodes.map((n) => (n.id === id ? { ...n, [key]: value } : n)));
+  const applyTemplate = (template: DiagramTemplate) => {
+    updateAttributes({ definition: template.definition, cachedSvg: '' });
+    lastRenderedRef.current = '';
+    setTemplateOpen(false);
   };
 
-  const removeNode = (id: string) => {
-    setNodes(nodes.filter((n) => n.id !== id));
-    setEdges(edges.filter((e) => e.from !== id && e.to !== id));
-  };
-
-  const addEdge = () => {
-    if (nodes.length < 2) return;
-    setEdges([...edges, { from: nodes[0].id, to: nodes[nodes.length - 1].id, label: '' }]);
-  };
-
-  const updateEdge = (i: number, key: keyof FlowEdge, value: string) => {
-    const updated = [...edges];
-    updated[i] = { ...updated[i], [key]: value };
-    setEdges(updated);
-  };
-
-  const removeEdge = (i: number) => {
-    setEdges(edges.filter((_, idx) => idx !== i));
-  };
-
-  const getNodeLabel = (id: string) => {
-    const n = nodes.find((x) => x.id === id);
-    return n ? n.label : id;
-  };
+  const lineCount = (definition || '').split('\n').length;
 
   return (
     <NodeViewWrapper className="group/block relative my-8" contentEditable={false}>
       <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
 
-      {/* Preview Area */}
       <div
-        className={`rounded-2xl overflow-hidden border bg-white transition-all ${
-          selected ? 'ring-2 ring-indigo-400 border-indigo-300 shadow-lg' : 'border-slate-200 shadow-sm'
+        className={`rounded-2xl overflow-hidden transition-all ${
+          selected
+            ? 'ring-2 ring-indigo-400 shadow-xl'
+            : 'shadow-md hover:shadow-lg'
         }`}
+        style={{ border: '1px solid rgba(99,102,241,0.15)' }}
       >
-        <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Flowchart</span>
-            {loading && <span className="text-xs text-slate-400">Rendering...</span>}
+        {/* ── Titlebar ── */}
+        <div
+          className="flex items-center justify-between px-4 py-2.5"
+          style={{ background: themeConfig.editorBg }}
+        >
+          <div className="flex items-center gap-3">
+            {/* Traffic light dots */}
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#f38ba8' }} />
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#f9e2af' }} />
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#a6e3a1' }} />
+            </div>
+            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: `${themeConfig.editorText}80` }}>
+              Diagram
+            </span>
+            {loading && (
+              <Loader2 size={13} className="animate-spin" style={{ color: themeConfig.editorText }} />
+            )}
           </div>
+
+          {/* Theme pills */}
           <div className="flex items-center gap-1">
             {THEMES.map((t) => (
               <button
                 key={t.value}
-                onClick={() => updateAttributes({ theme: t.value, cachedSvg: '' })}
-                className={`w-5 h-5 rounded-full border-2 transition-all ${
-                  theme === t.value ? 'border-slate-900 ring-1 ring-slate-900/20 scale-110' : 'border-transparent hover:scale-105'
+                onClick={() => {
+                  lastRenderedRef.current = '';
+                  updateAttributes({ theme: t.value, cachedSvg: '' });
+                }}
+                className={`px-2 py-0.5 text-[10px] rounded-full border transition-all font-medium ${
+                  theme === t.value
+                    ? 'bg-white/20 border-white/30 text-white'
+                    : 'border-transparent text-white/40 hover:text-white/70'
                 }`}
-                style={{ backgroundColor: t.preview }}
-                title={t.label}
-              />
+              >
+                {t.label}
+              </button>
             ))}
           </div>
         </div>
 
-        <div className="p-6 min-h-[200px] flex items-center justify-center bg-white">
-          {svg ? (
-            <div className="w-full overflow-x-auto" dangerouslySetInnerHTML={{ __html: svg }} />
-          ) : (
-            <div className="text-center">
-              <p className="text-sm text-slate-400 mb-3">Add steps to build your flowchart</p>
-              <button
-                onClick={() => addNode('start')}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 transition-colors shadow-sm"
+        {/* ── Main content area ── */}
+        {selected ? (
+          /* ── Edit mode: split panel ── */
+          <div className="flex" style={{ minHeight: '280px' }}>
+            {/* Left: Code editor */}
+            <div
+              className="flex-1 flex flex-col relative"
+              style={{ backgroundColor: themeConfig.editorBg, minWidth: 0 }}
+            >
+              {/* Template picker bar */}
+              <div
+                className="flex items-center gap-2 px-3 py-2 border-b"
+                style={{ borderColor: `${themeConfig.editorText}15` }}
               >
-                <Plus size={16} /> Add First Step
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
+                <div className="relative" ref={templateDropdownRef}>
+                  <button
+                    onClick={() => setTemplateOpen(!templateOpen)}
+                    className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-lg transition-all hover:bg-white/10"
+                    style={{ color: themeConfig.editorText, border: `1px solid ${themeConfig.editorText}25` }}
+                  >
+                    Templates
+                    <ChevronDown size={12} className={`transition-transform ${templateOpen ? 'rotate-180' : ''}`} />
+                  </button>
 
-      {/* Settings Panel */}
-      {selected && (
-        <div className="mt-4 border border-slate-200 rounded-xl bg-white p-4 shadow-sm space-y-4">
-          {/* Quick Add Buttons */}
-          <div>
-            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Add Node</p>
-            <div className="flex flex-wrap gap-2">
-              {NODE_TYPES.map((t) => (
+                  {templateOpen && (
+                    <div
+                      className="absolute top-full left-0 mt-1 z-50 rounded-xl shadow-2xl overflow-hidden"
+                      style={{
+                        backgroundColor: themeConfig.editorBg,
+                        border: `1px solid ${themeConfig.editorText}20`,
+                        width: '220px',
+                      }}
+                    >
+                      {TEMPLATES.map((t) => (
+                        <button
+                          key={t.id}
+                          onClick={() => applyTemplate(t)}
+                          className="flex items-center gap-2.5 w-full px-3 py-2 text-left text-xs transition-all hover:bg-white/10"
+                          style={{ color: themeConfig.editorText }}
+                        >
+                          <span className="text-base">{t.icon}</span>
+                          <span className="font-medium">{t.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <button
-                  key={t.value}
-                  onClick={() => addNode(t.value)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-all hover:shadow-sm"
+                  onClick={() => setGuideOpen(!guideOpen)}
+                  className={`flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-lg transition-all ${
+                    guideOpen ? 'bg-white/15 text-white' : 'hover:bg-white/10'
+                  }`}
+                  style={{ color: guideOpen ? '#fff' : `${themeConfig.editorText}70`, border: `1px solid ${guideOpen ? themeConfig.editorText + '30' : 'transparent'}` }}
+                >
+                  <HelpCircle size={12} />
+                  Guide
+                </button>
+              </div>
+
+              {/* ── Built-in syntax guide (Modal Overlay) ── */}
+              {guideOpen && (
+                <div 
+                  className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 transition-all duration-200"
+                  onClick={() => setGuideOpen(false)}
+                >
+                  <div 
+                    className="relative max-w-2xl w-full rounded-2xl shadow-2xl overflow-hidden border border-slate-800 bg-slate-900 text-slate-100 flex flex-col max-h-[85vh] transition-all transform scale-100"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Modal Header */}
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/40">
+                      <div className="flex items-center gap-2">
+                        <HelpCircle size={18} className="text-indigo-400" />
+                        <h3 className="text-sm font-semibold tracking-wide uppercase text-slate-200">Mermaid Syntax Reference</h3>
+                      </div>
+                      <button 
+                        onClick={() => setGuideOpen(false)}
+                        className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    {/* Modal Body */}
+                    <div className="overflow-y-auto p-6 space-y-6 text-xs custom-scrollbar">
+                      <div className="grid grid-cols-2 gap-4">
+                        {[
+                          {
+                            title: '⬇️ Flowchart',
+                            lines: [
+                              'flowchart TD',
+                              '  A[Rectangle] --> B(Rounded)',
+                              '  B --> C{Decision}',
+                              '  C -->|Yes| D([Stadium])',
+                              '  C -->|No| E[[Subroutine]]',
+                            ],
+                          },
+                          {
+                            title: '↕️ Sequence Diagram',
+                            lines: [
+                              'sequenceDiagram',
+                              '  Alice->>Bob: Hello',
+                              '  Bob-->>Alice: Hi back',
+                              '  Alice-)Bob: Async msg',
+                              '  Note over Alice,Bob: A note',
+                            ],
+                          },
+                          {
+                            title: '📊 Gantt Chart',
+                            lines: [
+                              'gantt',
+                              '  title My Plan',
+                              '  dateFormat YYYY-MM-DD',
+                              '  section Phase 1',
+                              '    Task A :a1, 2024-01-01, 7d',
+                              '    Task B :after a1, 5d',
+                            ],
+                          },
+                          {
+                            title: '🥧 Pie Chart',
+                            lines: [
+                              'pie title Responses',
+                              '  "Yes" : 42',
+                              '  "No" : 28',
+                              '  "Maybe" : 30',
+                            ],
+                          },
+                          {
+                            title: '🗄️ ER Diagram',
+                            lines: [
+                              'erDiagram',
+                              '  USER ||--o{ ORDER : places',
+                              '  USER { string name }',
+                              '  ORDER { int id }',
+                            ],
+                          },
+                          {
+                            title: '🔄 State Machine',
+                            lines: [
+                              'stateDiagram-v2',
+                              '  [*] --> Idle',
+                              '  Idle --> Active : start',
+                              '  Active --> [*] : done',
+                            ],
+                          },
+                        ].map((section) => (
+                          <div
+                            key={section.title}
+                            className="p-4 rounded-xl border border-slate-800 bg-slate-950/40 relative group flex flex-col justify-between"
+                          >
+                            <div>
+                              <div className="flex justify-between items-center mb-2">
+                                <p className="font-semibold text-slate-300 text-[11px] uppercase tracking-wider">
+                                  {section.title}
+                                </p>
+                                <button
+                                  onClick={() => {
+                                    updateAttributes({ definition: section.lines.join('\n'), cachedSvg: '' });
+                                    lastRenderedRef.current = '';
+                                    setGuideOpen(false);
+                                  }}
+                                  className="text-[10px] text-indigo-400 hover:text-indigo-300 font-medium px-2 py-0.5 rounded bg-indigo-500/10 hover:bg-indigo-500/20 transition-all opacity-0 group-hover:opacity-100"
+                                >
+                                  Use Template
+                                </button>
+                              </div>
+                              <pre
+                                className="leading-relaxed"
+                                style={{
+                                  fontSize: '0.725rem',
+                                  color: 'rgb(148, 163, 184)',
+                                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                                  whiteSpace: 'pre',
+                                  margin: 0,
+                                }}
+                              >
+                                {section.lines.join('\n')}
+                              </pre>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Node shapes cheat sheet */}
+                      <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/40">
+                        <p className="font-semibold mb-2 text-[11px] uppercase tracking-wider text-slate-300">
+                          🔷 Flowchart Node Shapes
+                        </p>
+                        <div className="flex flex-wrap gap-x-2 gap-y-2 font-mono text-[10px] text-slate-400">
+                          <span className="bg-slate-950 px-2 py-1 rounded border border-slate-800/60">A[Rectangle]</span>
+                          <span className="bg-slate-950 px-2 py-1 rounded border border-slate-800/60">A(Rounded)</span>
+                          <span className="bg-slate-950 px-2 py-1 rounded border border-slate-800/60">A([Stadium])</span>
+                          <span className="bg-slate-950 px-2 py-1 rounded border border-slate-800/60">A{"{}"}Decision{"}"}</span>
+                          <span className="bg-slate-950 px-2 py-1 rounded border border-slate-800/60">A[[Subroutine]]</span>
+                          <span className="bg-slate-950 px-2 py-1 rounded border border-slate-800/60">A((Circle))</span>
+                          <span className="bg-slate-950 px-2 py-1 rounded border border-slate-800/60">A{">"}Flag]</span>
+                          <span className="bg-slate-950 px-2 py-1 rounded border border-slate-800/60">A[/Parallelogram/]</span>
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/40">
+                        <p className="font-semibold mb-2 text-[11px] uppercase tracking-wider text-slate-300">
+                          🔗 Arrow Types & Connections
+                        </p>
+                        <div className="flex flex-wrap gap-x-2 gap-y-2 font-mono text-[10px] text-slate-400">
+                          <span className="bg-slate-950 px-2 py-1 rounded border border-slate-800/60">{"A --> B"} (Solid Arrow)</span>
+                          <span className="bg-slate-950 px-2 py-1 rounded border border-slate-800/60">{"A ---> B"} (Thick Arrow)</span>
+                          <span className="bg-slate-950 px-2 py-1 rounded border border-slate-800/60">{"A -.-> B"} (Dotted Arrow)</span>
+                          <span className="bg-slate-950 px-2 py-1 rounded border border-slate-800/60">{"A ==> B"} (Bold Arrow)</span>
+                          <span className="bg-slate-950 px-2 py-1 rounded border border-slate-800/60">{"A --> |label| B"} (Labeled Arrow)</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Textarea with line numbers */}
+              <div className="flex flex-1 overflow-auto">
+                {/* Line numbers */}
+                <div
+                  className="flex-shrink-0 select-none pt-3 pr-2 text-right"
                   style={{
-                    backgroundColor: `${t.color}08`,
-                    borderColor: `${t.color}30`,
-                    color: t.color,
+                    width: '2.5rem',
+                    color: `${themeConfig.editorText}30`,
+                    fontSize: '0.75rem',
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                    lineHeight: '1.7',
                   }}
                 >
-                  <span className="text-sm">{t.icon}</span>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Nodes List */}
-          {nodes.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Steps ({nodes.length})</p>
-              </div>
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                {nodes.map((n, i) => {
-                  const typeInfo = NODE_TYPES.find((t) => t.value === n.type) || NODE_TYPES[1];
-                  return (
-                    <div
-                      key={n.id}
-                      className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors"
-                    >
-                      <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
-                        style={{ backgroundColor: `${typeInfo.color}15`, color: typeInfo.color }}
-                      >
-                        {typeInfo.icon}
-                      </div>
-                      <input
-                        value={n.label}
-                        onChange={(e) => updateNode(n.id, 'label', e.target.value)}
-                        className="flex-1 px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400/20 focus:border-indigo-400 bg-white"
-                        placeholder="Label"
-                      />
-                      <select
-                        value={n.type}
-                        onChange={(e) => updateNode(n.id, 'type', e.target.value as NodeType)}
-                        className="px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none"
-                      >
-                        {NODE_TYPES.map((t) => (
-                          <option key={t.value} value={t.value}>
-                            {t.label}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        onClick={() => removeNode(n.id)}
-                        className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Edges */}
-          {nodes.length > 1 && (
-            <div className="border-t border-slate-100 pt-3">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                  Connections {edges.length > 0 && `(${edges.length})`}
-                </p>
-                <button
-                  onClick={addEdge}
-                  className="text-xs px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 font-medium transition-colors"
-                >
-                  + Add Connection
-                </button>
-              </div>
-              {edges.length === 0 ? (
-                <p className="text-xs text-slate-400 italic">Auto-connected in order</p>
-              ) : (
-                <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
-                  {edges.map((e, i) => (
-                    <div key={i} className="flex items-center gap-2 text-sm">
-                      <select
-                        value={e.from}
-                        onChange={(v) => updateEdge(i, 'from', v.target.value)}
-                        className="px-2 py-1 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none flex-1"
-                      >
-                        {nodes.map((n) => (
-                          <option key={n.id} value={n.id}>
-                            {n.label}
-                          </option>
-                        ))}
-                      </select>
-                      <span className="text-slate-300">→</span>
-                      <input
-                        value={e.label}
-                        onChange={(v) => updateEdge(i, 'label', v.target.value)}
-                        className="w-16 px-2 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none text-center"
-                        placeholder="Label"
-                      />
-                      <span className="text-slate-300">→</span>
-                      <select
-                        value={e.to}
-                        onChange={(v) => updateEdge(i, 'to', v.target.value)}
-                        className="px-2 py-1 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none flex-1"
-                      >
-                        {nodes.map((n) => (
-                          <option key={n.id} value={n.id}>
-                            {n.label}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        onClick={() => removeEdge(i)}
-                        className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
+                  {Array.from({ length: Math.max(lineCount, 1) }, (_, i) => (
+                    <div key={i}>{i + 1}</div>
                   ))}
+                </div>
+                <textarea
+                  ref={textareaRef}
+                  className="flex-1 resize-none focus:outline-none"
+                  style={{
+                    backgroundColor: 'transparent',
+                    color: themeConfig.editorText,
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                    fontSize: '0.8125rem',
+                    lineHeight: '1.7',
+                    padding: '0.75rem 0.75rem 0.75rem 0.25rem',
+                    border: 'none',
+                    minHeight: '200px',
+                    caretColor: '#818cf8',
+                    tabSize: 4,
+                  }}
+                  value={definition}
+                  onChange={handleDefinitionChange}
+                  placeholder={`Pick a template or write Mermaid syntax...\n\nExample:\nflowchart TD\n    A[Start] --> B[End]`}
+                  spellCheck={false}
+                />
+              </div>
+
+              {/* Error bar */}
+              {error && (
+                <div
+                  className="flex items-start gap-2 px-3 py-2 text-xs border-t"
+                  style={{
+                    backgroundColor: '#991b1b20',
+                    borderColor: '#f87171',
+                    color: '#fca5a5',
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                  }}
+                >
+                  <AlertCircle size={13} className="flex-shrink-0 mt-0.5" />
+                  <span className="break-all">{error}</span>
                 </div>
               )}
             </div>
-          )}
-        </div>
-      )}
+
+            {/* Divider */}
+            <div style={{ width: '1px', backgroundColor: `${themeConfig.editorText}15` }} />
+
+            {/* Right: Live preview */}
+            <div
+              className="flex-1 flex items-center justify-center p-6 overflow-auto"
+              style={{ backgroundColor: themeConfig.previewBg, minWidth: 0 }}
+            >
+              {svg ? (
+                <div
+                  className="w-full [&>svg]:max-w-full [&>svg]:h-auto [&>svg]:mx-auto"
+                  dangerouslySetInnerHTML={{ __html: svg }}
+                />
+              ) : (
+                <div className="text-center">
+                  <p className="text-sm text-slate-400">
+                    {definition.trim() ? (error ? 'Fix the syntax error to see preview' : 'Rendering...') : 'Pick a template to get started →'}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* ── View mode: full-width preview only ── */
+          <div
+            className="p-8 flex items-center justify-center"
+            style={{ backgroundColor: themeConfig.previewBg, minHeight: '180px' }}
+          >
+            {svg ? (
+              <div
+                className="w-full [&>svg]:max-w-full [&>svg]:h-auto [&>svg]:mx-auto"
+                dangerouslySetInnerHTML={{ __html: svg }}
+              />
+            ) : (
+              <p className="text-sm text-slate-400 italic">
+                Click to edit diagram
+              </p>
+            )}
+          </div>
+        )}
+      </div>
     </NodeViewWrapper>
   );
 };
+
+/* ── Tiptap node definition ────────────────────────────────────────── */
 
 export const Mermaid = Node.create({
   name: 'mermaid',
@@ -410,26 +638,24 @@ export const Mermaid = Node.create({
 
   addAttributes() {
     return {
-      nodes: {
-        default: JSON.stringify(DEFAULT_NODES),
-        parseHTML: (el) => el.getAttribute('data-nodes') || JSON.stringify(DEFAULT_NODES),
-        renderHTML: (attrs) => ({ 'data-nodes': attrs.nodes }),
-      },
-      edges: {
-        default: '[]',
-        parseHTML: (el) => el.getAttribute('data-edges') || '[]',
-        renderHTML: (attrs) => ({ 'data-edges': attrs.edges }),
+      definition: {
+        default: DEFAULT_DEFINITION,
+        parseHTML: (el: HTMLElement) => el.getAttribute('data-definition') || DEFAULT_DEFINITION,
+        renderHTML: (attrs: Record<string, any>) => ({ 'data-definition': attrs.definition }),
       },
       theme: {
         default: 'default',
-        parseHTML: (el) => el.getAttribute('data-theme') || 'default',
-        renderHTML: (attrs) => ({ 'data-theme': attrs.theme }),
+        parseHTML: (el: HTMLElement) => el.getAttribute('data-theme') || 'default',
+        renderHTML: (attrs: Record<string, any>) => ({ 'data-theme': attrs.theme }),
       },
       cachedSvg: {
         default: '',
-        parseHTML: (el) => el.getAttribute('data-cached-svg') || '',
-        renderHTML: (attrs) => ({ 'data-cached-svg': attrs.cachedSvg }),
+        parseHTML: (el: HTMLElement) => el.getAttribute('data-cached-svg') || '',
+        renderHTML: (attrs: Record<string, any>) => ({ 'data-cached-svg': attrs.cachedSvg }),
       },
+      // Legacy compat: silently accept old nodes/edges attrs so old docs don't throw
+      nodes: { default: null, rendered: false },
+      edges: { default: null, rendered: false },
     };
   },
 
@@ -442,6 +668,6 @@ export const Mermaid = Node.create({
   },
 
   addNodeView() {
-    return ReactNodeViewRenderer(FlowchartNodeView);
+    return ReactNodeViewRenderer(DiagramNodeView);
   },
 });

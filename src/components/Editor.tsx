@@ -265,7 +265,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
     'statRow','codeDiff','beforeAfter','confetti','backgroundSection','bentoGrid',
     'featureSpotlight','stickyScroll','codeWindow','changelogTimeline','browserMockup',
     'phoneMockup','marquee','glowCards','gradientBorder','hoverReveal','announcementPill',
-    'gradientBlobs','noiseOverlay','scrollReveal','interactiveDemo',
+    'gradientBlobs','noiseOverlay','scrollReveal','interactiveDemo','mermaid',
   ]);
   const stripUnknownNodes = (node: any): any => {
     if (!node || typeof node !== 'object') return node;

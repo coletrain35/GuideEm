@@ -1007,6 +1007,12 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     el.className = 'mermaid-block';
     el.removeAttribute('data-type');
     el.removeAttribute('data-cached-svg');
+    // Remove legacy attrs that may linger from old node/edge format
+    el.removeAttribute('data-nodes');
+    el.removeAttribute('data-edges');
+    // Preserve definition + theme for round-trip import
+    el.setAttribute('data-definition', definition);
+    el.setAttribute('data-theme', theme);
     if (cachedSvg) {
       el.innerHTML = cachedSvg;
       const svg = el.querySelector('svg');

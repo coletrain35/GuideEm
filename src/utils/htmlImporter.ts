@@ -1370,12 +1370,19 @@ function reverseNoiseOverlays(doc: Document) {
 function reverseMermaid(doc: Document) {
   doc.querySelectorAll('.mermaid-block').forEach((el) => {
     if (el.getAttribute('data-type')) return;
-    const nodes = el.getAttribute('data-nodes') || '';
-    const edges = el.getAttribute('data-edges') || '';
+    // Read preserved definition and theme
+    let definition = el.getAttribute('data-definition') || '';
     const theme = el.getAttribute('data-theme') || 'default';
+    // Fallback: if definition is empty, try to extract from <pre> fallback content
+    if (!definition) {
+      const pre = el.querySelector('pre');
+      if (pre) {
+        const text = pre.textContent || '';
+        if (text && text !== '# Empty diagram') definition = text;
+      }
+    }
     const node = makeBlock(doc, 'mermaid', {
-      'data-nodes': nodes,
-      'data-edges': edges,
+      'data-definition': definition,
       'data-theme': theme,
     });
     replaceElement(el, node);

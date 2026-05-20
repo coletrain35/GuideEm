@@ -152,7 +152,7 @@ export const BLOCK_ITEMS: BlockItem[] = [
     icon: GitMerge,
     category: 'Media',
     keywords: ['diagram', 'mermaid', 'flowchart', 'sequence', 'gantt', 'chart', 'uml'],
-    action: (e) => e.chain().focus().insertContent({ type: 'mermaid', attrs: {} }).run(),
+    action: (e) => e.chain().focus().insertContent({ type: 'mermaid' }).run(),
   },
   {
     id: 'image',
