@@ -1,4 +1,7 @@
-import React from 'react';
+import React, { useRef, useState, useCallback } from 'react';
+import { ImagePlus, X as XIcon } from 'lucide-react';
+import { compressImageToWebP } from '../utils/imageCompressor';
+import { useDialog } from '../utils/useDialog';
 import { ThemeConfig, FooterLink } from '../utils/storage';
 
 interface ThemeDrawerProps {
@@ -9,22 +12,67 @@ interface ThemeDrawerProps {
 }
 
 export const ThemeDrawer: React.FC<ThemeDrawerProps> = ({ isOpen, onClose, theme, setTheme }) => {
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const [logoBusy, setLogoBusy] = useState(false);
+  const drawerRef = useDialog<HTMLDivElement>(isOpen, onClose);
+
+  const handleLogoFile = useCallback(
+    async (file: File) => {
+      setLogoError(null);
+      setLogoBusy(true);
+      try {
+        const base64 = await compressImageToWebP(file);
+        setTheme({ logoBase64: base64 });
+      } catch (err: any) {
+        setLogoError(err?.message || 'Could not process this image.');
+      } finally {
+        setLogoBusy(false);
+        if (logoInputRef.current) logoInputRef.current.value = '';
+      }
+    },
+    [setTheme]
+  );
+
+  const handleLogoChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) handleLogoFile(file);
+    },
+    [handleLogoFile]
+  );
+
+  const handleRemoveLogo = useCallback(() => {
+    setTheme({ logoBase64: undefined });
+    setLogoError(null);
+  }, [setTheme]);
+
   return (
     <>
       {/* Background Overlay */}
       {isOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-sm" 
+        <div
+          className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-sm"
           onClick={onClose}
         />
       )}
 
       {/* The Drawer Panel */}
-      <div className={`fixed top-0 right-0 z-50 w-full sm:w-80 h-full bg-white border-l border-slate-200 shadow-2xl transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+      <div
+        ref={drawerRef}
+        className={`fixed top-0 right-0 z-50 w-full sm:w-80 h-full bg-white border-l border-slate-200 shadow-2xl transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="theme-drawer-title"
+      >
         <div className="flex items-center justify-between p-4 border-b border-slate-100">
-          <h2 className="text-lg font-semibold text-slate-900">Theme Settings</h2>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
-            ✕
+          <h2 id="theme-drawer-title" className="text-lg font-semibold text-slate-900">Theme Settings</h2>
+          <button
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+            aria-label="Close theme settings"
+          >
+            <span aria-hidden>✕</span>
           </button>
         </div>
 
@@ -66,6 +114,58 @@ export const ThemeDrawer: React.FC<ThemeDrawerProps> = ({ isOpen, onClose, theme
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* 2b. Brand Logo */}
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-slate-700">Brand Logo</label>
+            {theme.logoBase64 ? (
+              <div className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg bg-slate-50">
+                <img
+                  src={theme.logoBase64}
+                  alt="Brand logo preview"
+                  className="h-10 w-auto max-w-[160px] object-contain bg-white border border-slate-200 rounded px-2 py-1"
+                />
+                <div className="flex flex-col gap-1.5 ml-auto">
+                  <button
+                    type="button"
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={logoBusy}
+                    className="text-xs px-2.5 py-1 rounded-md border border-slate-200 hover:bg-white text-slate-700 disabled:opacity-50"
+                  >
+                    Replace
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRemoveLogo}
+                    className="text-xs px-2.5 py-1 rounded-md text-rose-600 hover:bg-rose-50 border border-rose-200 flex items-center justify-center gap-1"
+                  >
+                    <XIcon size={11} /> Remove
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => logoInputRef.current?.click()}
+                disabled={logoBusy}
+                className="w-full flex items-center justify-center gap-2 px-3 py-6 text-sm font-medium text-slate-600 border-2 border-dashed border-slate-200 rounded-lg hover:border-blue-400 hover:bg-blue-50/40 transition-colors disabled:opacity-50"
+              >
+                <ImagePlus size={16} />
+                {logoBusy ? 'Uploading…' : 'Upload logo'}
+              </button>
+            )}
+            {logoError && (
+              <p role="alert" className="text-xs text-rose-600">{logoError}</p>
+            )}
+            <p className="text-xs text-slate-500">Shown in the sticky header and brand-header of the exported guide.</p>
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+              className="hidden"
+              onChange={handleLogoChange}
+            />
           </div>
 
           {/* 3. Interactive Web Features */}

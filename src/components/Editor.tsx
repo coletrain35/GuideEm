@@ -411,6 +411,8 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
     editorProps: {
       attributes: {
         class: 'prose prose-slate prose-lg max-w-none focus:outline-none prose-headings:font-bold prose-headings:tracking-tight prose-h1:text-4xl prose-h2:text-2xl prose-h3:text-xl prose-h4:text-lg prose-p:text-slate-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-img:shadow-md min-h-[500px] pb-32',
+        'aria-label': 'Document editor. Use slash command or block palette to insert blocks.',
+        'role': 'textbox',
       },
       handleKeyDown: (_view, event) => {
         if (event.ctrlKey && event.key === 'f') {
@@ -813,6 +815,9 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
         <div
           className={`flex flex-col bg-white/80 backdrop-blur-sm border border-slate-200 shadow-sm pointer-events-auto transition-all duration-150 ${inTable ? 'rounded-xl' : 'rounded-full'}`}
           onMouseDown={e => e.preventDefault()}
+          role="toolbar"
+          aria-label="Text formatting"
+          aria-orientation="horizontal"
         >
           {/* Table editing toolbar — shown only when cursor is inside a table */}
           {inTable && (
@@ -1104,9 +1109,27 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
                 <button onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} className="p-1.5 sm:p-2 rounded hover:bg-slate-200 disabled:opacity-50 text-slate-600" title="Undo"><Undo size={16} /></button>
                 <button onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} className="p-1.5 sm:p-2 rounded hover:bg-slate-200 disabled:opacity-50 text-slate-600" title="Redo"><Redo size={16} /></button>
                 <div className="w-px h-5 bg-slate-300 mx-1" />
-                <button onClick={() => editor.chain().focus().setTextAlign('left').run()} className={`p-2 rounded hover:bg-slate-200 ${editor.isActive({ textAlign: 'left' }) ? 'bg-slate-200 text-blue-600' : 'text-slate-600'}`} title="Align Left"><AlignLeft size={16} /></button>
-                <button onClick={() => editor.chain().focus().setTextAlign('center').run()} className={`p-2 rounded hover:bg-slate-200 ${editor.isActive({ textAlign: 'center' }) ? 'bg-slate-200 text-blue-600' : 'text-slate-600'}`} title="Align Center"><AlignCenter size={16} /></button>
-                <button onClick={() => editor.chain().focus().setTextAlign('right').run()} className={`p-2 rounded hover:bg-slate-200 ${editor.isActive({ textAlign: 'right' }) ? 'bg-slate-200 text-blue-600' : 'text-slate-600'}`} title="Align Right"><AlignRight size={16} /></button>
+                <button onClick={() => {
+                  if (editor.isActive('annotatedImage')) {
+                    editor.chain().focus().setAnnotatedImageAlign('left').run();
+                  } else {
+                    editor.chain().focus().setTextAlign('left').run();
+                  }
+                }} className={`p-2 rounded hover:bg-slate-200 ${editor.isActive({ textAlign: 'left' }) || (editor.isActive('annotatedImage') && (editor.getAttributes('annotatedImage') as any).align === 'left') ? 'bg-slate-200 text-blue-600' : 'text-slate-600'}`} title="Align Left"><AlignLeft size={16} /></button>
+                <button onClick={() => {
+                  if (editor.isActive('annotatedImage')) {
+                    editor.chain().focus().setAnnotatedImageAlign('center').run();
+                  } else {
+                    editor.chain().focus().setTextAlign('center').run();
+                  }
+                }} className={`p-2 rounded hover:bg-slate-200 ${editor.isActive({ textAlign: 'center' }) || (editor.isActive('annotatedImage') && (editor.getAttributes('annotatedImage') as any).align === 'center') ? 'bg-slate-200 text-blue-600' : 'text-slate-600'}`} title="Align Center"><AlignCenter size={16} /></button>
+                <button onClick={() => {
+                  if (editor.isActive('annotatedImage')) {
+                    editor.chain().focus().setAnnotatedImageAlign('right').run();
+                  } else {
+                    editor.chain().focus().setTextAlign('right').run();
+                  }
+                }} className={`p-2 rounded hover:bg-slate-200 ${editor.isActive({ textAlign: 'right' }) || (editor.isActive('annotatedImage') && (editor.getAttributes('annotatedImage') as any).align === 'right') ? 'bg-slate-200 text-blue-600' : 'text-slate-600'}`} title="Align Right"><AlignRight size={16} /></button>
                 <div className="w-px h-5 bg-slate-300 mx-1" />
                 <button onClick={() => editor.chain().focus().insertContent('<div data-type="grid"><div data-type="grid-column"><p></p></div><div data-type="grid-column"><p></p></div></div>').run()} className="p-2 rounded hover:bg-slate-200 text-slate-600" title="Insert 2-Column Grid"><Columns size={16} /></button>
                 <button onClick={() => editor.chain().focus().setHorizontalRule().run()} className="p-2 rounded hover:bg-slate-200 text-slate-600" title="Horizontal Rule"><Minus size={16} /></button>
@@ -1277,9 +1300,13 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
         <span>{wordCount.toLocaleString()} {wordCount === 1 ? 'word' : 'words'} · {Math.max(1, Math.ceil(wordCount / 200))} min read</span>
       </div>
 
-      {/* Document Outline — toggled via outline button in toolbar */}
+      {/* Document Outline — toggled via outline button in toolbar.
+          Hidden below lg breakpoint to stop it from overlaying the editor on
+          phones.  The floating toolbar's outline button still works, but has
+          no visible effect on mobile (this matches the no-mobile-outline
+          pattern that other nav features use). */}
       {showOutline && headings.length > 0 && (
-        <div className="fixed right-4 top-28 w-56 z-30 flex flex-col" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
+        <div className="hidden lg:flex fixed right-4 top-28 w-56 z-30 flex-col" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
           <div className="bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden flex flex-col min-h-0">
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 bg-slate-50 flex-shrink-0">
               <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Outline</h3>

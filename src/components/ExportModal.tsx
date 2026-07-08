@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ThemeConfig } from '../utils/storage';
+import { useDialog } from '../utils/useDialog';
 import {
   FileDown, Loader2, X,
   FileCode2, FileText, FileType2,
@@ -28,6 +29,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const [fileName, setFileName] = useState(documentTitle || 'Untitled Guide');
   const [isPDFExporting, setIsPDFExporting] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('html');
+  const dialogRef = useDialog<HTMLDivElement>(isOpen, onClose);
 
   useEffect(() => {
     if (isOpen) {
@@ -110,16 +112,23 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       />
 
       {/* Modal Dialog */}
-      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div
+        ref={dialogRef}
+        className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="export-modal-title"
+      >
 
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-          <h2 className="text-lg font-semibold text-slate-900">Export Document</h2>
+          <h2 id="export-modal-title" className="text-lg font-semibold text-slate-900">Export Document</h2>
           <button
             onClick={onClose}
             className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            aria-label="Close export dialog"
           >
-            <X size={18} />
+            <X size={18} aria-hidden />
           </button>
         </div>
 

@@ -83,27 +83,58 @@ export default function App() {
   // button on the save-status chip.  Cleared on the next successful save.
   const lastFailedSaveRef = useRef<Document | null>(null);
 
-  // Persist a single document and reflect the result in the save-status chip.
-  // Errors are no longer swallowed: they surface as an 'error' status with a
-  // retry affordance instead of leaving the chip stuck on "Saving…".
-  const persistDoc = useCallback((doc: Document) => {
-    hasPendingSaveRef.current = true;
-    setSaveStatus('saving');
+  // Debounce machinery for the IndexedDB write.  Rapid edits (the Theme
+  // drawer fires handleThemeChange on every keystroke) collapse into a single
+  // write of the most recent document.  Without this, typing in the custom
+  // CSS field rewrites the full document — including all base64 images — on
+  // every keypress.
+  const pendingSaveDocRef = useRef<Document | null>(null);
+  const saveDebounceRef = useRef<number | null>(null);
+  const SAVE_DEBOUNCE_MS = 600;
+
+  const flushPendingSave = useCallback(() => {
+    const doc = pendingSaveDocRef.current;
+    if (!doc) return;
+    pendingSaveDocRef.current = null;
+    if (saveDebounceRef.current) {
+      window.clearTimeout(saveDebounceRef.current);
+      saveDebounceRef.current = null;
+    }
     saveDocument(doc)
       .then(() => {
-        hasPendingSaveRef.current = false;
         if (lastFailedSaveRef.current?.id === doc.id) {
           lastFailedSaveRef.current = null;
         }
-        setSaveStatus('saved');
+        // Only flip to 'saved' if no newer debounced write has been queued
+        // while we were awaiting the previous one.
+        if (!pendingSaveDocRef.current) {
+          hasPendingSaveRef.current = false;
+          setSaveStatus('saved');
+        }
       })
       .catch((err) => {
         console.error('Save failed:', err);
-        hasPendingSaveRef.current = false;
+        if (!pendingSaveDocRef.current) {
+          hasPendingSaveRef.current = false;
+        }
         lastFailedSaveRef.current = doc;
         setSaveStatus('error');
       });
   }, []);
+
+  // Persist a single document and reflect the result in the save-status chip.
+  // Errors are no longer swallowed: they surface as an 'error' status with a
+  // retry affordance instead of leaving the chip stuck on "Saving…".
+  // Coalesces rapid-fire calls (Theme drawer keystrokes) into a single write.
+  const persistDoc = useCallback((doc: Document) => {
+    pendingSaveDocRef.current = doc;
+    hasPendingSaveRef.current = true;
+    setSaveStatus('saving');
+    if (saveDebounceRef.current) {
+      window.clearTimeout(saveDebounceRef.current);
+    }
+    saveDebounceRef.current = window.setTimeout(flushPendingSave, SAVE_DEBOUNCE_MS);
+  }, [flushPendingSave]);
 
   const retrySave = useCallback(() => {
     if (lastFailedSaveRef.current) {
@@ -130,13 +161,29 @@ export default function App() {
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasPendingSaveRef.current) {
+        // Flush any debounced save synchronously so the most recent edit lands
+        // before the page is torn down.  We can't await the IndexedDB write
+        // here, but the chip's "Saving…" state and this warning give the user
+        // a chance to stay on the page.
+        if (pendingSaveDocRef.current) {
+          flushPendingSave();
+        }
         e.preventDefault();
         e.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // Best-effort flush of any pending debounced save.
+      if (pendingSaveDocRef.current) {
+        flushPendingSave();
+      }
+      if (saveDebounceRef.current) {
+        window.clearTimeout(saveDebounceRef.current);
+      }
+    };
+  }, [flushPendingSave]);
 
   // Keyboard shortcuts: Ctrl+/ → help panel, Ctrl+Shift+F → zen mode, Esc → exit zen
   useEffect(() => {
@@ -382,28 +429,6 @@ export default function App() {
     await saveDocument(newDoc);
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        handleThemeChange({ logoBase64: reader.result as string });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleCoverImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        handleThemeChange({ hero: { ...currentDoc.theme?.hero, coverImageBase64: reader.result as string } as any });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -505,12 +530,14 @@ export default function App() {
         <header className={`bg-white border-b border-slate-100 flex-shrink-0 z-10 transition-all duration-300 ${isZenMode ? 'hidden' : ''}`}>
           <div className="px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <button 
+              <button
                 onClick={() => setShowSidebar(!showSidebar)}
                 className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                 title="Toggle Sidebar"
+                aria-label="Toggle documents sidebar"
+                aria-expanded={showSidebar}
               >
-                <Menu size={20} />
+                <Menu size={20} aria-hidden />
               </button>
               <div className="w-px h-6 bg-slate-200" />
               <button
@@ -525,26 +552,33 @@ export default function App() {
             <div className="flex items-center gap-2 sm:gap-3">
               {currentDoc && (
                 <>
-                  {/* Auto-save status chip */}
+                  {/* Auto-save status chip — wrapped in aria-live so AT users hear
+                      transitions between saving / saved / save-failed. */}
                   {saveStatus === 'error' ? (
                     <button
                       onClick={retrySave}
                       className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
                       title="Save failed — click to retry"
+                      aria-label="Save failed. Click to retry."
                     >
-                      <AlertTriangle size={12} />
+                      <AlertTriangle size={12} aria-hidden />
                       Save failed — Retry
                     </button>
                   ) : (
-                    <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-300 ${
-                      saveStatus === 'saving'
-                        ? 'bg-amber-50 text-amber-600'
-                        : 'bg-emerald-50 text-emerald-600'
-                    }`}>
+                    <div
+                      className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-300 ${
+                        saveStatus === 'saving'
+                          ? 'bg-amber-50 text-amber-600'
+                          : 'bg-emerald-50 text-emerald-600'
+                      }`}
+                      role="status"
+                      aria-live="polite"
+                      aria-atomic="true"
+                    >
                       {saveStatus === 'saving' ? (
-                        <><Loader2 size={12} className="animate-spin" />Saving…</>
+                        <><Loader2 size={12} className="animate-spin" aria-hidden />Saving…</>
                       ) : (
-                        <><CheckCircle size={12} />Saved</>
+                        <><CheckCircle size={12} aria-hidden />Saved</>
                       )}
                     </div>
                   )}
@@ -552,32 +586,38 @@ export default function App() {
                     onClick={() => setShowBlockPalette(v => !v)}
                     className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${showBlockPalette ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}`}
                     title="Toggle Block Palette (Ctrl+Shift+B)"
+                    aria-label="Toggle blocks palette"
+                    aria-pressed={showBlockPalette}
                   >
-                    <LayoutGrid size={18} />
+                    <LayoutGrid size={18} aria-hidden />
                     <span className="hidden sm:inline">Blocks</span>
                   </button>
                   <button
                     onClick={() => setIsThemeDrawerOpen(true)}
                     className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                     title="Theme Settings"
+                    aria-label="Open theme settings"
                   >
-                    <Palette size={18} />
+                    <Palette size={18} aria-hidden />
                     <span className="hidden sm:inline">Theme</span>
                   </button>
                   <button
                     onClick={() => setShowHelp(!showHelp)}
                     className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${showHelp ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}`}
                     title="Toggle Help & Shortcuts (Ctrl+/)"
+                    aria-label="Toggle help and shortcuts panel"
+                    aria-pressed={showHelp}
                   >
-                    <HelpCircle size={18} />
+                    <HelpCircle size={18} aria-hidden />
                     <span className="hidden sm:inline">Help</span>
                   </button>
                   <button
                     onClick={handleOpenPreview}
                     className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                     title="Preview exported document"
+                    aria-label="Preview exported document"
                   >
-                    <Eye size={18} />
+                    <Eye size={18} aria-hidden />
                     <span className="hidden sm:inline">Preview</span>
                   </button>
                   {/* Hidden file inputs for import */}
@@ -600,10 +640,13 @@ export default function App() {
                       onClick={() => setShowImportMenu(v => !v)}
                       className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                       title="Import document"
+                      aria-label="Import document"
+                      aria-haspopup="menu"
+                      aria-expanded={showImportMenu}
                     >
-                      <Upload size={18} />
+                      <Upload size={18} aria-hidden />
                       <span className="hidden sm:inline">Import</span>
-                      <ChevronDown size={14} className="hidden sm:inline opacity-70" />
+                      <ChevronDown size={14} className="hidden sm:inline opacity-70" aria-hidden />
                     </button>
                     {showImportMenu && (
                       <>
@@ -637,18 +680,21 @@ export default function App() {
                     onClick={() => setIsZenMode(v => !v)}
                     className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                     title="Focus / Zen Mode (Ctrl+Shift+F)"
+                    aria-label="Toggle focus mode"
+                    aria-pressed={isZenMode}
                   >
-                    <Maximize2 size={18} />
+                    <Maximize2 size={18} aria-hidden />
                     <span className="hidden sm:inline">Focus</span>
                   </button>
                   <div className="w-px h-6 bg-slate-200 mx-1" />
                   <button
                     onClick={() => setIsExportModalOpen(true)}
                     className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors"
+                    aria-label="Open export dialog"
                   >
-                    <FileDown size={18} />
+                    <FileDown size={18} aria-hidden />
                     <span className="hidden sm:inline">Export</span>
-                    <ChevronDown size={14} className="hidden sm:inline opacity-70" />
+                    <ChevronDown size={14} className="hidden sm:inline opacity-70" aria-hidden />
                   </button>
                 </>
               )}
@@ -659,7 +705,16 @@ export default function App() {
         {/* Main Workspace */}
         <div className="flex flex-1 overflow-hidden">
         {showBlockPalette && !isZenMode && editorInstance && (
-          <BlockPalette editor={editorInstance} onClose={() => setShowBlockPalette(false)} />
+          <>
+            {/* Desktop: in-flow sidebar.  Mobile: hidden (replaced by drawer). */}
+            <div className="hidden sm:flex flex-shrink-0">
+              <BlockPalette variant="inline" editor={editorInstance} onClose={() => setShowBlockPalette(false)} />
+            </div>
+            {/* Mobile: overlay drawer with backdrop.  Hidden on sm+ via CSS. */}
+            <div className="sm:hidden">
+              <BlockPalette variant="drawer" editor={editorInstance} onClose={() => setShowBlockPalette(false)} />
+            </div>
+          </>
         )}
         <main className="flex-1 overflow-y-auto relative flex flex-col md:flex-row gap-6 px-2 py-4 sm:px-4 sm:py-8">
           {currentDoc ? (
@@ -790,7 +845,13 @@ export default function App() {
 
       {/* Preview Modal */}
       {isPreviewOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-slate-950">
+        <div
+          className="fixed inset-0 z-50 flex flex-col bg-slate-950"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Document preview"
+          onKeyDown={(e) => { if (e.key === 'Escape') setIsPreviewOpen(false); }}
+        >
           {/* Toolbar */}
           <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-800">
             {/* Left: close + title */}
@@ -799,8 +860,9 @@ export default function App() {
                 onClick={() => setIsPreviewOpen(false)}
                 className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-md transition-colors flex-shrink-0"
                 title="Close preview"
+                aria-label="Close preview"
               >
-                <X size={18} />
+                <X size={18} aria-hidden />
               </button>
               <span className="text-sm font-medium text-slate-300 truncate">{currentDoc?.title || 'Preview'}</span>
             </div>
@@ -815,8 +877,9 @@ export default function App() {
               <button
                 onClick={() => { setIsPreviewOpen(false); setIsExportModalOpen(true); }}
                 className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors"
+                aria-label="Open export dialog from preview"
               >
-                <FileDown size={15} />
+                <FileDown size={15} aria-hidden />
                 Export
               </button>
             </div>

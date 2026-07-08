@@ -6,9 +6,16 @@ import type { Editor } from '@tiptap/core';
 interface BlockPaletteProps {
   editor: Editor;
   onClose: () => void;
+  /**
+   * `inline`  — sits in the document flow as a 240px sidebar (desktop).
+   * `drawer`  — overlays the page as a 280px slide-in panel with a backdrop
+   *              (mobile).  Adds a fixed-position wrapper and a backdrop
+   *              click-target that invokes `onClose`.
+   */
+  variant?: 'inline' | 'drawer';
 }
 
-export const BlockPalette = ({ editor, onClose }: BlockPaletteProps) => {
+export const BlockPalette = ({ editor, onClose, variant = 'inline' }: BlockPaletteProps) => {
   const [search, setSearch] = useState('');
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const searchRef = useRef<HTMLInputElement>(null);
@@ -47,8 +54,13 @@ export const BlockPalette = ({ editor, onClose }: BlockPaletteProps) => {
     item.action(editor);
   };
 
-  return (
-    <div className="w-60 flex-shrink-0 border-r border-slate-200 bg-slate-50/80 flex flex-col h-full overflow-hidden select-none">
+  const containerClass =
+    variant === 'drawer'
+      ? 'fixed inset-y-0 left-0 z-40 w-72 max-w-[85vw] bg-white border-r border-slate-200 shadow-2xl flex flex-col overflow-hidden select-none animate-in slide-in-from-left'
+      : 'w-60 flex-shrink-0 border-r border-slate-200 bg-slate-50/80 flex flex-col h-full overflow-hidden select-none';
+
+  const content = (
+    <>
       {/* Header */}
       <div className="flex items-center justify-between px-3 pt-3 pb-2">
         <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Blocks</span>
@@ -56,6 +68,7 @@ export const BlockPalette = ({ editor, onClose }: BlockPaletteProps) => {
           onClick={onClose}
           className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded transition-colors"
           title="Close palette"
+          aria-label="Close blocks palette"
         >
           <X size={14} />
         </button>
@@ -71,12 +84,14 @@ export const BlockPalette = ({ editor, onClose }: BlockPaletteProps) => {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Filter blocks…"
+            aria-label="Filter blocks"
             className="w-full pl-8 pr-8 py-1.5 text-sm bg-white border border-slate-200 rounded-lg text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
           />
           {search && (
             <button
               onClick={() => { setSearch(''); searchRef.current?.focus(); }}
               className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600"
+              aria-label="Clear filter"
             >
               <X size={12} />
             </button>
@@ -96,6 +111,7 @@ export const BlockPalette = ({ editor, onClose }: BlockPaletteProps) => {
               <button
                 onClick={() => toggleCategory(category)}
                 className="flex items-center gap-1 w-full px-1.5 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider hover:text-slate-600 transition-colors"
+                aria-expanded={!collapsed}
               >
                 {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
                 {category}
@@ -114,6 +130,9 @@ export const BlockPalette = ({ editor, onClose }: BlockPaletteProps) => {
                         onClick={() => handleClick(item)}
                         className="group flex items-center gap-2.5 px-2 py-2 rounded-lg cursor-grab hover:bg-white hover:shadow-sm border border-transparent hover:border-slate-200 transition-all active:cursor-grabbing"
                         title={`${item.label} — ${item.description}\nDrag to insert or click`}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(item); } }}
                       >
                         <GripVertical size={12} className="text-slate-300 opacity-0 group-hover:opacity-100 flex-shrink-0 transition-opacity" />
                         <div className="p-1.5 rounded-md bg-white border border-slate-100 text-slate-500 group-hover:text-blue-600 group-hover:border-blue-100 group-hover:bg-blue-50 transition-colors flex-shrink-0">
@@ -138,6 +157,32 @@ export const BlockPalette = ({ editor, onClose }: BlockPaletteProps) => {
           </div>
         )}
       </div>
+    </>
+  );
+
+  if (variant === 'drawer') {
+    return (
+      <>
+        <div
+          className="fixed inset-0 z-30 bg-slate-900/40 backdrop-blur-sm"
+          onClick={onClose}
+          aria-hidden
+        />
+        <div
+          className={containerClass}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Blocks palette"
+        >
+          {content}
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <div className={containerClass} aria-label="Blocks palette">
+      {content}
     </div>
   );
 };
