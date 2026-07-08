@@ -50,13 +50,14 @@ export default function App() {
   const [currentDocId, setCurrentDocId] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<'landing' | 'editor'>('landing');
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
   const [isThemeDrawerOpen, setIsThemeDrawerOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [isZenMode, setIsZenMode] = useState(false);
@@ -77,6 +78,51 @@ export default function App() {
   // Tracks whether there is a save that has been queued but not yet persisted
   // to IndexedDB.  Used by the beforeunload guard.
   const hasPendingSaveRef = useRef(false);
+
+  // Snapshot of the document that failed to save, used to power the Retry
+  // button on the save-status chip.  Cleared on the next successful save.
+  const lastFailedSaveRef = useRef<Document | null>(null);
+
+  // Persist a single document and reflect the result in the save-status chip.
+  // Errors are no longer swallowed: they surface as an 'error' status with a
+  // retry affordance instead of leaving the chip stuck on "Saving…".
+  const persistDoc = useCallback((doc: Document) => {
+    hasPendingSaveRef.current = true;
+    setSaveStatus('saving');
+    saveDocument(doc)
+      .then(() => {
+        hasPendingSaveRef.current = false;
+        if (lastFailedSaveRef.current?.id === doc.id) {
+          lastFailedSaveRef.current = null;
+        }
+        setSaveStatus('saved');
+      })
+      .catch((err) => {
+        console.error('Save failed:', err);
+        hasPendingSaveRef.current = false;
+        lastFailedSaveRef.current = doc;
+        setSaveStatus('error');
+      });
+  }, []);
+
+  const retrySave = useCallback(() => {
+    if (lastFailedSaveRef.current) {
+      persistDoc(lastFailedSaveRef.current);
+    }
+  }, [persistDoc]);
+
+  // Fired by the Editor whenever its 1s autosave debounce is scheduled or
+  // cleared.  We mirror the state into hasPendingSaveRef so the beforeunload
+  // guard covers the full pending-and-in-flight window, not just the write.
+  const handleEditorPendingChange = useCallback((pending: boolean) => {
+    if (pending) {
+      hasPendingSaveRef.current = true;
+    } else if (!lastFailedSaveRef.current) {
+      // Only clear the flag if no save is currently in flight and there is no
+      // failed save keeping the chip in the error state.
+      hasPendingSaveRef.current = false;
+    }
+  }, []);
 
   const currentDoc = documents.find(d => d.id === currentDocId);
 
@@ -115,18 +161,24 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  useEffect(() => {
-    const init = async () => {
+  const loadWorkspace = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
       const docs = await loadDocuments();
-      if (docs.length > 0) {
-        setDocuments(docs);
-        setCurrentDocId(docs[0].id);
-      }
+      setDocuments(docs);
+      setCurrentDocId(prev => prev && docs.some(d => d.id === prev) ? prev : (docs[0]?.id ?? null));
+    } catch (err) {
+      console.error('Failed to load documents:', err);
+      setLoadError(err instanceof Error ? err.message : 'Unknown storage error');
+    } finally {
       setIsLoading(false);
-    };
-
-    init();
+    }
   }, []);
+
+  useEffect(() => {
+    loadWorkspace();
+  }, [loadWorkspace]);
 
   const createNewDocument = (template?: TemplateDefinition) => {
     setShowTemplatePicker(false);
@@ -207,13 +259,8 @@ export default function App() {
     setDocuments(prev => prev.map(d => d.id === currentDocId ? updatedDoc : d));
 
     // Persist asynchronously outside the state updater.
-    hasPendingSaveRef.current = true;
-    setSaveStatus('saving');
-    saveDocument(updatedDoc).then(() => {
-      hasPendingSaveRef.current = false;
-      setSaveStatus('saved');
-    });
-  }, [currentDocId]);
+    persistDoc(updatedDoc);
+  }, [currentDocId, persistDoc]);
 
   const handleThemeChange = useCallback((themeUpdates: Partial<ThemeConfig>) => {
     if (!currentDocId) return;
@@ -229,13 +276,8 @@ export default function App() {
 
     setDocuments(prev => prev.map(d => d.id === currentDocId ? updatedDoc : d));
 
-    hasPendingSaveRef.current = true;
-    setSaveStatus('saving');
-    saveDocument(updatedDoc).then(() => {
-      hasPendingSaveRef.current = false;
-      setSaveStatus('saved');
-    });
-  }, [currentDocId]);
+    persistDoc(updatedDoc);
+  }, [currentDocId, persistDoc]);
 
   const handleOpenPreview = () => {
     if (!currentDoc) return;
@@ -311,13 +353,19 @@ export default function App() {
 
   const confirmDelete = async () => {
     if (!confirmDeleteId) return;
-    await deleteDocument(confirmDeleteId);
-    const docs = await loadDocuments();
-    setDocuments(docs);
-    if (currentDocId === confirmDeleteId) {
-      setCurrentDocId(docs.length > 0 ? docs[0].id : null);
+    try {
+      await deleteDocument(confirmDeleteId);
+      const docs = await loadDocuments();
+      setDocuments(docs);
+      if (currentDocId === confirmDeleteId) {
+        setCurrentDocId(docs.length > 0 ? docs[0].id : null);
+      }
+    } catch (err) {
+      console.error('Delete failed:', err);
+      setLoadError(err instanceof Error ? err.message : 'Delete failed');
+    } finally {
+      setConfirmDeleteId(null);
     }
-    setConfirmDeleteId(null);
   };
 
   const handleDuplicate = async (id: string, e: React.MouseEvent) => {
@@ -360,6 +408,41 @@ export default function App() {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white border border-rose-200 rounded-xl p-6 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center">
+              <AlertTriangle size={20} className="text-rose-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base font-semibold text-slate-900">Could not load your documents</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Your saved guides are still in this browser's storage — this is usually a temporary issue (a locked database, a browser update, or a schema migration). Nothing has been deleted.
+              </p>
+              <p className="mt-2 text-xs text-slate-400 font-mono break-all">{loadError}</p>
+              <div className="mt-4 flex gap-2">
+                <button
+                  onClick={loadWorkspace}
+                  className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+                >
+                  Retry
+                </button>
+                <button
+                  onClick={() => { setLoadError(null); setCurrentView('landing'); }}
+                  className="px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+                >
+                  Continue without loading
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -443,17 +526,28 @@ export default function App() {
               {currentDoc && (
                 <>
                   {/* Auto-save status chip */}
-                  <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-300 ${
-                    saveStatus === 'saving'
-                      ? 'bg-amber-50 text-amber-600'
-                      : 'bg-emerald-50 text-emerald-600'
-                  }`}>
-                    {saveStatus === 'saving' ? (
-                      <><Loader2 size={12} className="animate-spin" />Saving…</>
-                    ) : (
-                      <><CheckCircle size={12} />Saved</>
-                    )}
-                  </div>
+                  {saveStatus === 'error' ? (
+                    <button
+                      onClick={retrySave}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
+                      title="Save failed — click to retry"
+                    >
+                      <AlertTriangle size={12} />
+                      Save failed — Retry
+                    </button>
+                  ) : (
+                    <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-300 ${
+                      saveStatus === 'saving'
+                        ? 'bg-amber-50 text-amber-600'
+                        : 'bg-emerald-50 text-emerald-600'
+                    }`}>
+                      {saveStatus === 'saving' ? (
+                        <><Loader2 size={12} className="animate-spin" />Saving…</>
+                      ) : (
+                        <><CheckCircle size={12} />Saved</>
+                      )}
+                    </div>
+                  )}
                   <button
                     onClick={() => setShowBlockPalette(v => !v)}
                     className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${showBlockPalette ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}`}
@@ -571,7 +665,7 @@ export default function App() {
           {currentDoc ? (
             <>
               <div className={`transition-all duration-300 ease-in-out ${showHelp && !isZenMode ? 'md:w-2/3 lg:w-3/4' : 'w-full'}`}>
-                <Editor key={currentDoc.id} initialContent={currentDoc.content} initialHtmlContent={currentDoc.htmlContent} initialTitle={currentDoc.title} onUpdate={handleUpdate} theme={currentDoc.theme} onThemeChange={handleThemeChange} zenMode={isZenMode} onEditorReady={setEditorInstance} />
+                <Editor key={currentDoc.id} initialContent={currentDoc.content} initialHtmlContent={currentDoc.htmlContent} initialTitle={currentDoc.title} onUpdate={handleUpdate} theme={currentDoc.theme} onThemeChange={handleThemeChange} zenMode={isZenMode} onEditorReady={setEditorInstance} onPendingChange={handleEditorPendingChange} />
               </div>
 
               {/* Help Sidebar */}

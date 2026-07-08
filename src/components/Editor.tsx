@@ -160,9 +160,16 @@ interface EditorProps {
   onThemeChange?: (updates: Partial<ThemeConfig>) => void;
   zenMode?: boolean;
   onEditorReady?: (editor: import('@tiptap/core').Editor) => void;
+  /**
+   * Fired whenever the debounced autosave transitions between scheduled and
+   * fired.  App-level beforeunload guards should listen for this so a tab
+   * closed within the 1s debounce window still warns the user (and doesn't
+   * silently drop the most recent keystroke).
+   */
+  onPendingChange?: (pending: boolean) => void;
 }
 
-export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpdate, theme, onThemeChange, zenMode, onEditorReady }: EditorProps) => {
+export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpdate, theme, onThemeChange, zenMode, onEditorReady, onPendingChange }: EditorProps) => {
   const [content, setContent] = useState<any>(initialContent);
   const [htmlContent, setHtmlContent] = useState<string>(initialHtmlContent || '');
   const [title, setTitle] = useState(initialTitle);
@@ -190,6 +197,21 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
   const [showReplaceLine, setShowReplaceLine] = useState(false);
   const [showOutline, setShowOutline] = useState(true);
   const [activeHeadingText, setActiveHeadingText] = useState<string | null>(null);
+  const [editorNotice, setEditorNotice] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
+  const noticeTimerRef = useRef<number | null>(null);
+
+  // Surface inline feedback for things the editor would otherwise swallow
+  // (rejected file drops, failed image uploads).  Auto-dismisses after 4s.
+  const showEditorNotice = useCallback((kind: 'error' | 'info', text: string) => {
+    setEditorNotice({ kind, text });
+    if (noticeTimerRef.current) {
+      window.clearTimeout(noticeTimerRef.current);
+    }
+    noticeTimerRef.current = window.setTimeout(() => {
+      setEditorNotice(null);
+      noticeTimerRef.current = null;
+    }, 4000);
+  }, []);
 
   const isFirstRender = useRef(true);
   const editorRef = useRef<import('@tiptap/core').Editor | null>(null);
@@ -208,6 +230,9 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
         const { html, json, t, fn } = latestSaveArgs.current;
         fn(html, json, t);
       }
+      if (noticeTimerRef.current) {
+        window.clearTimeout(noticeTimerRef.current);
+      }
     };
   }, []);
 
@@ -218,13 +243,15 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
     }
 
     hasPendingSave.current = true;
+    onPendingChange?.(true);
     const timeoutId = setTimeout(() => {
       hasPendingSave.current = false;
+      onPendingChange?.(false);
       onUpdate(htmlContent, content, title);
     }, 1000);
 
     return () => clearTimeout(timeoutId);
-  }, [content, htmlContent, title, onUpdate]);
+  }, [content, htmlContent, title, onUpdate, onPendingChange]);
 
   useEffect(() => {
     const handler = () => setShowTableModal(true);
@@ -443,13 +470,13 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
           return true;
         }
 
-        // Image file drop
+        // File drop — always intercept so the browser doesn't navigate to the
+        // file (which would replace the editor URL and destroy unsaved work).
         if (!moved && event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]) {
           const file = event.dataTransfer.files[0];
+          event.preventDefault();
 
           if (file.type.startsWith('image/')) {
-            event.preventDefault();
-
             compressImageToWebP(file)
               .then((base64) => {
                 const coordinates = view.posAtCoords({ left: event.clientX, top: event.clientY });
@@ -460,14 +487,20 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
                       view.state.schema.nodes.annotatedImage.create({ src: base64 })
                     )
                   );
+                } else {
+                  showEditorNotice('error', 'Could not place image at the drop position.');
                 }
               })
               .catch((error) => {
                 console.error('Failed to compress image on drop:', error);
+                showEditorNotice('error', `Image upload failed: ${error?.message || 'unknown error'}`);
               });
 
             return true;
           }
+
+          showEditorNotice('error', `Only image files can be dropped here (got ${file.type || 'unknown type'}).`);
+          return true;
         }
         return false;
       },
@@ -482,10 +515,9 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       handlePaste: (view, event, slice) => {
         if (event.clipboardData && event.clipboardData.files && event.clipboardData.files[0]) {
           const file = event.clipboardData.files[0];
+          event.preventDefault();
 
           if (file.type.startsWith('image/')) {
-            event.preventDefault();
-
             compressImageToWebP(file)
               .then((base64) => {
                 view.dispatch(
@@ -496,10 +528,14 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
               })
               .catch((error) => {
                 console.error('Failed to compress image on paste:', error);
+                showEditorNotice('error', `Image upload failed: ${error?.message || 'unknown error'}`);
               });
 
             return true;
           }
+
+          showEditorNotice('error', `Only image files can be pasted here (got ${file.type || 'unknown type'}).`);
+          return true;
         }
         return false;
       }
@@ -758,6 +794,19 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       onDragLeave={handleEditorDragLeave}
       onDrop={handleEditorDrop}
     >
+      {editorNotice && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`mb-3 px-3 py-2 rounded-md text-sm flex items-center gap-2 ${
+            editorNotice.kind === 'error'
+              ? 'bg-rose-50 text-rose-700 border border-rose-200'
+              : 'bg-blue-50 text-blue-700 border border-blue-200'
+          }`}
+        >
+          {editorNotice.text}
+        </div>
+      )}
       {/* The Floating Toolbar (The "Hovering Pill") */}
       <div className={`sticky top-4 z-40 flex items-center justify-center w-full mb-8 pointer-events-none transition-all duration-300 ${zenMode ? 'opacity-0 pointer-events-none' : ''}`}>
         {/* Outer pill — no overflow clipping so popups can escape */}
