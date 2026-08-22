@@ -1,19 +1,43 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap/react';
 import React, { useState } from 'react';
-import { ChevronDown, Plus } from 'lucide-react';
+import { ChevronDown, Plus, X } from 'lucide-react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 // --- AccordionItem ---
 
 const AccordionItemNodeView = (props: any) => {
-  const { node, updateAttributes } = props;
+  const { node, updateAttributes, getPos, editor } = props;
   const { title } = node.attrs;
   const [isOpen, setIsOpen] = useState(true);
 
+  // Don't allow deletion of the last remaining section — that would leave
+  // the parent Accordion node empty, which Tiptap disallows.
+  const canDelete = editor && typeof getPos === 'function' && (() => {
+    const pos = getPos();
+    if (pos == null) return false;
+    try {
+      const $pos = editor.state.doc.resolve(pos);
+      const parent = $pos.parent;
+      return !!parent && parent.type.name === 'accordion' && parent.childCount > 1;
+    } catch {
+      return false;
+    }
+  })();
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!canDelete) return;
+    const pos = typeof getPos === 'function' ? getPos() : undefined;
+    if (pos == null) return;
+    const itemNodeSize = node.nodeSize;
+    editor.chain().focus().deleteRange({ from: pos, to: pos + itemNodeSize }).run();
+  };
+
   return (
-    <NodeViewWrapper className="accordion-item-editor my-0.5">
+    <NodeViewWrapper className="accordion-item-editor my-0.5 group/accordion-item">
       <div
+        contentEditable={false}
         className="flex items-center gap-2 px-4 py-3 bg-slate-100 border border-slate-200 cursor-pointer select-none"
         style={{ borderRadius: isOpen ? '0.5rem 0.5rem 0 0' : '0.5rem' }}
         onClick={() => setIsOpen(!isOpen)}
@@ -22,14 +46,36 @@ const AccordionItemNodeView = (props: any) => {
           size={16}
           className="text-slate-500 flex-shrink-0 transition-transform duration-200"
           style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          aria-hidden
         />
         <input
           value={title}
           onChange={(e) => updateAttributes({ title: e.target.value })}
+          onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              (e.target as HTMLInputElement).blur();
+            }
+            e.stopPropagation();
+          }}
           className="flex-1 bg-transparent font-medium text-slate-800 outline-none text-sm"
           placeholder="Section title..."
+          aria-label="Section title"
         />
+        {canDelete && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors opacity-0 group-hover/accordion-item:opacity-100"
+            title="Delete this section"
+            aria-label={`Delete section "${title || 'Untitled'}"`}
+          >
+            <X size={14} aria-hidden />
+          </button>
+        )}
       </div>
       <div
         className="overflow-hidden"
@@ -88,7 +134,7 @@ const AccordionNodeView = (props: any) => {
   return (
     <NodeViewWrapper className={`group/block relative my-8 transition-all ${selected ? 'ring-2 ring-slate-200 rounded-xl p-2' : ''}`}>
       <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-10 text-sm opacity-0 group-hover/block:opacity-100 pointer-events-none group-hover/block:pointer-events-auto transition-opacity">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-30 text-sm opacity-0 group-hover/block:opacity-100 pointer-events-none group-hover/block:pointer-events-auto transition-opacity">
         <button
           onClick={addItem}
           className="flex items-center gap-1 px-3 py-1 rounded-full hover:bg-slate-100 text-slate-600"

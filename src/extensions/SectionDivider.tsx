@@ -41,10 +41,12 @@ const DividerPreview = ({ style }: { style: DividerStyle }) => {
       );
     case 'dots':
       return (
-        <div className="flex items-center justify-center gap-2 py-1">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <div key={i} className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-          ))}
+        <div className="flex items-center justify-center gap-3 py-1">
+          <div className="flex-1 h-px bg-slate-200" />
+          <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+          <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+          <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+          <div className="flex-1 h-px bg-slate-200" />
         </div>
       );
     case 'animated-gradient':

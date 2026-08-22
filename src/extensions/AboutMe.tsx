@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
+import { Paintbrush } from 'lucide-react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 const AboutMeNodeView = (props: any) => {
@@ -8,6 +9,8 @@ const AboutMeNodeView = (props: any) => {
   const { avatar, name, role, bio, accentColor, layout } = node.attrs;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showStyle, setShowStyle] = useState(false);
+  const styleRef = useRef<HTMLDivElement>(null);
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -25,172 +28,96 @@ const AboutMeNodeView = (props: any) => {
     .join('')
     .toUpperCase();
 
-  const avatarEl = avatar ? (
-    <img
-      src={avatar}
-      alt={name}
-      className="w-28 h-28 rounded-full object-cover block"
-    />
-  ) : (
+  const avatarEl = (
     <div
-      className="w-28 h-28 rounded-full flex items-center justify-center text-3xl font-bold tracking-tight"
-      style={{ background: accentColor, color: '#fff' }}
+      className="relative flex-shrink-0 cursor-pointer group/avatar"
+      onClick={() => fileInputRef.current?.click()}
+      title="Click to change avatar"
     >
-      {initials || '?'}
-    </div>
-  );
-
-  const avatarCol = (
-    <div className="flex-shrink-0">
-      {avatarEl}
+      {avatar ? (
+        <img src={avatar} alt={name} className="w-28 h-28 rounded-full object-cover block" />
+      ) : (
+        <div
+          className="w-28 h-28 rounded-full flex items-center justify-center text-3xl font-bold tracking-tight"
+          style={{ background: accentColor, color: '#fff' }}
+        >
+          {initials || '?'}
+        </div>
+      )}
+      <div className="absolute inset-0 rounded-full bg-black/30 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-medium">
+        Change
+      </div>
+      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
     </div>
   );
 
   const textCol = (
     <div className="flex-1 min-w-0">
-      <div className="text-xl font-extrabold leading-tight mb-1" style={{ color: accentColor }}>
-        {name || 'Your Name'}
-      </div>
-      {role && (
-        <div className="text-sm font-medium text-slate-500 mb-2">{role}</div>
-      )}
-      {bio && (
-        <p className="text-[0.9375rem] text-slate-600 leading-relaxed m-0">{bio}</p>
-      )}
-      {!role && !bio && (
-        <p className="text-sm text-slate-300 italic m-0">Add your role and bio below</p>
-      )}
+      <input
+        value={name}
+        onChange={(e) => updateAttributes({ name: e.target.value })}
+        placeholder="Your Name"
+        className="text-xl font-extrabold leading-tight mb-1 bg-transparent outline-none border-b-2 border-transparent hover:border-current/30 focus:border-current/60 transition-colors block w-full"
+        style={{ color: accentColor }}
+      />
+      <input
+        value={role}
+        onChange={(e) => updateAttributes({ role: e.target.value })}
+        placeholder="Your Role"
+        className="text-sm font-medium text-slate-500 mb-2 bg-transparent outline-none border-b border-transparent hover:border-slate-300 focus:border-slate-400 transition-colors block w-full"
+      />
+      <textarea
+        value={bio}
+        onChange={(e) => updateAttributes({ bio: e.target.value })}
+        placeholder="Write a short bio..."
+        rows={3}
+        className="text-[0.9375rem] text-slate-600 leading-relaxed bg-transparent outline-none border-b border-transparent hover:border-slate-300 focus:border-slate-400 transition-colors w-full resize-none"
+        style={{ fieldSizing: 'content' } as any}
+      />
     </div>
   );
 
   return (
     <NodeViewWrapper className="group/block relative my-6" contentEditable={false}>
       <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
-      <div
-        className={`rounded-2xl border-2 bg-white shadow-sm transition-all ${
-          selected ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-slate-200'
-        }`}
-      >
-        {/* Preview */}
-        <div className="flex items-center gap-8 p-6">
-          {layout === 'right' ? (
-            <>
-              {textCol}
-              {avatarCol}
-            </>
-          ) : (
-            <>
-              {avatarCol}
-              {textCol}
-            </>
+
+      {/* Floating style toolbar */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-30 text-sm opacity-0 group-hover/block:opacity-100 pointer-events-none group-hover/block:pointer-events-auto transition-opacity">
+        <div ref={styleRef} className="relative">
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setShowStyle(!showStyle)}
+            className={`flex items-center gap-1 px-3 py-1 rounded-full transition-colors ${showStyle ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-600'}`}
+          >
+            <Paintbrush size={14} /> Style
+          </button>
+          {showStyle && (
+            <div
+              onMouseDown={(e) => e.stopPropagation()}
+              className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-white border border-slate-200 rounded-xl shadow-xl p-3 w-52"
+            >
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Layout</p>
+              <div className="flex gap-1.5 mb-3">
+                {[['left', 'Avatar Left'], ['right', 'Avatar Right']].map(([v, l]) => (
+                  <button key={v} onMouseDown={(e) => e.preventDefault()} onClick={() => updateAttributes({ layout: v })}
+                    className={`flex-1 py-1 text-xs rounded border transition-all ${layout === v ? 'bg-indigo-600 text-white border-indigo-600' : 'border-slate-200 text-slate-600'}`}
+                  >{l}</button>
+                ))}
+              </div>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Accent Color</p>
+              <div className="flex items-center gap-2">
+                <input type="color" value={accentColor} onChange={(e) => updateAttributes({ accentColor: e.target.value })} className="w-8 h-8 rounded border border-slate-200 cursor-pointer" />
+                <span className="text-xs text-slate-400 font-mono">{accentColor}</span>
+              </div>
+            </div>
           )}
         </div>
+      </div>
 
-        {/* Edit Panel */}
-        {selected && (
-          <div className="border-t border-slate-200 bg-slate-50 p-4 space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-slate-500 block mb-0.5">Name</label>
-                <input
-                  value={name}
-                  onChange={(e) => updateAttributes({ name: e.target.value })}
-                  placeholder="Your Name"
-                  className="w-full px-2 py-1 text-sm border rounded border-slate-200 outline-none focus:border-indigo-400 bg-white"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-slate-500 block mb-0.5">Accent Color</label>
-                <input
-                  type="color"
-                  value={accentColor}
-                  onChange={(e) => updateAttributes({ accentColor: e.target.value })}
-                  className="w-full h-[30px] cursor-pointer rounded border border-slate-200"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-slate-500 block mb-0.5">Role</label>
-              <input
-                value={role}
-                onChange={(e) => updateAttributes({ role: e.target.value })}
-                placeholder="Your Role"
-                className="w-full px-2 py-1 text-sm border rounded border-slate-200 outline-none focus:border-indigo-400 bg-white"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-slate-500 block mb-0.5">Bio</label>
-              <textarea
-                value={bio}
-                onChange={(e) => updateAttributes({ bio: e.target.value })}
-                placeholder="Write a short bio about yourself..."
-                rows={4}
-                className="w-full px-2 py-1 text-sm border rounded border-slate-200 outline-none focus:border-indigo-400 resize-none bg-white"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-slate-500 block mb-0.5">Layout</label>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => updateAttributes({ layout: 'left' })}
-                  className={`px-3 py-1 text-sm rounded border transition-colors ${
-                    layout === 'left'
-                      ? 'border-indigo-400 bg-indigo-50 text-indigo-700 font-medium'
-                      : 'border-slate-200 text-slate-600 hover:bg-white'
-                  }`}
-                >
-                  Avatar Left
-                </button>
-                <button
-                  onClick={() => updateAttributes({ layout: 'right' })}
-                  className={`px-3 py-1 text-sm rounded border transition-colors ${
-                    layout === 'right'
-                      ? 'border-indigo-400 bg-indigo-50 text-indigo-700 font-medium'
-                      : 'border-slate-200 text-slate-600 hover:bg-white'
-                  }`}
-                >
-                  Avatar Right
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-slate-500 block mb-0.5">Avatar</label>
-              <div className="flex gap-2">
-                <input
-                  value={avatar?.startsWith('data:') ? '' : avatar}
-                  onChange={(e) => updateAttributes({ avatar: e.target.value })}
-                  placeholder="https://... or upload an image"
-                  className="flex-1 px-2 py-1 text-sm border rounded border-slate-200 outline-none focus:border-indigo-400 bg-white"
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-3 py-1 text-sm border rounded border-slate-200 text-slate-600 hover:bg-white transition-colors"
-                >
-                  Upload
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleAvatarUpload}
-                />
-              </div>
-              {avatar && (
-                <button
-                  onClick={() => updateAttributes({ avatar: '' })}
-                  className="text-xs text-red-400 hover:text-red-600 mt-1"
-                >
-                  Remove avatar
-                </button>
-              )}
-            </div>
-          </div>
-        )}
+      <div className={`rounded-2xl border-2 bg-white shadow-sm transition-all ${selected ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-slate-200'}`}>
+        <div className="flex items-center gap-8 p-6">
+          {layout === 'right' ? <>{textCol}{avatarEl}</> : <>{avatarEl}{textCol}</>}
+        </div>
       </div>
     </NodeViewWrapper>
   );

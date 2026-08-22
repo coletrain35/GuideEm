@@ -276,13 +276,45 @@ const WorkflowStepNodeView = (props: any) => {
               </div>
             )}
           </div>
-          {/* Title input */}
+          {/* Title input + per-step delete (hidden if this is the only step) */}
           <input
             value={title}
             onChange={(e) => updateAttributes({ title: e.target.value })}
-            className="flex-1 font-bold bg-transparent outline-none text-lg text-slate-900"
+            className="flex-1 min-w-0 font-bold bg-transparent outline-none text-lg text-slate-900"
             placeholder="Step title..."
+            aria-label="Step title"
           />
+          {(() => {
+            let canDelete = false;
+            try {
+              const pos = typeof getPos === 'function' ? getPos() : undefined;
+              if (pos !== undefined) {
+                const resolved = editor.state.doc.resolve(pos);
+                const parent = resolved.node(resolved.depth);
+                canDelete = parent.childCount > 1;
+              }
+            } catch { /* fallthrough */ }
+            if (!canDelete) return null;
+            const handleDeleteStep = (e: React.MouseEvent) => {
+              e.stopPropagation();
+              const pos = typeof getPos === 'function' ? getPos() : undefined;
+              if (pos === undefined) return;
+              const stepSize = node.nodeSize;
+              editor.chain().focus().deleteRange({ from: pos, to: pos + stepSize }).run();
+            };
+            return (
+              <button
+                type="button"
+                onClick={handleDeleteStep}
+                onMouseDown={(e) => e.stopPropagation()}
+                className="opacity-0 group-hover/step:opacity-100 p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors flex-shrink-0"
+                title="Delete this step"
+                aria-label={`Delete step "${title || 'Untitled'}"`}
+              >
+                <X size={14} aria-hidden />
+              </button>
+            );
+          })()}
         </div>
 
         {/* Step image */}
@@ -413,7 +445,7 @@ const WorkflowNodeView = (props: any) => {
       } as React.CSSProperties}
     >
       <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-10 text-sm opacity-0 group-hover/block:opacity-100 pointer-events-none group-hover/block:pointer-events-auto transition-opacity">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-30 text-sm opacity-0 group-hover/block:opacity-100 pointer-events-none group-hover/block:pointer-events-auto transition-opacity">
         <button
           onClick={addStep}
           className="flex items-center gap-1 px-3 py-1 rounded-full hover:bg-slate-100 text-slate-600"

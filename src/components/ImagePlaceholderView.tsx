@@ -1,16 +1,21 @@
 import { NodeViewWrapper } from '@tiptap/react';
 import { useRef, useState, useCallback } from 'react';
-import { ImageIcon, Upload } from 'lucide-react';
+import { ImageIcon, Upload, AlertTriangle } from 'lucide-react';
 import { compressImageToWebP } from '../utils/imageCompressor';
 
 export const ImagePlaceholderView = ({ editor, getPos, node }: any) => {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processError, setProcessError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const replaceWithImage = useCallback(
     async (file: File) => {
-      if (!file.type.startsWith('image/')) return;
+      if (!file.type.startsWith('image/')) {
+        setProcessError(`Only image files are supported (got ${file.type || 'unknown type'}).`);
+        return;
+      }
+      setProcessError(null);
       setIsProcessing(true);
       try {
         const base64 = await compressImageToWebP(file);
@@ -23,8 +28,9 @@ export const ImagePlaceholderView = ({ editor, getPos, node }: any) => {
             { type: 'annotatedImage', attrs: { src: base64 } }
           )
           .run();
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to process image:', err);
+        setProcessError(err?.message || 'Could not process this image.');
         setIsProcessing(false);
       }
     },
@@ -46,6 +52,8 @@ export const ImagePlaceholderView = ({ editor, getPos, node }: any) => {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (file) replaceWithImage(file);
+      // Reset so the same file can be re-selected after an error or replace.
+      e.target.value = '';
     },
     [replaceWithImage]
   );
@@ -62,7 +70,9 @@ export const ImagePlaceholderView = ({ editor, getPos, node }: any) => {
           cursor-pointer select-none transition-all duration-150 py-12
           ${isDraggingOver
             ? 'border-blue-500 bg-blue-50 scale-[1.01]'
-            : 'border-slate-300 bg-slate-50 hover:border-blue-400 hover:bg-blue-50/40'
+            : processError
+              ? 'border-rose-300 bg-rose-50/40'
+              : 'border-slate-300 bg-slate-50 hover:border-blue-400 hover:bg-blue-50/40'
           }
           ${isProcessing ? 'pointer-events-none opacity-60' : ''}
         `}
@@ -71,6 +81,13 @@ export const ImagePlaceholderView = ({ editor, getPos, node }: any) => {
           <div className="flex flex-col items-center gap-2 text-slate-500">
             <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
             <span className="text-sm font-medium">Processing…</span>
+          </div>
+        ) : processError ? (
+          <div className="flex flex-col items-center gap-2 text-rose-600 px-4 text-center">
+            <AlertTriangle size={24} />
+            <p className="text-sm font-medium">Image upload failed</p>
+            <p className="text-xs text-rose-500 max-w-xs">{processError}</p>
+            <p className="text-xs text-slate-400 mt-1">Click to try again</p>
           </div>
         ) : (
           <>

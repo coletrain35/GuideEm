@@ -76,15 +76,16 @@ const queueWrite = (fn: () => Promise<void>): Promise<void> => {
 
 /**
  * Retrieves all saved documents.
+ *
+ * Throws on storage failure instead of returning an empty array.  Returning
+ * `[]` on error used to make the app show a "no documents" empty state even
+ * when the user's data was still in IndexedDB (e.g. a transient schema
+ * migration or a locked store), giving them no way back to their work.
+ * Callers must catch and surface a recovery UI.
  */
 export const loadDocuments = async (): Promise<Document[]> => {
-  try {
-    const docs = await store.getItem<Document[]>(DOCUMENTS_KEY);
-    return docs || [];
-  } catch (error) {
-    console.error('Failed to load documents locally:', error);
-    return [];
-  }
+  const docs = await store.getItem<Document[]>(DOCUMENTS_KEY);
+  return docs || [];
 };
 
 /**
@@ -92,11 +93,7 @@ export const loadDocuments = async (): Promise<Document[]> => {
  * Prefer saveDocument / deleteDocument for single-document mutations.
  */
 export const saveDocuments = async (documents: Document[]): Promise<void> => {
-  try {
-    await store.setItem(DOCUMENTS_KEY, documents);
-  } catch (error) {
-    console.error('Failed to save documents locally:', error);
-  }
+  await store.setItem(DOCUMENTS_KEY, documents);
 };
 
 /**

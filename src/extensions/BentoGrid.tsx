@@ -35,10 +35,16 @@ const BentoGridNodeView = (props: any) => {
   })();
 
   const setCells = (cells: BentoCell[]) => updateAttributes({ cells: JSON.stringify(cells) });
+  
   const addCell = () => setCells([...parsedCells, {
     colSpan: 1, rowSpan: 1, title: 'New Feature', description: 'Describe this feature.', icon: '✨', variant: 'default', accentColor: '#6366f1',
   }]);
-  const removeCell = (i: number) => setCells(parsedCells.filter((_, idx) => idx !== i));
+  
+  const removeCell = (i: number) => {
+    if (parsedCells.length <= 1) return;
+    setCells(parsedCells.filter((_, idx) => idx !== i));
+  };
+  
   const updateCell = (i: number, key: keyof BentoCell, value: any) =>
     setCells(parsedCells.map((c, idx) => idx === i ? { ...c, [key]: value } : c));
 
@@ -46,111 +52,137 @@ const BentoGridNodeView = (props: any) => {
     <NodeViewWrapper className="group/block relative my-8" contentEditable={false}>
       <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
 
-      <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gridAutoRows: 'auto' }}>
-        {parsedCells.map((cell, i) => {
-          const v = CELL_VARIANTS[cell.variant] || CELL_VARIANTS.default;
-          return (
-            <div
-              key={i}
-              className="rounded-2xl p-6 flex flex-col justify-between overflow-hidden transition-shadow"
-              style={{
-                backgroundColor: v.bg,
-                border: `1px solid ${v.border}`,
-                gridColumn: `span ${Math.min(cell.colSpan, 3)}`,
-                gridRow: `span ${cell.rowSpan}`,
-                minHeight: cell.rowSpan === 2 ? '220px' : '130px',
-                boxShadow: cell.variant === 'default' ? '0 1px 3px rgba(0,0,0,0.06)' : '0 4px 20px rgba(0,0,0,0.15)',
-              }}
-            >
-              <div>
-                {cell.icon && <div style={{ fontSize: '2.25rem', lineHeight: 1, marginBottom: '0.875rem' }}>{cell.icon}</div>}
-                <h3 className="font-bold text-lg m-0 mb-1.5 leading-tight" style={{ color: v.text }}>{cell.title}</h3>
-                <p className="text-sm m-0 leading-relaxed" style={{ color: v.sub }}>{cell.description}</p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <div
+        className={`p-4 rounded-2xl border transition-all ${
+          selected ? 'border-indigo-400 ring-2 ring-indigo-100 bg-slate-50/20' : 'border-transparent'
+        }`}
+      >
+        <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gridAutoRows: 'auto' }}>
+          {parsedCells.map((cell, i) => {
+            const v = CELL_VARIANTS[cell.variant] || CELL_VARIANTS.default;
+            return (
+              <div
+                key={i}
+                className="group/card relative rounded-2xl p-6 flex flex-col justify-between overflow-hidden transition-all hover:shadow-sm"
+                style={{
+                  backgroundColor: v.bg,
+                  border: selected ? '1px solid #c7d2fe' : `1px solid ${v.border}`,
+                  gridColumn: `span ${Math.min(cell.colSpan, 3)}`,
+                  gridRow: `span ${cell.rowSpan}`,
+                  minHeight: cell.rowSpan === 2 ? '220px' : '140px',
+                  boxShadow: cell.variant === 'default' ? '0 1px 3px rgba(0,0,0,0.05)' : '0 4px 12px rgba(0,0,0,0.08)',
+                }}
+              >
+                {/* Individual Card Control Overlay (visible on card hover if parent is selected) */}
+                {selected && (
+                  <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover/card:opacity-100 transition-opacity z-20 bg-white/90 backdrop-blur-sm p-1 rounded-lg border border-slate-200 shadow-sm text-[10px]">
+                    {/* Cols span toggle */}
+                    <div className="flex border-r border-slate-200 pr-1.5 mr-1.5 gap-0.5 font-bold">
+                      <span className="text-slate-400 self-center px-1">Col:</span>
+                      {([1, 2, 3] as const).map(c => (
+                        <button
+                          key={c}
+                          onClick={() => updateCell(i, 'colSpan', c)}
+                          className={`w-4 h-4 rounded text-center leading-none transition-colors ${
+                            cell.colSpan === c ? 'bg-indigo-600 text-white' : 'hover:bg-slate-200 text-slate-600'
+                          }`}
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
 
-      {selected && (
-        <div className="mt-4 border border-slate-200 rounded-xl bg-white p-4 shadow-sm space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-slate-700">Cells ({parsedCells.length})</span>
+                    {/* Row span toggle */}
+                    <div className="flex border-r border-slate-200 pr-1.5 mr-1.5 gap-0.5 font-bold">
+                      <span className="text-slate-400 self-center px-1">Row:</span>
+                      {([1, 2] as const).map(r => (
+                        <button
+                          key={r}
+                          onClick={() => updateCell(i, 'rowSpan', r)}
+                          className={`w-4 h-4 rounded text-center leading-none transition-colors ${
+                            cell.rowSpan === r ? 'bg-indigo-600 text-white' : 'hover:bg-slate-200 text-slate-600'
+                          }`}
+                        >
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Variant toggle */}
+                    <div className="flex border-r border-slate-200 pr-1.5 mr-1.5 gap-0.5 font-semibold">
+                      {(['default', 'accent', 'dark'] as const).map(variant => (
+                        <button
+                          key={variant}
+                          onClick={() => updateCell(i, 'variant', variant)}
+                          className={`px-1 rounded capitalize transition-colors ${
+                            cell.variant === variant ? 'bg-indigo-600 text-white' : 'hover:bg-slate-200 text-slate-600'
+                          }`}
+                        >
+                          {variant}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Remove Card */}
+                    {parsedCells.length > 1 && (
+                      <button
+                        onClick={() => removeCell(i)}
+                        className="p-0.5 rounded text-slate-400 hover:text-red-500 hover:bg-slate-100 transition-colors"
+                        title="Delete Cell"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                <div className="space-y-2 flex flex-col h-full justify-between">
+                  <div>
+                    {/* Emoji/Icon Input */}
+                    <input
+                      value={cell.icon}
+                      onChange={(e) => updateCell(i, 'icon', e.target.value)}
+                      placeholder="🚀"
+                      className="text-3xl bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-400 outline-none w-10 py-0.5 transition-colors shrink-0 mb-2 block"
+                    />
+
+                    {/* Title Input */}
+                    <input
+                      value={cell.title}
+                      onChange={(e) => updateCell(i, 'title', e.target.value)}
+                      placeholder="Title"
+                      className="font-bold text-lg m-0 mb-1 leading-tight bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-400 outline-none w-full py-0.5 transition-colors"
+                      style={{ color: v.text }}
+                    />
+                  </div>
+
+                  {/* Description Textarea */}
+                  <textarea
+                    value={cell.description}
+                    onChange={(e) => updateCell(i, 'description', e.target.value)}
+                    placeholder="Cell description..."
+                    rows={2}
+                    className="text-sm m-0 leading-relaxed bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-400 outline-none w-full py-0.5 resize-none transition-colors"
+                    style={{ color: v.sub, fieldSizing: 'content' } as any}
+                  />
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Dash Add Cell Trigger Card */}
+          {selected && (
             <button
               onClick={addCell}
-              className="flex items-center gap-1.5 text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition-colors"
+              className="flex flex-col items-center justify-center p-6 border border-dashed border-slate-300 hover:border-indigo-400 rounded-2xl bg-slate-50/40 hover:bg-indigo-50/20 text-slate-400 hover:text-indigo-600 transition-all gap-1.5"
+              style={{ minHeight: '140px' }}
             >
-              <Plus size={12} /> Add Cell
+              <Plus size={24} />
+              <span className="text-xs font-semibold">Add Bento Cell</span>
             </button>
-          </div>
-          {parsedCells.map((cell, i) => (
-            <div key={i} className="border border-slate-100 rounded-lg p-3 space-y-2">
-              <div className="flex items-center gap-2">
-                <input
-                  className="w-9 px-1 py-0.5 text-lg text-center border border-slate-200 rounded focus:outline-none"
-                  value={cell.icon}
-                  onChange={(e) => updateCell(i, 'icon', e.target.value)}
-                  placeholder="✨"
-                />
-                <input
-                  className="flex-1 px-2 py-1 text-sm border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                  value={cell.title}
-                  onChange={(e) => updateCell(i, 'title', e.target.value)}
-                  placeholder="Title"
-                />
-                <button onClick={() => removeCell(i)} className="text-slate-400 hover:text-red-500">
-                  <X size={14} />
-                </button>
-              </div>
-              <textarea
-                className="w-full px-2 py-1 text-xs border border-slate-200 rounded focus:outline-none resize-none"
-                rows={2}
-                value={cell.description}
-                onChange={(e) => updateCell(i, 'description', e.target.value)}
-                placeholder="Description"
-              />
-              <div className="flex items-center gap-3 flex-wrap">
-                <div className="flex items-center gap-1 text-xs text-slate-500">
-                  <span>Col:</span>
-                  {([1, 2, 3] as const).map((n) => (
-                    <button
-                      key={n}
-                      onClick={() => updateCell(i, 'colSpan', n)}
-                      className={`w-6 h-6 rounded text-xs font-medium ${cell.colSpan === n ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex items-center gap-1 text-xs text-slate-500">
-                  <span>Row:</span>
-                  {([1, 2] as const).map((n) => (
-                    <button
-                      key={n}
-                      onClick={() => updateCell(i, 'rowSpan', n)}
-                      className={`w-6 h-6 rounded text-xs font-medium ${cell.rowSpan === n ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex items-center gap-1 text-xs text-slate-500">
-                  <span>Style:</span>
-                  {(['default', 'accent', 'dark'] as const).map((v) => (
-                    <button
-                      key={v}
-                      onClick={() => updateCell(i, 'variant', v)}
-                      className={`px-2 py-0.5 rounded text-xs ${cell.variant === v ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                    >
-                      {v}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
+          )}
         </div>
-      )}
+      </div>
     </NodeViewWrapper>
   );
 };

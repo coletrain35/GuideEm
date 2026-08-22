@@ -10,9 +10,18 @@ declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     annotatedImage: {
       setAnnotatedImage: (options: { src: string; alt?: string }) => ReturnType;
+      setAnnotatedImageAlign: (align: 'left' | 'center' | 'right') => ReturnType;
     };
   }
 }
+
+const alignToMargin = (align: string, width: number): string => {
+  if (align === 'left') return 'margin-left: 0; margin-right: auto;';
+  if (align === 'right') return 'margin-left: auto; margin-right: 0;';
+  // center
+  if (width >= 100) return ''; // full-width blocks are already centered
+  return 'margin-left: auto; margin-right: auto;';
+};
 
 export const AnnotatedImage = Node.create<AnnotatedImageOptions>({
   name: 'annotatedImage',
@@ -32,6 +41,8 @@ export const AnnotatedImage = Node.create<AnnotatedImageOptions>({
       alt: { default: null },
       width: { default: 100 },
       effect: { default: 'none' },
+      align: { default: 'center' },
+      caption: { default: '' },
       annotations: {
         default: [],
         parseHTML: element => {
@@ -65,11 +76,17 @@ export const AnnotatedImage = Node.create<AnnotatedImageOptions>({
 
     const effect: string = node?.attrs?.effect || 'none';
     const effectClass = effect !== 'none' ? ` image-effect-${effect}` : '';
+    const align: string = node?.attrs?.align || 'center';
+    const width: number = node?.attrs?.width ?? 100;
+    const alignStyle = alignToMargin(align, width);
+    const alignDataAttr = align !== 'center' ? ` data-align="${align}"` : '';
 
     const markers = annotations.map((ann: any, index: number) => {
+      const safeX = Math.min(100, Math.max(0, parseFloat(ann.x) || 0));
+      const safeY = Math.min(100, Math.max(0, parseFloat(ann.y) || 0));
       return ['div', {
         class: 'annotation-marker',
-        style: `position: absolute; left: ${ann.x}%; top: ${ann.y}%; transform: translate(-50%, -50%); width: 28px; height: 28px; border-radius: 50%; background-color: var(--brand-primary, #2563eb); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; border: 2px solid #fff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); cursor: help; z-index: 20; flex-shrink: 0;`,
+        style: `position: absolute; left: ${safeX}%; top: ${safeY}%; transform: translate(-50%, -50%); width: 28px; height: 28px; border-radius: 50%; background-color: var(--brand-primary, #2563eb); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; border: 2px solid #fff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); cursor: help; z-index: 20; flex-shrink: 0;`,
         'data-text': ann.text
       }, (index + 1).toString()];
     });
@@ -82,7 +99,7 @@ export const AnnotatedImage = Node.create<AnnotatedImageOptions>({
           'data-type': 'annotated-image',
           class: `annotated-image-container${effectClass}`,
           'data-effect': effect,
-          style: `width: ${node?.attrs?.width ?? 100}%; margin-left: auto; margin-right: auto;`,
+          style: `width: ${width}%; ${alignStyle}${alignDataAttr}`,
         },
         annotations.length > 0 ? { 'data-annotations': JSON.stringify(annotations) } : {}
       ),
@@ -98,6 +115,20 @@ export const AnnotatedImage = Node.create<AnnotatedImageOptions>({
           type: this.name,
           attrs: options,
         });
+      },
+      setAnnotatedImageAlign: (align) => ({ commands, chain, state, tr }) => {
+        // Set on all selected annotated images; fall back to cursor position.
+        const { from, to } = state.selection;
+        let updated = false;
+        state.doc.nodesBetween(from, to, (node, pos) => {
+          if (node.type.name === 'annotatedImage') {
+            tr.setNodeMarkup(pos, undefined, { ...node.attrs, align });
+            updated = true;
+            return false;
+          }
+          return true;
+        });
+        return updated;
       },
     };
   },

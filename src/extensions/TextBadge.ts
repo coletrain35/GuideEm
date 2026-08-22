@@ -1,4 +1,5 @@
 import { Mark, mergeAttributes } from '@tiptap/core'
+import { sanitizeColor } from '../utils/sanitize'
 
 export interface TextBadgeOptions {
   HTMLAttributes: Record<string, any>
@@ -27,7 +28,7 @@ export const TextBadge = Mark.create<TextBadgeOptions>({
         parseHTML: element => element.getAttribute('data-badge-color') || '#6366f1',
         renderHTML: attributes => ({
           'data-badge-color': attributes.color,
-          style: `background-color: ${attributes.color}; color: white; padding: 2px 8px; border-radius: 9999px; font-size: 0.75em; font-weight: 600; text-transform: uppercase; display: inline;`,
+          style: `background-color: ${sanitizeColor(attributes.color, '#6366f1')}; color: white; padding: 2px 8px; border-radius: 9999px; font-size: 0.75em; font-weight: 600; text-transform: uppercase; display: inline;`,
         }),
       },
     }

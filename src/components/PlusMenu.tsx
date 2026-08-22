@@ -84,13 +84,18 @@ export const PlusMenu = ({ editor }: PlusMenuProps) => {
     return () => document.removeEventListener('keydown', handler);
   }, [popoverOpen]);
 
-  // Flip logic
+  // Flip logic + responsive positioning
   useEffect(() => {
     if (!popoverOpen || !btnRef.current) return;
     const btnRect = btnRef.current.getBoundingClientRect();
     const spaceBelow = window.innerHeight - btnRect.bottom;
     setFlipUp(spaceBelow < 340);
   }, [popoverOpen]);
+
+  // On phones the popover is 288 px (w-72) which is wider than most of the
+  // editor's content area; switching to a bottom-anchored sheet keeps it on
+  // screen and matches the touch-friendly bottom-sheet pattern.
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
 
   const handleItemClick = (item: BlockItem) => {
     setPopoverOpen(false);
@@ -114,20 +119,33 @@ export const PlusMenu = ({ editor }: PlusMenuProps) => {
         className="fixed z-30 flex items-center justify-center w-7 h-7 rounded-full border border-slate-300 bg-white text-slate-400 hover:text-slate-600 hover:border-slate-400 shadow-sm transition-colors"
         style={{ top: btnPos.top, left: btnPos.left }}
         title="Insert block"
+        aria-label="Insert block"
+        aria-haspopup="dialog"
+        aria-expanded={popoverOpen}
       >
-        <Plus size={16} />
+        <Plus size={16} aria-hidden />
       </button>
 
-      {/* Popover */}
+      {/* Popover — anchored popover on desktop, full-width bottom sheet on mobile */}
       {popoverOpen && (
         <div
           ref={popoverRef}
-          className="fixed z-40 w-72 max-h-80 overflow-y-auto bg-white rounded-lg shadow-xl border border-slate-200 py-1"
-          style={{
-            top: flipUp ? undefined : btnPos.top + 32,
-            bottom: flipUp ? window.innerHeight - btnPos.top + 4 : undefined,
-            left: btnPos.left,
-          }}
+          className={
+            isMobile
+              ? 'fixed z-40 inset-x-0 bottom-0 max-h-[70vh] overflow-y-auto bg-white rounded-t-2xl shadow-2xl border-t border-slate-200 py-2'
+              : 'fixed z-40 w-72 max-h-80 overflow-y-auto bg-white rounded-lg shadow-xl border border-slate-200 py-1'
+          }
+          style={
+            isMobile
+              ? undefined
+              : {
+                  top: flipUp ? undefined : btnPos.top + 32,
+                  bottom: flipUp ? window.innerHeight - btnPos.top + 4 : undefined,
+                  left: btnPos.left,
+                }
+          }
+          role={isMobile ? 'dialog' : 'menu'}
+          aria-label="Insert block"
         >
           {grouped.map((group) => (
             <div key={group.category}>

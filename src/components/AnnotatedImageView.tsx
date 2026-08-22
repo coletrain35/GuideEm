@@ -1,6 +1,6 @@
 import { NodeViewWrapper } from '@tiptap/react';
-import { useState, useRef, useCallback } from 'react';
-import { Trash2 } from 'lucide-react';
+import { useState, useRef, useCallback, useId } from 'react';
+import { Trash2, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 import { BlockDeleteButton } from './BlockDeleteButton';
 
 const GripIcon = () => (
@@ -15,6 +15,7 @@ export const AnnotatedImageView = ({ node, updateAttributes, selected, editor, d
   const [isResizing, setIsResizing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const altInputId = useId();
   // Capture selected state at the START of mousedown (capture phase), before
   // ProseMirror's bubble-phase listener fires and mutates selection.
   const selectedAtMouseDownRef = useRef(false);
@@ -69,9 +70,42 @@ export const AnnotatedImageView = ({ node, updateAttributes, selected, editor, d
     document.addEventListener('mouseup', onMouseUp);
   }, [updateAttributes]);
 
+  const handleResizeStartTouch = useCallback((e: React.TouchEvent, side: 'left' | 'right') => {
+    e.stopPropagation();
+    if (!e.touches[0]) return;
+    const startX = e.touches[0].clientX;
+    const startWidth = wrapperRef.current?.offsetWidth ?? 0;
+    const parentWidth = wrapperRef.current?.parentElement?.offsetWidth ?? 1;
+
+    setIsResizing(true);
+
+    const onTouchMove = (ev: TouchEvent) => {
+      if (!ev.touches[0]) return;
+      const delta = side === 'right' ? ev.touches[0].clientX - startX : startX - ev.touches[0].clientX;
+      const newPct = Math.round(Math.max(10, Math.min(100, ((startWidth + delta) / parentWidth) * 100)));
+      updateAttributes({ width: newPct });
+    };
+
+    const onTouchEnd = () => {
+      setIsResizing(false);
+      document.removeEventListener('touchmove', onTouchMove);
+      document.removeEventListener('touchend', onTouchEnd);
+    };
+
+    document.addEventListener('touchmove', onTouchMove);
+    document.addEventListener('touchend', onTouchEnd);
+  }, [updateAttributes]);
+
   const effect = node.attrs.effect || 'none';
   const width: number = node.attrs.width ?? 100;
+  const align: 'left' | 'center' | 'right' = (node.attrs.align as any) || 'center';
+  const caption: string = node.attrs.caption || '';
   const showHandles = selected && editor.isEditable && !editingId;
+  const captionInputId = useId();
+  const alignStyle: React.CSSProperties =
+    align === 'left' ? { marginLeft: 0, marginRight: 'auto' }
+    : align === 'right' ? { marginLeft: 'auto', marginRight: 0 }
+    : (width >= 100 ? {} : { marginLeft: 'auto', marginRight: 'auto' });
 
   return (
     <NodeViewWrapper className={`group/block relative block my-8 ${selected ? 'ring-4 ring-blue-500/50 rounded-lg' : ''}`}>
@@ -100,12 +134,60 @@ export const AnnotatedImageView = ({ node, updateAttributes, selected, editor, d
         </div>
       )}
 
-      {/* Sizing wrapper */}
-      <div ref={wrapperRef} style={{ width: `${width}%` }} className="mx-auto relative">
+      {selected && editor.isEditable && (
+        <div className="mt-2 flex items-center gap-2 text-xs">
+          <label htmlFor={altInputId} className="text-slate-500 font-medium whitespace-nowrap">
+            Alt text
+          </label>
+          <input
+            id={altInputId}
+            type="text"
+            value={node.attrs.alt || ''}
+            onChange={(e) => updateAttributes({ alt: e.target.value })}
+            onClick={(e) => e.stopPropagation()}
+            placeholder="Describe this image for screen readers (leave empty if decorative)…"
+            className="flex-1 px-2 py-1 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            maxLength={280}
+          />
+          {node.attrs.alt ? (
+            <span className="text-emerald-600 text-[10px] font-medium">✓ described</span>
+          ) : (
+            <span className="text-amber-600 text-[10px] font-medium">⚠ missing</span>
+          )}
+        </div>
+      )}
 
-        {/* Left resize handle — centered on left edge of wrapper */}
+      {selected && editor.isEditable && (
+        <div className="mt-1.5 flex items-center gap-1 text-xs">
+          <span className="text-slate-500 font-medium whitespace-nowrap mr-1">Align</span>
+          {([
+            { value: 'left',   icon: AlignLeft,   title: 'Align left' },
+            { value: 'center', icon: AlignCenter, title: 'Center' },
+            { value: 'right',  icon: AlignRight,  title: 'Align right' },
+          ] as const).map(({ value, icon: Icon, title }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={(e) => { e.stopPropagation(); updateAttributes({ align: value }); }}
+              onMouseDown={(e) => e.stopPropagation()}
+              title={title}
+              aria-label={title}
+              aria-pressed={align === value}
+              className={`p-1 rounded ${align === value ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-200'}`}
+            >
+              <Icon size={12} />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Sizing wrapper */}
+      <div ref={wrapperRef} style={{ width: `${width}%`, ...alignStyle }} className="relative">
+
+        {/* Left resize handle */}
         <div
           onMouseDown={(e) => handleResizeStart(e, 'left')}
+          onTouchStart={(e) => handleResizeStartTouch(e, 'left')}
           style={{ left: 0, top: '50%', transform: 'translate(-50%, -50%)' }}
           className={`absolute z-40 w-5 h-14 rounded-full bg-white border border-slate-300 shadow-lg cursor-ew-resize select-none transition-opacity duration-150 hover:border-blue-400 hover:bg-blue-50 ${showHandles ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         >
@@ -133,7 +215,19 @@ export const AnnotatedImageView = ({ node, updateAttributes, selected, editor, d
               className="absolute -translate-x-1/2 -translate-y-1/2 group z-20"
               onClick={(e) => { e.stopPropagation(); if (editor.isEditable) setEditingId(ann.id); }}
             >
-              <div className={`w-8 h-8 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-xs font-bold shadow-lg border-2 border-white transition-transform ${editingId === ann.id ? 'bg-amber-500 scale-110 ring-4 ring-amber-500/30' : 'bg-blue-600 hover:bg-blue-700 hover:scale-110'} text-white cursor-pointer`}>
+              <div
+                role="button"
+                tabIndex={0}
+                aria-label={`Hotspot ${i + 1}: ${ann.text}`}
+                onKeyDown={(e) => {
+                  if (e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (editor.isEditable) setEditingId(editingId === ann.id ? null : ann.id);
+                  }
+                }}
+                className={`w-8 h-8 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-xs font-bold shadow-lg border-2 border-white transition-transform focus:outline-none focus:ring-4 focus:ring-blue-400 ${editingId === ann.id ? 'bg-amber-500 scale-110 ring-4 ring-amber-500/30' : 'bg-blue-600 hover:bg-blue-700 hover:scale-110'} text-white cursor-pointer`}
+              >
                 {i + 1}
               </div>
 
@@ -172,15 +266,45 @@ export const AnnotatedImageView = ({ node, updateAttributes, selected, editor, d
           ))}
         </div>
 
-        {/* Right resize handle — centered on right edge of wrapper */}
+        {/* Right resize handle */}
         <div
           onMouseDown={(e) => handleResizeStart(e, 'right')}
+          onTouchStart={(e) => handleResizeStartTouch(e, 'right')}
           style={{ right: 0, top: '50%', transform: 'translate(50%, -50%)' }}
           className={`absolute z-40 w-5 h-14 rounded-full bg-white border border-slate-300 shadow-lg cursor-ew-resize select-none transition-opacity duration-150 hover:border-blue-400 hover:bg-blue-50 ${showHandles ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         >
           <GripIcon />
         </div>
       </div>
+
+      {/* Caption — rendered below the image when present, with editable input when selected */}
+      {caption && (
+        <p
+          className="mx-auto mt-2 text-center text-sm text-slate-500 italic"
+          style={{ width: `${width}%` }}
+        >
+          {caption}
+        </p>
+      )}
+
+      {selected && editor.isEditable && (
+        <div className="mt-1.5 flex items-center gap-2 text-xs">
+          <label htmlFor={captionInputId} className="text-slate-500 font-medium whitespace-nowrap">
+            Caption
+          </label>
+          <input
+            id={captionInputId}
+            type="text"
+            value={caption}
+            onChange={(e) => updateAttributes({ caption: e.target.value })}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            placeholder="Optional caption (shown below the image)…"
+            maxLength={240}
+            className="flex-1 px-2 py-1 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          />
+        </div>
+      )}
     </NodeViewWrapper>
   );
 };

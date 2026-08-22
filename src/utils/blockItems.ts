@@ -5,9 +5,9 @@ import {
   Image as ImageIcon, Columns, ChevronsUpDown, Layers, GripHorizontal, Video,
   Milestone, LayoutGrid, Hash, MessageSquareQuote, PanelTop, BarChart3,
   GitCompare, SplitSquareHorizontal, PartyPopper, Info, AlertTriangle,
-  CheckCircle, Minus, PaintBucket, Table2, Briefcase, GalleryHorizontal, UserCircle2,
+  CheckCircle, XCircle, Minus, PaintBucket, Table2, Briefcase, GalleryHorizontal, UserCircle2,
   Cpu, Share2, Star, Monitor, Smartphone, SquareCode, Sparkles, ScrollText, PanelLeft, AppWindow,
-  Megaphone, Zap, Square, Cloud, Film, ArrowLeftRight,
+  Megaphone, Zap, Square, Cloud, Film, ArrowLeftRight,   MousePointerClick, GitMerge,
 } from 'lucide-react';
 
 export type BlockCategory = 'Text' | 'Callouts' | 'Media' | 'Layout' | 'Data' | 'Showcase';
@@ -134,8 +134,26 @@ export const BLOCK_ITEMS: BlockItem[] = [
     keywords: ['callout', 'success', 'done', 'check'],
     action: (e) => e.chain().focus().toggleCallout('success').run(),
   },
+  {
+    id: 'calloutDanger',
+    label: 'Danger Callout',
+    description: 'Red danger box',
+    icon: XCircle,
+    category: 'Callouts',
+    keywords: ['callout', 'danger', 'error', 'critical'],
+    action: (e) => e.chain().focus().toggleCallout('danger').run(),
+  },
 
   // ── Media ──
+  {
+    id: 'mermaid',
+    label: 'Diagram',
+    description: 'Flowchart, sequence, Gantt — Mermaid diagrams',
+    icon: GitMerge,
+    category: 'Media',
+    keywords: ['diagram', 'mermaid', 'flowchart', 'sequence', 'gantt', 'chart', 'uml'],
+    action: (e) => e.chain().focus().insertContent({ type: 'mermaid' }).run(),
+  },
   {
     id: 'image',
     label: 'Image',
@@ -182,6 +200,15 @@ export const BLOCK_ITEMS: BlockItem[] = [
       attrs: { beforeImage: '', afterImage: '', sliderPosition: 50, beforeLabel: 'Before', afterLabel: 'After' },
     }).run(),
   },
+  {
+    id: 'interactiveDemo',
+    label: 'Interactive Demo',
+    description: 'Click-through image walkthrough',
+    icon: MousePointerClick,
+    category: 'Media',
+    keywords: ['interactive', 'demo', 'walkthrough', 'click', 'prototype', 'simulation', 'tutorial', 'clickthrough'],
+    action: (e) => e.chain().focus().insertContent({ type: 'interactiveDemo' }).run(),
+  },
 
   // ── Layout ──
   {
@@ -220,8 +247,8 @@ export const BLOCK_ITEMS: BlockItem[] = [
     action: (e) => e.chain().focus().insertContent({
       type: 'tabGroup',
       content: [
-        { type: 'tabPanel', attrs: { label: 'Tab 1' }, content: [{ type: 'paragraph' }] },
-        { type: 'tabPanel', attrs: { label: 'Tab 2' }, content: [{ type: 'paragraph' }] },
+        { type: 'tabPanel', attrs: { label: 'Tab 1', active: true }, content: [{ type: 'paragraph' }] },
+        { type: 'tabPanel', attrs: { label: 'Tab 2', active: false }, content: [{ type: 'paragraph' }] },
       ],
     }).run(),
   },

@@ -16,55 +16,36 @@ const CounterNodeView = (props: any) => {
         } min-w-[160px]`}
         contentEditable={false}
       >
-        <div className="text-4xl font-bold text-blue-600 leading-none mb-1 tabular-nums">
-          {prefix && <span className="text-xl opacity-75">{prefix}</span>}
-          <span>{Number(value).toLocaleString()}</span>
-          {suffix && <span className="text-xl opacity-75">{suffix}</span>}
+        {/* Big number row — all inline */}
+        <div className="flex items-baseline gap-0.5 text-blue-600 leading-none mb-1 tabular-nums">
+          <input
+            value={prefix}
+            onChange={(e) => updateAttributes({ prefix: e.target.value })}
+            placeholder="$"
+            className="text-xl opacity-75 bg-transparent outline-none border-b border-transparent hover:border-blue-300 focus:border-blue-500 transition-colors text-center w-8 shrink-0 placeholder:text-blue-300/60"
+          />
+          <input
+            value={String(value)}
+            onChange={(e) => updateAttributes({ value: e.target.value })}
+            placeholder="0"
+            className="text-4xl font-bold bg-transparent outline-none border-b border-transparent hover:border-blue-300 focus:border-blue-500 transition-colors text-center placeholder:text-blue-300/60"
+            style={{ width: `${Math.max(String(value).length, 2) + 1}ch` }}
+          />
+          <input
+            value={suffix}
+            onChange={(e) => updateAttributes({ suffix: e.target.value })}
+            placeholder="%"
+            className="text-xl opacity-75 bg-transparent outline-none border-b border-transparent hover:border-blue-300 focus:border-blue-500 transition-colors text-center w-8 shrink-0 placeholder:text-blue-300/60"
+          />
         </div>
-        <div className="text-sm text-slate-500 font-medium mt-1">{label || 'Label'}</div>
 
-        {selected && (
-          <div className="mt-4 w-full space-y-2 text-left border-t border-blue-200 pt-4">
-            <div>
-              <label className="text-xs font-medium text-slate-500 block mb-0.5">Value</label>
-              <input
-                type="number"
-                value={value}
-                onChange={(e) => updateAttributes({ value: parseFloat(e.target.value) || 0 })}
-                className="w-full px-2 py-1 text-sm border rounded border-slate-200 outline-none focus:border-blue-400"
-              />
-            </div>
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <label className="text-xs font-medium text-slate-500 block mb-0.5">Prefix</label>
-                <input
-                  value={prefix}
-                  onChange={(e) => updateAttributes({ prefix: e.target.value })}
-                  placeholder="$"
-                  className="w-full px-2 py-1 text-sm border rounded border-slate-200 outline-none focus:border-blue-400"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="text-xs font-medium text-slate-500 block mb-0.5">Suffix</label>
-                <input
-                  value={suffix}
-                  onChange={(e) => updateAttributes({ suffix: e.target.value })}
-                  placeholder="%"
-                  className="w-full px-2 py-1 text-sm border rounded border-slate-200 outline-none focus:border-blue-400"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-500 block mb-0.5">Label</label>
-              <input
-                value={label}
-                onChange={(e) => updateAttributes({ label: e.target.value })}
-                placeholder="Happy Customers"
-                className="w-full px-2 py-1 text-sm border rounded border-slate-200 outline-none focus:border-blue-400"
-              />
-            </div>
-          </div>
-        )}
+        {/* Label */}
+        <input
+          value={label}
+          onChange={(e) => updateAttributes({ label: e.target.value })}
+          placeholder="Label"
+          className="text-sm text-slate-500 font-medium mt-1 bg-transparent outline-none border-b border-transparent hover:border-slate-300 focus:border-blue-400 transition-colors text-center w-full placeholder:text-slate-300"
+        />
       </div>
     </NodeViewWrapper>
   );

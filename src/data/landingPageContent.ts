@@ -121,7 +121,16 @@ npm run export -- --output ./dist/runbook.html</code></pre>
 
 <div data-type="section-divider" data-style="pulse" class="section-divider"></div>
 
-<h2>10. Animated Counters</h2>
+<h2>10. Architecture & Flow Diagrams (Mermaid)</h2>
+<p>Explain complex system architectures, databases, flowcharts, or state machines natively inside your documentation. The engine integrates with Mermaid to compile diagrams directly in-browser and inline the static vector result — keeping exports zero-dependency without losing visual clarity.</p>
+
+<div data-type="mermaid" data-definition="flowchart TD
+    Start([Start]) --&gt; Process[Build Standalone]
+    Process --&gt; Success([Deploy HTML])" data-theme="default" data-cached-svg="&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 400 240&quot; width=&quot;400&quot; height=&quot;240&quot; style=&quot;max-width: 400px; display: block; margin: 0 auto;&quot;&gt;&lt;defs&gt;&lt;marker id=&quot;arrow&quot; viewBox=&quot;0 0 10 10&quot; refX=&quot;6&quot; refY=&quot;5&quot; markerWidth=&quot;6&quot; markerHeight=&quot;6&quot; orient=&quot;auto-start-reverse&quot;&gt;&lt;path d=&quot;M 0 2 L 10 5 L 0 8 z&quot; fill=&quot;#6366f1&quot;/&gt;&lt;/marker&gt;&lt;/defs&gt;&lt;rect x=&quot;150&quot; y=&quot;10&quot; width=&quot;100&quot; height=&quot;40&quot; rx=&quot;20&quot; fill=&quot;#e0e7ff&quot; stroke=&quot;#6366f1&quot; stroke-width=&quot;2&quot;/&gt;&lt;text x=&quot;200&quot; y=&quot;34&quot; font-family=&quot;Inter, sans-serif&quot; font-size=&quot;12&quot; font-weight=&quot;600&quot; fill=&quot;#312e81&quot; text-anchor=&quot;middle&quot;&gt;Start&lt;/text&gt;&lt;path d=&quot;M 200 50 L 200 80&quot; stroke=&quot;#6366f1&quot; stroke-width=&quot;2&quot; marker-end=&quot;url(#arrow)&quot;/&gt;&lt;rect x=&quot;130&quot; y=&quot;90&quot; width=&quot;140&quot; height=&quot;40&quot; rx=&quot;8&quot; fill=&quot;#e0e7ff&quot; stroke=&quot;#6366f1&quot; stroke-width=&quot;2&quot;/&gt;&lt;text x=&quot;200&quot; y=&quot;114&quot; font-family=&quot;Inter, sans-serif&quot; font-size=&quot;12&quot; font-weight=&quot;600&quot; fill=&quot;#312e81&quot; text-anchor=&quot;middle&quot;&gt;Build Standalone&lt;/text&gt;&lt;path d=&quot;M 200 130 L 200 160&quot; stroke=&quot;#6366f1&quot; stroke-width=&quot;2&quot; marker-end=&quot;url(#arrow)&quot;/&gt;&lt;rect x=&quot;150&quot; y=&quot;170&quot; width=&quot;100&quot; height=&quot;40&quot; rx=&quot;20&quot; fill=&quot;#d1fae5&quot; stroke=&quot;#10b981&quot; stroke-width=&quot;2&quot;/&gt;&lt;text x=&quot;200&quot; y=&quot;194&quot; font-family=&quot;Inter, sans-serif&quot; font-size=&quot;12&quot; font-weight=&quot;600&quot; fill=&quot;#065f46&quot; text-anchor=&quot;middle&quot;&gt;Deploy HTML&lt;/text&gt;&lt;/svg&gt;"></div>
+
+<div data-type="section-divider" data-style="pulse" class="section-divider"></div>
+
+<h2>11. Animated Counters</h2>
 <p>Numbers that count up when they scroll into view. Drop a Counter block anywhere — it works especially well inside grid columns for stat showcases.</p>
 
 <div style="display:flex;flex-wrap:wrap;gap:1rem;margin:1.5rem 0;">
@@ -133,7 +142,7 @@ npm run export -- --output ./dist/runbook.html</code></pre>
 
 <div data-type="section-divider" data-style="gradient" class="section-divider"></div>
 
-<h2>11. Text Effects</h2>
+<h2>12. Text Effects</h2>
 <p>Three new inline mark types let you add visual flair to any selected text. All effects are preserved in the exported HTML — no extra setup required.</p>
 
 <h3>Gradient Text</h3>
@@ -160,7 +169,7 @@ npm run export -- --output ./dist/runbook.html</code></pre>
 
 <div data-type="section-divider" data-style="rainbow" class="section-divider"></div>
 
-<h2>12. What's Inside Every Export</h2>
+<h2>13. What's Inside Every Export</h2>
 <p>A single <code>.html</code> file that ships everything readers need — no runtime, no CDN, no dependencies.</p>
 
 <div data-type="card-grid" data-cols="3">
@@ -186,7 +195,7 @@ npm run export -- --output ./dist/runbook.html</code></pre>
 
 <div data-type="section-divider" data-style="gradient" class="section-divider"></div>
 
-<h2>13. Hero Banners</h2>
+<h2>14. Hero Banners</h2>
 <p>Drop a full-width gradient banner anywhere in your document — perfect for chapter headers, product announcements, or calls to action. Pick any two colors and add an optional CTA button.</p>
 
 <div data-type="hero-banner" data-scroll-reveal="zoom-in" data-gradient-from="#6366f1" data-gradient-to="#ec4899" data-title="Phase 2: Visual Blocks" data-subtitle="Hero banners, stat rows, testimonials, code diffs, and before/after sliders — all exported as a single self-contained HTML file." data-cta-text="Start Writing" data-cta-url="#"></div>
@@ -195,7 +204,7 @@ npm run export -- --output ./dist/runbook.html</code></pre>
 
 <div data-type="section-divider" data-style="dots" class="section-divider"></div>
 
-<h2>14. Testimonial Cards</h2>
+<h2>15. Testimonial Cards</h2>
 <p>Embed social proof directly in your documentation. Each card renders a quote, author name, role, and a colored avatar initial — no images needed, and no external services required.</p>
 
 <div data-type="testimonial" data-scroll-reveal="slide-left" data-quote="GuideEm replaced three different tools in our workflow. We now hand off design specs, onboarding flows, and release notes as single HTML files that work everywhere — no Notion, no Confluence, no Figma links that expire." data-author-name="Sarah Chen" data-author-role="Head of Product, Veritas Labs" data-avatar-color="#6366f1"></div>
@@ -204,14 +213,14 @@ npm run export -- --output ./dist/runbook.html</code></pre>
 
 <div data-type="section-divider" data-style="dots" class="section-divider"></div>
 
-<h2>15. Animated Stat Rows</h2>
+<h2>16. Animated Stat Rows</h2>
 <p>Numbers that count up when they scroll into view. The Stat Row block groups multiple animated counters in a responsive flex row — great for product pages, API reference intros, or capability overviews.</p>
 
 <div data-type="stat-row" data-stats='[{"value":"14","prefix":"","suffix":"","label":"Block Types","icon":"🧩"},{"value":"100","prefix":"","suffix":"%","label":"Client-Side Export","icon":"⚡"},{"value":"10","prefix":"","suffix":"x","label":"Image Compression","icon":"🗜️"},{"value":"0","prefix":"","suffix":"","label":"External Dependencies","icon":"📦"}]'></div>
 
 <div data-type="section-divider" data-style="dots" class="section-divider"></div>
 
-<h2>16. Code Diff Blocks</h2>
+<h2>17. Code Diff Blocks</h2>
 <p>Show exactly what changed between two versions of code — perfect for migration guides, API changelogs, and before/after refactoring examples. The diff is pre-computed at export time, so no JavaScript runs in the exported file to generate it.</p>
 
 <div data-type="code-diff" data-language="javascript" data-code-before="// v1 API
@@ -235,14 +244,14 @@ setUsers(users);"></div>
 
 <div data-type="section-divider" data-style="animated-gradient" class="section-divider"></div>
 
-<h2>17. Before / After Slider</h2>
+<h2>18. Before / After Slider</h2>
 <p>Let readers drag a divider to compare two images side by side — ideal for UI redesigns, photo edits, design system migrations, or any visual before/after comparison. The slider is fully interactive in the exported file.</p>
 
 <div data-type="before-after" data-before-image="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=1200&q=80" data-after-image="https://images.unsplash.com/photo-1543722530-d2c3201371e7?auto=format&fit=crop&w=1200&q=80" data-slider-position="50" data-before-label="Night" data-after-label="Day"></div>
 
 <div data-type="section-divider" data-style="rainbow" class="section-divider"></div>
 
-<h2>18. Motion & Animation</h2>
+<h2>19. Motion & Animation</h2>
 <p>Phase 3 adds three new animation systems that work in both the editor and every exported file.</p>
 
 <div data-type="card-grid" data-cols="3">
@@ -259,7 +268,7 @@ setUsers(users);"></div>
 
 <div data-type="section-divider" data-style="gradient" class="section-divider"></div>
 
-<h2>19. Visual Polish</h2>
+<h2>20. Visual Polish</h2>
 <p>Two layers of visual refinement: language-tinted inline code labels and image presentation effects — all rendered identically in the editor and in every exported file.</p>
 
 <h3>Syntax-Highlighted Inline Code</h3>
@@ -297,7 +306,7 @@ setUsers(users);"></div>
 
 <div data-type="section-divider" data-style="gradient" class="section-divider"></div>
 
-<h2>20. Background Sections</h2>
+<h2>21. Background Sections</h2>
 <p>Wrap any block in a styled background container — solid fills, brand tints, dark panels, or geometric patterns. All patterns are pure CSS, so they add zero bytes to the exported file.</p>
 
 <div data-type="background-section" data-bg-preset="dots" data-padding="md" data-border-radius="md">
@@ -330,7 +339,7 @@ $ npm run export -- --output ./dist/guide.html
 
 <div data-type="section-divider" data-style="animated-gradient" class="section-divider"></div>
 
-<h2>21. Document Cover Styles</h2>
+<h2>22. Document Cover Styles</h2>
 <p>Every document gets a visual title treatment. Five styles replace the plain title input with a full-bleed cover header — fully WYSIWYG in the editor and exported identically to HTML. Use the <strong>Cover Style</strong> picker on the left to switch this document's cover live.</p>
 
 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;margin:1.5rem 0;">
@@ -371,14 +380,14 @@ $ npm run export -- --output ./dist/guide.html
 
 <div data-type="section-divider" data-style="gradient" class="section-divider"></div>
 
-<h2>22. Portfolio: Project Cards & Gallery</h2>
+<h2>23. Portfolio: Project Cards & Gallery</h2>
 <p>Showcase any kind of work — software projects, design case studies, photo series, research papers, or client campaigns. Drop a single <strong>Project Card</strong> anywhere in your document, or group them into a <strong>Project Gallery</strong> for a responsive 2 or 3-column grid. Each card supports a thumbnail, title, description, freeform tags, and optional live demo and repo links — tags work equally well for tech stacks, disciplines, or categories.</p>
 
 <div data-type="project-gallery" data-cols="3" data-cards='[{"thumbnail":"","title":"Coastal Brand Identity","description":"Complete visual identity for a boutique seafood restaurant — logo, color palette, menu design, and signage system. Delivered in 6 weeks from brief to final handoff.","tags":["Branding","Print","Typography","Figma"],"liveUrl":"#","repoUrl":"","accentColor":"#0ea5e9"},{"thumbnail":"","title":"Urban Geometry — Photo Series","description":"A 40-image series documenting architectural patterns in five cities. Featured in Aperture Magazine and exhibited at the 2024 London Photo Festival.","tags":["Photography","Exhibition","2024","Architecture"],"liveUrl":"#","repoUrl":"","accentColor":"#f97316"},{"thumbnail":"","title":"GuideEm","description":"A local-first documentation editor that exports standalone HTML files with zero external dependencies. Everything runs in the browser — no server, no account required.","tags":["Open Source","Web App","Local-First"],"liveUrl":"#","repoUrl":"https://github.com/coletrain35/GuideEm","accentColor":"#6366f1"}]'></div>
 
 <div data-type="section-divider" data-style="gradient" class="section-divider"></div>
 
-<h2>23. About Me / Bio Block</h2>
+<h2>24. About Me / Bio Block</h2>
 <p>A clean split layout for personal introductions — avatar, name, role, and bio paragraph side by side. Drop it at the top of a portfolio, an author page, or any document where context about who wrote it matters. Toggle the avatar to the left or right, upload a photo or paste a URL, and pick an accent color. The avatar is always circular.</p>
 
 <div data-type="about-me" data-name="Alex Rivera" data-role="Senior Product Designer · San Francisco" data-bio="I design systems and interfaces at the intersection of clarity and delight. Previously at Stripe and Figma — now building tools that help teams communicate complex ideas without friction. Open to interesting collaborations." data-accent-color="#6366f1" data-layout="left" data-avatar="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=facearea&facepad=3&w=256&h=256&q=80"></div>
@@ -387,7 +396,7 @@ $ npm run export -- --output ./dist/guide.html
 
 <div data-type="section-divider" data-style="gradient" class="section-divider"></div>
 
-<h2>24. Portfolio Hero Block</h2>
+<h2>25. Portfolio Hero Block</h2>
 <p>A full-width personal branding block — name, tagline, optional status badge, and two CTA buttons over a fully customizable gradient. Drop it at the top of any portfolio page for an immediate first impression. Both gradient stops, alignment (left or centered), and all text fields are editable inline.</p>
 
 <div data-type="portfolio-hero" data-name="Jordan Reeves" data-tagline="I design and build digital products that feel inevitable — fast, accessible, and honest to the medium." data-badge-text="Available for new projects" data-cta-text="View My Work" data-cta-url="#" data-cta-secondary-text="Get in Touch" data-cta-secondary-url="mailto:hello@jordanreeves.design" data-gradient-from="#6366f1" data-gradient-to="#ec4899" data-alignment="center"></div>
@@ -396,7 +405,7 @@ $ npm run export -- --output ./dist/guide.html
 
 <div data-type="section-divider" data-style="dots" class="section-divider"></div>
 
-<h2>25. Tech Stack Grid</h2>
+<h2>26. Tech Stack Grid</h2>
 <p>A compact icon grid for listing languages, frameworks, and tools — with no external icon library required. Each tile holds an emoji (or any Unicode character) as the icon and a label below it. Configure the number of columns from 3 to 6, choose an accent color for the tile borders and background tint, and add or remove entries freely. The grid is fully responsive in the exported file.</p>
 
 <div data-type="tech-stack" data-cols="6" data-accent-color="#6366f1" data-items='[{"icon":"⚛️","label":"React"},{"icon":"🟦","label":"TypeScript"},{"icon":"🐍","label":"Python"},{"icon":"🦀","label":"Rust"},{"icon":"🐘","label":"PostgreSQL"},{"icon":"🟩","label":"Node.js"},{"icon":"🐳","label":"Docker"},{"icon":"☁️","label":"AWS"},{"icon":"🎨","label":"Figma"},{"icon":"🔷","label":"GraphQL"},{"icon":"⚡","label":"Vite"},{"icon":"🧪","label":"Vitest"}]'></div>
@@ -405,7 +414,7 @@ $ npm run export -- --output ./dist/guide.html
 
 <div data-type="section-divider" data-style="dots" class="section-divider"></div>
 
-<h2>26. Social Links Bar</h2>
+<h2>27. Social Links Bar</h2>
 <p>A configurable row of icon links — GitHub, LinkedIn, Twitter/X, Dribbble, email, and more. Three display styles: <strong>icons</strong> (minimal circles), <strong>pills</strong> (icon + label on a tinted background), or <strong>buttons</strong> (outlined with a border). Alignment is independently configurable. All links render as real anchor tags with <code>target="_blank"</code> in the exported file.</p>
 
 <p>Icons style:</p>
@@ -419,7 +428,7 @@ $ npm run export -- --output ./dist/guide.html
 
 <div data-type="section-divider" data-style="gradient" class="section-divider"></div>
 
-<h2>27. Workflow Cards</h2>
+<h2>28. Workflow Cards</h2>
 <p>Turn any multi-step process into a polished vertical flow. Workflow blocks support seven accent colors, ten card background presets — including gradients and animated effects — and per-step background overrides. Each step has an icon picker, a rich-text body, and an optional image. All of it exports as a single self-contained HTML block.</p>
 
 <h3>Emerald · Frost gradient background</h3>
@@ -467,14 +476,14 @@ $ npm run export -- --output ./dist/guide.html
   </div>
 </div>
 
-<h2>28. Bento Grid</h2>
+<h2>29. Bento Grid</h2>
 <p>An asymmetric card grid inspired by Apple's product pages. Each cell can span multiple columns and rows, with three visual variants — default, accent (brand-tinted), and dark. Great for feature overviews, capability matrices, and product highlights.</p>
 
 <div data-type="bento-grid" data-cells='[{"icon":"🚀","title":"Lightning Fast","description":"Sub-second exports with zero server round-trips. Everything runs locally in the browser.","variant":"accent","colSpan":2,"rowSpan":1},{"icon":"📦","title":"Self-Contained","description":"One HTML file. No external dependencies.","variant":"default","colSpan":1,"rowSpan":1},{"icon":"🎨","title":"Fully Themeable","description":"Colors, fonts, and layouts adapt to your brand.","variant":"dark","colSpan":1,"rowSpan":2},{"icon":"🔒","title":"Private by Default","description":"No telemetry, no analytics, no server. Your data never leaves your device.","variant":"default","colSpan":1,"rowSpan":1},{"icon":"🧩","title":"30+ Block Types","description":"From callouts to code diffs, timelines to bento grids — every block exports perfectly.","variant":"accent","colSpan":1,"rowSpan":1}]'></div>
 
 <div data-type="section-divider" data-style="gradient" class="section-divider"></div>
 
-<h2>29. Feature Spotlight</h2>
+<h2>30. Feature Spotlight</h2>
 <p>A split-panel layout for showcasing a key feature with a visual on one side and descriptive content on the other. Supports bullet points, gradient backgrounds, layout direction toggle, and accent color customization.</p>
 
 <div data-type="feature-spotlight" data-title="Export Anywhere" data-description="Generate a fully self-contained HTML file that works everywhere — email attachments, S3 buckets, USB drives, or any static host. No build step, no server, no account." data-bullets='["Zero external dependencies","Works offline out of the box","Under 200 KB per export"]' data-layout="image-left" data-gradient="linear-gradient(135deg, #6366f1 0%, #a855f7 100%)" data-accent-color="#6366f1" data-icon="📄"></div>
@@ -483,14 +492,14 @@ $ npm run export -- --output ./dist/guide.html
 
 <div data-type="section-divider" data-style="dots" class="section-divider"></div>
 
-<h2>30. Sticky Scroll Sections</h2>
+<h2>31. Sticky Scroll Sections</h2>
 <p>A Stripe-style two-panel layout with a sticky navigation on the left and content panels on the right. Perfect for step-by-step guides, onboarding flows, and API walkthroughs. Click the steps on the left to switch panels.</p>
 
 <div data-type="sticky-scroll" data-sticky-title="Getting Started" data-sticky-description="Go from zero to a published document in three steps." data-accent-color="#6366f1" data-steps='[{"title":"Install the package","description":"Get started by installing the package with your preferred package manager.","code":"npm install @guideem/core"},{"title":"Create your first document","description":"Open the editor, pick a theme, and start dropping blocks with the slash menu.","code":"const editor = createEditor()"},{"title":"Export and share","description":"Click Export to generate a single HTML file. Email it, host it, or open it offline.","code":"guideem export --output guide.html"}]'></div>
 
 <div data-type="section-divider" data-style="gradient" class="section-divider"></div>
 
-<h2>31. Code Window</h2>
+<h2>32. Code Window</h2>
 <p>A macOS-style code block with traffic light dots, editable title bar, line numbers, and four color themes — dark, light, nord, and dracula. The code is always editable in the editor; in the exported file it renders as a styled <code>&lt;pre&gt;</code> block.</p>
 
 <div data-type="code-window" data-code="import { exportGuide } from '@guideem/core';
@@ -517,14 +526,14 @@ print(f'Done — {len(html) / 1024:.0f} KB')" data-language="python" data-title=
 
 <div data-type="section-divider" data-style="dots" class="section-divider"></div>
 
-<h2>32. Changelog Timeline</h2>
+<h2>33. Changelog Timeline</h2>
 <p>A vertical timeline for release notes, version histories, and project updates. Each entry has a version badge, date, and categorized items — Added (green), Fixed (blue), Changed (amber), and Removed (red). All styled with colored badges and dot indicators.</p>
 
 <div data-type="changelog-timeline" data-entries='[{"version":"v2.0.0","date":"March 2026","items":[{"type":"added","text":"Bento Grid, Feature Spotlight, Sticky Scroll, Code Window, Changelog Timeline, Browser Mockup, and Phone Mockup blocks"},{"type":"added","text":"Four code window themes: dark, light, nord, dracula"},{"type":"changed","text":"Export engine now handles 30+ block types with full fidelity"},{"type":"fixed","text":"Phone mockup image now fills the frame edge-to-edge"}]},{"version":"v1.5.0","date":"February 2026","items":[{"type":"added","text":"Portfolio blocks: Project Cards, Gallery, Hero, About Me, Tech Stack, Social Links"},{"type":"added","text":"Workflow Cards with 10 background presets and per-step overrides"},{"type":"fixed","text":"Scroll reveal animations no longer trigger on page load"}]},{"version":"v1.0.0","date":"January 2026","items":[{"type":"added","text":"Initial release with 14 block types"},{"type":"added","text":"Single-file HTML export with zero dependencies"},{"type":"added","text":"IndexedDB persistence with automatic save"}]}]'></div>
 
 <div data-type="section-divider" data-style="animated-gradient" class="section-divider"></div>
 
-<h2>33. Browser Mockup</h2>
+<h2>34. Browser Mockup</h2>
 <p>Wrap any screenshot in a realistic browser chrome — complete with traffic light dots and an editable URL bar. Light and dark variants available. The frame renders identically in the editor and in exported files.</p>
 
 <div data-type="browser-mockup" data-url="https://guideem.app/docs/getting-started" data-variant="light"></div>
@@ -533,12 +542,94 @@ print(f'Done — {len(html) / 1024:.0f} KB')" data-language="python" data-title=
 
 <div data-type="section-divider" data-style="dots" class="section-divider"></div>
 
-<h2>34. Phone Mockup</h2>
+<h2>35. Phone Mockup</h2>
 <p>An iPhone-style device frame for showcasing mobile screenshots, app designs, or responsive layouts. The image fills the frame edge-to-edge with a dynamic island overlay. Toggle between dark and light frames and optionally show a status bar.</p>
 
 <div data-type="phone-mockup" data-variant="dark" data-show-status-bar="false"></div>
 
 <div data-type="phone-mockup" data-variant="light" data-show-status-bar="true"></div>
+
+<div data-type="section-divider" data-style="dots" class="section-divider"></div>
+
+<h2>36. Announcement Pills</h2>
+<p>A compact pill-shaped banner for surfacing product announcements, feature launches, or status updates. Six color variants, an optional shimmer sweep, and left/center/right alignment. Drop one before a hero banner to create a polished product-page feel.</p>
+
+<div data-type="announcement-pill" data-label="New" data-message="GuideEm v2.1 is live — seven new visual blocks added" data-url="#" data-variant="indigo" data-shimmer="true" data-align="center"></div>
+
+<div data-type="announcement-pill" data-label="Update" data-message="Marquee, Glow Cards, and Gradient Blobs are now available in the slash menu" data-url="#" data-variant="emerald" data-shimmer="true" data-align="center"></div>
+
+<div data-type="announcement-pill" data-label="Breaking" data-message="Legacy export format deprecated in v2.0 — migrate before April 2026" data-url="#" data-variant="rose" data-shimmer="false" data-align="center"></div>
+
+<div data-type="announcement-pill" data-label="Tip" data-message="Pair announcement pills with Hero Banners for a polished product-page opening" data-url="" data-variant="amber" data-shimmer="true" data-align="center"></div>
+
+<div data-type="section-divider" data-style="gradient" class="section-divider"></div>
+
+<h2>37. Marquee</h2>
+<p>A continuously scrolling ticker — useful for feature highlights, social proof items, tech stack lists, or any repeating content. Configurable speed, direction, separator style, and accent color. Pauses automatically when scrolled out of view.</p>
+
+<div data-type="marquee" data-speed="medium" data-direction="left" data-separator="star" data-accent-color="#6366f1" data-items='[{"text":"Zero Dependencies","emoji":"📦"},{"text":"Local-First Storage","emoji":"🔒"},{"text":"Single-File Export","emoji":"📄"},{"text":"30+ Block Types","emoji":"🧩"},{"text":"10× Image Compression","emoji":"🗜️"},{"text":"Offline Ready","emoji":"✈️"},{"text":"Dark Mode Support","emoji":"🌙"},{"text":"Custom Theming","emoji":"🎨"}]'></div>
+
+<div data-type="marquee" data-speed="slow" data-direction="right" data-separator="dot" data-accent-color="#10b981" data-items='[{"text":"TypeScript","emoji":"🟦"},{"text":"React","emoji":"⚛️"},{"text":"Tiptap","emoji":"✏️"},{"text":"Tailwind CSS","emoji":"🌀"},{"text":"Vite","emoji":"⚡"},{"text":"IndexedDB","emoji":"🗄️"},{"text":"WebP Compression","emoji":"🗜️"},{"text":"Canvas API","emoji":"🖼️"}]'></div>
+
+<div data-type="section-divider" data-style="animated-gradient" class="section-divider"></div>
+
+<h2>38. Glow Cards</h2>
+<p>Feature cards with a cursor-tracking spotlight glow. Hover each card to see the radial gradient follow your mouse — the glow color is set per card and renders in both light and dark variants. A glass option adds a frosted backdrop for use over dark or image backgrounds.</p>
+
+<div data-type="glow-cards" data-cols="3" data-card-bg="white" data-text-color="light" data-cards='[{"emoji":"⚡","title":"Lightning Fast","description":"Optimized for performance with sub-millisecond response times and zero server round-trips.","glowColor":"#facc15"},{"emoji":"🔒","title":"Secure by Default","description":"End-to-end encryption, SOC 2 certified, and zero-knowledge architecture keeps your data safe.","glowColor":"#6366f1"},{"emoji":"🚀","title":"Ship Faster","description":"From idea to production in minutes. One file, zero build steps, no deployment pipeline required.","glowColor":"#f43f5e"}]'></div>
+
+<div data-type="glow-cards" data-cols="3" data-card-bg="dark" data-text-color="dark" data-cards='[{"emoji":"🧩","title":"Composable Blocks","description":"Mix and match 30+ block types in any order. Drag to reorder, configure inline, export with fidelity.","glowColor":"#8b5cf6"},{"emoji":"🎨","title":"Live Theming","description":"Change your brand color once — it propagates through the entire exported document instantly.","glowColor":"#ec4899"},{"emoji":"🌐","title":"Works Anywhere","description":"Email it, host it on S3, open it from a USB drive. If a browser can open it, it works.","glowColor":"#10b981"}]'></div>
+
+<div data-type="section-divider" data-style="dots" class="section-divider"></div>
+
+<h2>39. Hover Reveal Cards</h2>
+<p>Cards with a hidden back side revealed on hover. Two animation modes: <strong>flip</strong> (3D card rotation) and <strong>slide</strong> (panel slides up to reveal the back). Great for feature previews, FAQ teasers, or any content where progressive disclosure improves the reading experience.</p>
+
+<h3>Flip style</h3>
+<div data-type="hover-reveal" data-cols="3" data-reveal-style="flip" data-cards='[{"emoji":"🚀","frontTitle":"Ship Faster","backDescription":"Deploy to production in seconds with our automated CI/CD pipeline and one-click rollbacks.","accentColor":"#6366f1"},{"emoji":"🔒","frontTitle":"Stay Secure","backDescription":"End-to-end encryption, SOC 2 certified, and zero-knowledge architecture keeps your data safe.","accentColor":"#10b981"},{"emoji":"📊","frontTitle":"Deep Analytics","backDescription":"Real-time dashboards with custom metrics, funnels, and cohort analysis for data-driven decisions.","accentColor":"#f59e0b"}]'></div>
+
+<h3>Slide style</h3>
+<div data-type="hover-reveal" data-cols="3" data-reveal-style="slide" data-cards='[{"emoji":"📦","frontTitle":"Self-Contained","backDescription":"Every exported file includes all CSS, JS, and images — no CDN, no external fonts, no runtime required.","accentColor":"#0ea5e9"},{"emoji":"🎯","frontTitle":"Precision Export","backDescription":"What you see in the editor is exactly what your readers get. No layout drift, no missing styles.","accentColor":"#8b5cf6"},{"emoji":"✈️","frontTitle":"Works Offline","backDescription":"Open the file on a plane, in a meeting room, or on a corporate intranet with no internet access.","accentColor":"#f43f5e"}]'></div>
+
+<div data-type="section-divider" data-style="gradient" class="section-divider"></div>
+
+<h2>40. Gradient Border</h2>
+<p>A card with an animated gradient border that continuously cycles through two or three color stops. Six presets (Aurora, Sunset, Ocean, Forest, Gold, Mono), configurable border width (1–3 px), animation speed, and corner radius. The border animation is pure CSS — zero JavaScript and zero extra bytes in the export.</p>
+
+<div data-type="gradient-border" data-title="Zero-Dependency Export" data-description="Every byte — styles, scripts, and compressed images — is inlined at export time. Open the file anywhere a browser exists." data-preset="0" data-border-width="2" data-anim-speed="medium" data-border-radius="md"></div>
+
+<div data-type="gradient-border" data-title="Ship Without a Build Step" data-description="No webpack, no Rollup, no CI pipeline required. Click Export — your document is ready in milliseconds." data-preset="1" data-border-width="3" data-anim-speed="fast" data-border-radius="lg"></div>
+
+<div data-type="gradient-border" data-title="Private by Default" data-description="No account, no telemetry, no server. Your documentation stays entirely on your device until you choose to share it." data-preset="2" data-border-width="2" data-anim-speed="slow" data-border-radius="sm"></div>
+
+<div data-type="section-divider" data-style="rainbow" class="section-divider"></div>
+
+<h2>41. Gradient Blobs</h2>
+<p>Soft, blurred radial gradients layered over a dark background — the same effect used in hero sections across Stripe, Linear, and Vercel. Five color presets and an optional CSS animation that drifts the blobs slowly while in view. Everything is pure CSS with no images and no extra bytes in the export.</p>
+
+<div data-type="gradient-blobs" data-preset="0" data-title="Aurora" data-subtitle="Indigo, pink, and violet blobs over near-black — the classic dark SaaS hero palette." data-height="md" data-animate="true"></div>
+
+<div data-type="gradient-blobs" data-preset="1" data-title="Ocean" data-subtitle="Cyan, blue, and indigo on a deep navy background — clean, technical, trustworthy." data-height="md" data-animate="true"></div>
+
+<div data-type="gradient-blobs" data-preset="4" data-title="Minimal" data-subtitle="Soft blobs on white — works with light-mode documents or editorial layouts." data-height="sm" data-animate="true"></div>
+
+<div data-type="section-divider" data-style="dots" class="section-divider"></div>
+
+<h2>42. Noise / Grain Texture</h2>
+<p>An inline SVG fractal-noise texture overlaid on a solid background — no external image file, no extra bytes in the export. Six background presets from white to dark slate, with adjustable grain opacity and density sliders. Pairs especially well with editorial typography or dark-mode section headers.</p>
+
+<div data-type="noise-overlay" data-bg-preset="0" data-noise-opacity="0.15" data-noise-density="50" data-title="Clean Grain on White" data-subtitle="A subtle analog texture that lifts any flat section off the page." data-height="sm"></div>
+
+<div data-type="noise-overlay" data-bg-preset="3" data-noise-opacity="0.20" data-noise-density="60" data-title="Dark Slate + Heavy Grain" data-subtitle="High-density noise on dark slate — strong editorial texture for chapter headers or pull-quote panels." data-height="sm"></div>
+
+<div data-type="noise-overlay" data-bg-preset="5" data-noise-opacity="0.15" data-noise-density="40" data-title="Indigo Night" data-subtitle="Dark indigo with a fine grain overlay — the same texture behind premium SaaS pricing tables." data-height="sm"></div>
+
+<div data-type="section-divider" data-style="rainbow" class="section-divider"></div>
+
+<h2>43. Interactive Demo</h2>
+<p>Build click-through image walkthroughs that simulate real UI interactions. Upload multiple frames — screenshots of your app, dashboard, or workflow — then draw rectangular hotspot regions that link to other frames. Readers click through the demo just like they would use the real product. Supports fade and directional slide transitions, optional branching (one hotspot can jump to any frame), navigation dots, and a back button. Everything exports as self-contained HTML with zero dependencies.</p>
+
+<div data-type="interactive-demo" data-frames='[{"id":"frame1","image":"https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80","label":"Dashboard"},{"id":"frame2","image":"https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80","label":"Analytics"},{"id":"frame3","image":"https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?auto=format&fit=crop&w=1200&q=80","label":"Reports"}]' data-hotspots='[{"id":"hs1","frameId":"frame1","x":65,"y":15,"width":25,"height":10,"targetFrameId":"frame2","tooltip":"View Analytics"},{"id":"hs2","frameId":"frame2","x":10,"y":70,"width":20,"height":10,"targetFrameId":"frame3","tooltip":"Open Reports"},{"id":"hs3","frameId":"frame2","x":70,"y":70,"width":20,"height":10,"targetFrameId":"frame1","tooltip":"Back to Dashboard"},{"id":"hs4","frameId":"frame3","x":40,"y":80,"width":20,"height":8,"targetFrameId":"frame1","tooltip":"Return Home"}]' data-transition="slide-left" data-show-nav="true"></div>
 
 <div data-type="section-divider" data-style="rainbow" class="section-divider"></div>
 

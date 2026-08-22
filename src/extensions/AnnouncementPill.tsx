@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
-import React from 'react';
+import React, { useRef, useState } from 'react';
+import { Paintbrush } from 'lucide-react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 const VARIANTS = {
@@ -15,40 +16,130 @@ const VARIANTS = {
 const AnnouncementPillNodeView = (props: any) => {
   const { node, updateAttributes, selected, deleteNode, getPos, editor } = props;
   const { label, message, url, variant, shimmer, align } = node.attrs;
+  const [showStyle, setShowStyle] = useState(false);
+  const styleRef = useRef<HTMLDivElement>(null);
 
   const colors = VARIANTS[variant as keyof typeof VARIANTS] ?? VARIANTS.indigo;
   const alignClass = align === 'left' ? 'justify-start' : align === 'right' ? 'justify-end' : 'justify-center';
 
   return (
-    <NodeViewWrapper className="group/block relative my-6" contentEditable={false}>
+    <NodeViewWrapper className="not-prose group/block relative my-2" contentEditable={false}>
       <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
+
+      {/* Floating Style/Settings Toolbar */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-30 text-sm opacity-0 group-hover/block:opacity-100 pointer-events-none group-hover/block:pointer-events-auto transition-opacity">
+        <div ref={styleRef} className="relative">
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setShowStyle(!showStyle)}
+            className={`flex items-center gap-1 px-3 py-1 rounded-full transition-colors ${showStyle ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-600'}`}
+          >
+            <Paintbrush size={14} /> Style
+          </button>
+          {showStyle && (
+            <div
+              onMouseDown={(e) => e.stopPropagation()}
+              className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-white border border-slate-200 rounded-xl shadow-xl p-3 w-64 space-y-3"
+            >
+              <div>
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Variant / Color</p>
+                <div className="flex gap-1.5 flex-wrap">
+                  {(Object.keys(VARIANTS) as Array<keyof typeof VARIANTS>).map(v => (
+                    <button
+                      key={v}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => updateAttributes({ variant: v })}
+                      title={v}
+                      className={`w-6 h-6 rounded-full border-2 transition-all ${variant === v ? 'border-slate-700 scale-110' : 'border-transparent'}`}
+                      style={{ backgroundColor: VARIANTS[v].badge }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Alignment</p>
+                <div className="flex gap-1">
+                  {['left', 'center', 'right'].map((a) => (
+                    <button
+                      key={a}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => updateAttributes({ align: a })}
+                      className={`flex-1 py-1 text-[10px] rounded border capitalize transition-all ${align === a ? 'bg-indigo-600 text-white border-indigo-600' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                    >
+                      {a}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="shimmer-toggle"
+                  checked={shimmer}
+                  onChange={e => updateAttributes({ shimmer: e.target.checked })}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <label htmlFor="shimmer-toggle" className="text-[11px] font-medium text-slate-600 select-none">Shimmer effect</label>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Link URL (optional)</label>
+                <input
+                  value={url}
+                  onChange={e => updateAttributes({ url: e.target.value })}
+                  placeholder="https://..."
+                  className="w-full px-2 py-1 text-xs border rounded border-slate-200 outline-none focus:border-indigo-400 bg-white"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       <div className={`flex ${alignClass}`}>
         <div
-          className={`relative inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium overflow-hidden select-none ${url ? 'cursor-pointer' : ''}`}
+          className={`relative inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full text-sm leading-5 font-medium overflow-hidden select-none border transition-all ${
+            selected ? 'ring-2 ring-indigo-200 border-indigo-400 scale-105 shadow-sm bg-white' : 'border-transparent'
+          }`}
           style={{
             backgroundColor: colors.pill,
-            border: `1px solid ${colors.pillBorder}`,
+            borderColor: selected ? undefined : colors.pillBorder,
             color: colors.pillText,
           }}
         >
-          {/* Badge */}
-          <span
-            className="px-2 py-0.5 rounded-full text-xs font-semibold"
-            style={{ backgroundColor: colors.badge, color: colors.badgeText }}
+          {/* Badge Label - Bulletproof Auto-growing Inline Grid Input with absolute min-width: 0 override */}
+          <div
+            className="px-2.5 py-0.5 rounded-full text-xs font-bold flex items-center justify-center transition-colors shrink-0"
+            style={{
+              backgroundColor: colors.badge,
+              color: colors.badgeText,
+            }}
           >
-            {label || 'New'}
+            <span className="inline-grid grid-cols-1 min-w-0">
+              <span className="invisible row-start-1 col-start-1 whitespace-pre text-xs font-bold px-0.5">{label || 'New'}</span>
+              <input
+                value={label}
+                onChange={e => updateAttributes({ label: e.target.value })}
+                placeholder="New"
+                className="row-start-1 col-start-1 bg-transparent border-none outline-none p-0 text-center w-full min-w-0 text-xs font-bold placeholder:text-white/40 cursor-text"
+                style={{ color: colors.badgeText }}
+              />
+            </span>
+          </div>
+
+          {/* Message - Bulletproof Auto-growing Inline Grid Input with absolute min-width: 0 override */}
+          <span className="inline-grid grid-cols-1 min-w-0">
+            <span className="invisible row-start-1 col-start-1 whitespace-pre px-0.5 text-sm font-medium">{message || 'Something exciting just launched'}</span>
+            <input
+              value={message}
+              onChange={e => updateAttributes({ message: e.target.value })}
+              placeholder="Something exciting just launched"
+              className="row-start-1 col-start-1 bg-transparent border-none outline-none p-0 w-full min-w-0 text-sm font-medium placeholder:text-slate-400 cursor-text"
+              style={{ color: colors.pillText }}
+            />
           </span>
-
-          {/* Message */}
-          <span>{message || 'Something exciting just launched'}</span>
-
-          {/* Arrow */}
-          {url && (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-60">
-              <path d="M5 12h14m-7-7 7 7-7 7" />
-            </svg>
-          )}
 
           {/* Shimmer overlay */}
           {shimmer && (
@@ -63,59 +154,6 @@ const AnnouncementPillNodeView = (props: any) => {
           )}
         </div>
       </div>
-
-      {selected && (
-        <div className="mt-4 border border-slate-200 rounded-xl bg-white p-4 space-y-3">
-          <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Announcement Pill</p>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-xs text-slate-500 mb-1">Badge Label</label>
-              <input value={label} onChange={e => updateAttributes({ label: e.target.value })}
-                placeholder="New" className="w-full text-sm border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700" />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-500 mb-1">Message</label>
-              <input value={message} onChange={e => updateAttributes({ message: e.target.value })}
-                placeholder="Something new just launched" className="w-full text-sm border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700" />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-500 mb-1">Link URL (optional)</label>
-              <input value={url} onChange={e => updateAttributes({ url: e.target.value })}
-                placeholder="https://..." className="w-full text-sm border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700" />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-500 mb-1">Alignment</label>
-              <select value={align} onChange={e => updateAttributes({ align: e.target.value })}
-                className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-700">
-                <option value="center">Center</option>
-                <option value="left">Left</option>
-                <option value="right">Right</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="flex gap-3 items-center flex-wrap">
-            <div>
-              <label className="block text-xs text-slate-500 mb-1">Color</label>
-              <div className="flex gap-1.5">
-                {(Object.keys(VARIANTS) as Array<keyof typeof VARIANTS>).map(v => (
-                  <button key={v} onClick={() => updateAttributes({ variant: v })}
-                    title={v}
-                    className={`w-6 h-6 rounded-full border-2 transition-all ${variant === v ? 'border-slate-700 scale-110' : 'border-transparent'}`}
-                    style={{ backgroundColor: VARIANTS[v].badge }}
-                  />
-                ))}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <input type="checkbox" id="shimmer-toggle" checked={shimmer} onChange={e => updateAttributes({ shimmer: e.target.checked })}
-                className="rounded" />
-              <label htmlFor="shimmer-toggle" className="text-xs text-slate-600">Shimmer effect</label>
-            </div>
-          </div>
-        </div>
-      )}
 
       <style>{`
         @keyframes shimmer-sweep {

@@ -1,4 +1,5 @@
 import { Mark, mergeAttributes } from '@tiptap/core'
+import { sanitizeColor } from '../utils/sanitize'
 
 export interface GradientTextOptions {
   HTMLAttributes: Record<string, any>
@@ -45,9 +46,10 @@ export const GradientText = Mark.create<GradientTextOptions>({
   },
 
   renderHTML({ HTMLAttributes }) {
-    const from = HTMLAttributes['data-gradient-from'] || '#6366f1'
-    const to = HTMLAttributes['data-gradient-to'] || '#ec4899'
-    const dir = HTMLAttributes['data-gradient-dir'] || 'to right'
+    const from = sanitizeColor(HTMLAttributes['data-gradient-from'], '#6366f1')
+    const to = sanitizeColor(HTMLAttributes['data-gradient-to'], '#ec4899')
+    const rawDir = (HTMLAttributes['data-gradient-dir'] || 'to right').toString()
+    const dir = ['to right','to left','to top','to bottom','135deg','45deg','90deg','180deg'].includes(rawDir) ? rawDir : 'to right'
     return [
       'span',
       mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {

@@ -1,4 +1,5 @@
 import { ThemeConfig } from './storage';
+import { sanitizeHtml } from './sanitize';
 
 /**
  * Result of importing an exported HTML guide.
@@ -1366,6 +1367,28 @@ function reverseNoiseOverlays(doc: Document) {
   });
 }
 
+function reverseMermaid(doc: Document) {
+  doc.querySelectorAll('.mermaid-block').forEach((el) => {
+    if (el.getAttribute('data-type')) return;
+    // Read preserved definition and theme
+    let definition = el.getAttribute('data-definition') || '';
+    const theme = el.getAttribute('data-theme') || 'default';
+    // Fallback: if definition is empty, try to extract from <pre> fallback content
+    if (!definition) {
+      const pre = el.querySelector('pre');
+      if (pre) {
+        const text = pre.textContent || '';
+        if (text && text !== '# Empty diagram') definition = text;
+      }
+    }
+    const node = makeBlock(doc, 'mermaid', {
+      'data-definition': definition,
+      'data-theme': theme,
+    });
+    replaceElement(el, node);
+  });
+}
+
 // ── Main Import Function ────────────────────────────────────────────
 
 export function importGuideHTML(rawHtml: string): ImportResult {
@@ -1390,7 +1413,7 @@ export function importGuideHTML(rawHtml: string): ImportResult {
   if (!guideContainer) {
     // Fallback: return body content stripped of scripts
     doc.querySelectorAll('script, style, link').forEach(el => el.remove());
-    return { title, content: doc.body.innerHTML, theme };
+    return { title, content: sanitizeHtml(doc.body.innerHTML), theme };
   }
 
   // 4. Remove non-content elements from guide container
@@ -1485,9 +1508,10 @@ export function importGuideHTML(rawHtml: string): ImportResult {
   reverseAnnouncementPills(doc);
   reverseGradientBlobs(doc);
   reverseNoiseOverlays(doc);
+  reverseMermaid(doc);
 
   // 7. Return cleaned content
-  const content = guideContainer.innerHTML;
+  const content = sanitizeHtml(guideContainer.innerHTML);
 
   return { title, content, theme };
 }

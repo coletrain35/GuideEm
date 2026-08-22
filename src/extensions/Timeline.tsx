@@ -1,7 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap/react';
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, Paintbrush } from 'lucide-react';
+import { Plus, Paintbrush, X } from 'lucide-react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 const TIMELINE_COLORS: Record<string, { 500: string; 100: string }> = {
@@ -51,22 +51,66 @@ export const TimelineStepTitle = Node.create({
 // --- TimelineStep ---
 
 const TimelineStepNodeView = (props: any) => {
-  const { node, updateAttributes } = props;
+  const { node, updateAttributes, editor, getPos } = props;
   const { date } = node.attrs;
 
+  // Don't allow deletion of the only step — would leave the parent timeline empty.
+  let canDelete = false;
+  try {
+    const pos = typeof getPos === 'function' ? getPos() : undefined;
+    if (pos !== undefined) {
+      const resolved = editor.state.doc.resolve(pos);
+      const parent = resolved.node(resolved.depth);
+      canDelete = parent.childCount > 1;
+    }
+  } catch { /* fallback */ }
+
+  const handleDeleteStep = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!canDelete) return;
+    const pos = typeof getPos === 'function' ? getPos() : undefined;
+    if (pos === undefined) return;
+    const stepSize = node.nodeSize;
+    editor.chain().focus().deleteRange({ from: pos, to: pos + stepSize }).run();
+  };
+
   return (
-    <NodeViewWrapper className="timeline-step-editor flex gap-4 relative">
+    <NodeViewWrapper className="timeline-step-editor flex gap-4 relative group/tl-step">
       <div className="flex flex-col items-center flex-shrink-0 pt-0.5">
         <div className="timeline-step-num w-8 h-8 rounded-full text-white flex items-center justify-center font-bold text-sm z-10 flex-shrink-0 shadow-md" />
         <div className="w-0.5 bg-slate-200 flex-1 mt-2 min-h-[32px]" />
       </div>
       <div className="flex-1 min-w-0 pb-6">
-        <input
-          value={date}
-          onChange={(e) => updateAttributes({ date: e.target.value })}
-          className="w-full text-xs font-medium text-slate-400 bg-transparent outline-none mb-1 placeholder:text-slate-300 uppercase tracking-wide"
-          placeholder="Date or label (optional)..."
-        />
+        <div contentEditable={false} className="flex items-center gap-2 mb-1">
+          <input
+            value={date}
+            onChange={(e) => updateAttributes({ date: e.target.value })}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                (e.target as HTMLInputElement).blur();
+              }
+              e.stopPropagation();
+            }}
+            className="flex-1 text-xs font-medium text-slate-400 bg-transparent outline-none placeholder:text-slate-300 uppercase tracking-wide"
+            placeholder="Date or label (optional)..."
+            aria-label="Step date or label"
+          />
+          {canDelete && (
+            <button
+              type="button"
+              onClick={handleDeleteStep}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="opacity-0 group-hover/tl-step:opacity-100 p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors flex-shrink-0"
+              title="Delete this step"
+              aria-label={`Delete step ${date || 'Untitled'}`}
+            >
+              <X size={13} aria-hidden />
+            </button>
+          )}
+        </div>
         <NodeViewContent className="prose prose-slate prose-sm max-w-none min-h-[40px]" />
       </div>
     </NodeViewWrapper>
@@ -143,7 +187,7 @@ const TimelineNodeView = (props: any) => {
       data-marker-style={markerStyle}
     >
       <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-10 text-sm opacity-0 group-hover/block:opacity-100 pointer-events-none group-hover/block:pointer-events-auto transition-opacity">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-30 text-sm opacity-0 group-hover/block:opacity-100 pointer-events-none group-hover/block:pointer-events-auto transition-opacity">
         <button
           onClick={addStep}
           className="flex items-center gap-1 px-3 py-1 rounded-full hover:bg-slate-100 text-slate-600"

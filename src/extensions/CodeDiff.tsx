@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
-import React from 'react';
+import React, { useState } from 'react';
+import { Code2 } from 'lucide-react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 const LANGS = ['javascript', 'typescript', 'python', 'go', 'rust', 'java', 'css', 'html', 'json', 'bash', 'sql', 'plaintext'];
@@ -57,99 +58,121 @@ const lineStyle = (type: DiffLine['type']): React.CSSProperties => {
 const CodeDiffNodeView = (props: any) => {
   const { node, updateAttributes, selected, deleteNode, getPos, editor } = props;
   const { codeBefore, codeAfter, language } = node.attrs;
+  const [showLangPopover, setShowLangPopover] = useState(false);
 
   const { beforeLines, afterLines } = computeDiff(codeBefore, codeAfter);
 
   return (
     <NodeViewWrapper className="group/block code-diff-editor-wrapper my-6 relative">
       <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
+
+      {/* Floating Style / Language Toolbar */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-30 text-sm opacity-0 group-hover/block:opacity-100 pointer-events-none group-hover/block:pointer-events-auto transition-opacity">
+        <div className="relative">
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setShowLangPopover(!showLangPopover)}
+            className={`flex items-center gap-1 px-3 py-1 rounded-full transition-colors ${showLangPopover ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-600'}`}
+          >
+            <Code2 size={14} /> Language: <span className="font-semibold uppercase text-xs">{language}</span>
+          </button>
+          {showLangPopover && (
+            <div
+              onMouseDown={(e) => e.stopPropagation()}
+              className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-white border border-slate-200 rounded-xl shadow-xl p-3 w-48 max-h-56 overflow-y-auto"
+            >
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Select Language</p>
+              <div className="flex flex-col gap-0.5">
+                {LANGS.map((l) => (
+                  <button
+                    key={l}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      updateAttributes({ language: l });
+                      setShowLangPopover(false);
+                    }}
+                    className={`text-left px-2 py-1 text-xs rounded transition-colors ${language === l ? 'bg-indigo-50 text-indigo-600 font-semibold' : 'hover:bg-slate-50 text-slate-600'}`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       <div
-        className={`rounded-xl overflow-hidden border transition-all ${
-          selected ? 'border-blue-400 ring-2 ring-blue-200' : 'border-slate-200'
+        className={`rounded-xl overflow-hidden border-2 transition-all ${
+          selected ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-slate-200'
         }`}
         contentEditable={false}
       >
-        {/* Split view */}
-        <div className="flex flex-col sm:flex-row" style={{ minHeight: '100px' }}>
-          {/* Before panel */}
-          <div className="flex-1 min-w-0">
-            <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wider bg-red-50 text-red-700 border-b sm:border-r border-red-100">
+        <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-slate-200 bg-[#f8fafc]" style={{ minHeight: '180px' }}>
+          
+          {/* Before Panel */}
+          <div className="flex-1 min-w-0 flex flex-col">
+            <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wider bg-red-50 text-red-700 border-b border-red-100">
               Before
             </div>
-            <pre
-              className="m-0 p-4 overflow-x-auto text-sm leading-relaxed rounded-none"
-              style={{
-                background: '#f8fafc',
-                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-              }}
-            >
-              {beforeLines.map((line, i) => (
-                <div key={i} style={{ ...lineStyle(line.type), padding: '0 4px', minHeight: '1.6em', whiteSpace: 'pre' }}>
-                  {line.text || ' '}
-                </div>
-              ))}
-            </pre>
+            {selected ? (
+              <textarea
+                value={codeBefore}
+                onChange={(e) => updateAttributes({ codeBefore: e.target.value })}
+                spellCheck={false}
+                rows={8}
+                placeholder="// Paste original code here"
+                className="w-full flex-1 p-4 bg-[#f8fafc] text-sm leading-relaxed outline-none resize-none font-mono text-slate-700 border-0"
+              />
+            ) : (
+              <pre
+                className="m-0 p-4 overflow-x-auto text-sm leading-relaxed rounded-none flex-1"
+                style={{
+                  background: '#f8fafc',
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                }}
+              >
+                {beforeLines.map((line, i) => (
+                  <div key={i} style={{ ...lineStyle(line.type), padding: '0 4px', minHeight: '1.6em', whiteSpace: 'pre' }}>
+                    {line.text || ' '}
+                  </div>
+                ))}
+              </pre>
+            )}
           </div>
-          {/* After panel */}
-          <div className="flex-1 min-w-0">
+
+          {/* After Panel */}
+          <div className="flex-1 min-w-0 flex flex-col">
             <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wider bg-green-50 text-green-700 border-b border-green-100">
               After
             </div>
-            <pre
-              className="m-0 p-4 overflow-x-auto text-sm leading-relaxed rounded-none"
-              style={{
-                background: '#f8fafc',
-                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-              }}
-            >
-              {afterLines.map((line, i) => (
-                <div key={i} style={{ ...lineStyle(line.type), padding: '0 4px', minHeight: '1.6em', whiteSpace: 'pre' }}>
-                  {line.text || ' '}
-                </div>
-              ))}
-            </pre>
-          </div>
-        </div>
-
-        {/* Edit panel */}
-        {selected && (
-          <div className="border-t border-blue-200 p-4 bg-white space-y-3">
-            <div className="flex items-center gap-3 mb-2">
-              <label className="text-xs font-medium text-slate-500">Language</label>
-              <select
-                value={language}
-                onChange={(e) => updateAttributes({ language: e.target.value })}
-                className="text-xs border border-slate-200 rounded px-2 py-1 text-slate-700 outline-none focus:border-blue-400"
+            {selected ? (
+              <textarea
+                value={codeAfter}
+                onChange={(e) => updateAttributes({ codeAfter: e.target.value })}
+                spellCheck={false}
+                rows={8}
+                placeholder="// Paste modified code here"
+                className="w-full flex-1 p-4 bg-[#f8fafc] text-sm leading-relaxed outline-none resize-none font-mono text-slate-700 border-0"
+              />
+            ) : (
+              <pre
+                className="m-0 p-4 overflow-x-auto text-sm leading-relaxed rounded-none flex-1"
+                style={{
+                  background: '#f8fafc',
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                }}
               >
-                {LANGS.map((l) => (
-                  <option key={l} value={l}>{l}</option>
+                {afterLines.map((line, i) => (
+                  <div key={i} style={{ ...lineStyle(line.type), padding: '0 4px', minHeight: '1.6em', whiteSpace: 'pre' }}>
+                    {line.text || ' '}
+                  </div>
                 ))}
-              </select>
-            </div>
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <label className="text-xs font-medium text-slate-500 block mb-0.5">Before Code</label>
-                <textarea
-                  value={codeBefore}
-                  onChange={(e) => updateAttributes({ codeBefore: e.target.value })}
-                  rows={8}
-                  spellCheck={false}
-                  className="w-full px-2 py-1.5 text-xs border rounded border-slate-200 outline-none focus:border-blue-400 resize-y font-mono"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="text-xs font-medium text-slate-500 block mb-0.5">After Code</label>
-                <textarea
-                  value={codeAfter}
-                  onChange={(e) => updateAttributes({ codeAfter: e.target.value })}
-                  rows={8}
-                  spellCheck={false}
-                  className="w-full px-2 py-1.5 text-xs border rounded border-slate-200 outline-none focus:border-blue-400 resize-y font-mono"
-                />
-              </div>
-            </div>
+              </pre>
+            )}
           </div>
-        )}
+
+        </div>
       </div>
     </NodeViewWrapper>
   );

@@ -9,7 +9,10 @@
       "Bash(node:*)",
       "Bash(npx tailwindcss:*)",
       "Bash(npx vite:*)",
-      "Bash(cat dist/assets/*.css)"
+      "Bash(cat dist/assets/*.css)",
+      "Bash(ls -la D:/App_Dev/docublock-author/.env*)",
+      "Bash(ls D:/App_Dev/docublock-author/server* D:/App_Dev/docublock-author/api* D:/App_Dev/docublock-author/backend*)",
+      "Bash(npm uninstall:*)"
     ]
   }
 }

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { TEMPLATES, type TemplateDefinition } from '../data/templates';
+import { useDialog } from '../utils/useDialog';
 
 interface TemplatePickerModalProps {
   isOpen: boolean;
@@ -9,46 +10,70 @@ interface TemplatePickerModalProps {
 }
 
 export const TemplatePickerModal: React.FC<TemplatePickerModalProps> = ({ isOpen, onClose, onSelect }) => {
+  const dialogRef = useDialog<HTMLDivElement>(isOpen, onClose);
+  const firstCardRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        firstCardRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl flex flex-col max-h-[90vh]">
-
+      <div
+        ref={dialogRef}
+        className="relative bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-150"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="template-picker-title"
+        aria-describedby="template-picker-description"
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 flex-shrink-0">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">New Document</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Choose a template to get started</p>
+            <h2 id="template-picker-title" className="text-lg font-semibold text-slate-900">New Guide</h2>
+            <p id="template-picker-description" className="text-xs text-slate-500 mt-0.5">Choose a pre-configured template or start with a blank document</p>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            aria-label="Close template picker"
           >
-            <X size={18} />
+            <X size={18} aria-hidden />
           </button>
         </div>
 
         {/* Template Grid */}
         <div className="p-6 overflow-y-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {TEMPLATES.map((template) => (
-              <button
-                key={template.id}
-                onClick={() => onSelect(template)}
-                className="group flex items-start gap-4 p-4 text-left border border-slate-200 rounded-xl hover:border-blue-400 hover:bg-blue-50/40 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
-              >
-                <span className="text-2xl flex-shrink-0 mt-0.5">{template.emoji}</span>
-                <div className="min-w-0">
-                  <div className="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors text-sm">
-                    {template.name}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="list">
+            {TEMPLATES.map((template, idx) => (
+              <div key={template.id} role="listitem">
+                <button
+                  ref={idx === 0 ? firstCardRef : undefined}
+                  type="button"
+                  onClick={() => onSelect(template)}
+                  className="w-full group flex items-start gap-4 p-4 text-left border border-slate-200 rounded-xl hover:border-blue-400 hover:bg-blue-50/40 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                  aria-label={`${template.name} template: ${template.description}`}
+                >
+                  <span className="text-2xl flex-shrink-0 mt-0.5" aria-hidden>{template.emoji}</span>
+                  <div className="min-w-0">
+                    <div className="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors text-sm">
+                      {template.name}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                      {template.description}
+                    </div>
                   </div>
-                  <div className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-                    {template.description}
-                  </div>
-                </div>
-              </button>
+                </button>
+              </div>
             ))}
           </div>
         </div>

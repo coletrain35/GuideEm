@@ -1,5 +1,12 @@
 import { ThemeConfig } from './storage';
 import { getSectionBgPreset } from './backgroundPresets';
+import { escapeHtml, sanitizeUrl, sanitizeImageSrc, sanitizeHtml, sanitizeColor } from './sanitize';
+
+export interface ExportOptions {
+  mode?: 'standalone' | 'rise';
+  includeToc?: boolean;   // default: auto (true for standalone, false for rise)
+  includeHero?: boolean;  // default: auto
+}
 
 // SVG icon map for workflow export (Lucide icons, stroke="currentColor")
 const WORKFLOW_ICON_SVGS: Record<string, string> = {
@@ -127,8 +134,6 @@ const getFontStack = (fontFamily?: string) => {
   }
 };
 
-const escapeHtml = (str: string) =>
-  str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 const darkenHexExport = (hex: string, amount: number): string => {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -143,7 +148,7 @@ function renderHeroCover(title: string, theme?: ThemeConfig): string {
   const style = theme?.hero?.style;
   const isLegacyEnabled = theme?.hero?.enabled;
 
-  const primaryColor = theme?.primaryColor ?? '#2563eb';
+  const primaryColor = sanitizeColor(theme?.primaryColor, '#2563eb');
   const subtitle = theme?.hero?.subtitle ?? '';
   const coverImageBase64 = theme?.hero?.coverImageBase64 ?? null;
   const escapedTitle = escapeHtml(title || 'Untitled Guide');
@@ -156,7 +161,7 @@ function renderHeroCover(title: string, theme?: ThemeConfig): string {
       // Legacy hero banner (enabled=true, no new style)
       return `
     <div class="hero-section" style="background-color: ${primaryColor}; color: white; padding: ${theme?.hero?.layout === 'full' ? '6rem 2rem' : '3rem 2rem'}; text-align: center; position: relative; overflow: hidden;">
-      ${coverImageBase64 ? `<img src="${coverImageBase64}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.3; z-index: 0;" alt="Hero Cover" />` : ''}
+      ${coverImageBase64 ? `<img src="${sanitizeImageSrc(coverImageBase64)}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.3; z-index: 0;" alt="Hero Cover" />` : ''}
       <div style="position: relative; z-index: 1; max-width: 800px; margin: 0 auto;">
         <h1 style="font-size: ${theme?.hero?.layout === 'full' ? '3.5rem' : '2.5rem'}; font-weight: 800; margin-bottom: 1rem; line-height: 1.2;">${escapedTitle}</h1>
         ${subtitle ? `<p style="font-size: 1.25rem; opacity: 0.9; max-width: 600px; margin: 0 auto;">${escapedSubtitle}</p>` : ''}
@@ -173,7 +178,7 @@ function renderHeroCover(title: string, theme?: ThemeConfig): string {
   if (style === 'gradient') {
     return `
     <div style="background: linear-gradient(135deg, ${primaryColor}, ${darkened}); padding: 4rem 3rem; margin-bottom: 2rem; border-radius: 0.75rem; position: relative; overflow: hidden;">
-      ${coverImageBase64 ? `<img src="${coverImageBase64}" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.2; pointer-events: none;" />` : ''}
+      ${coverImageBase64 ? `<img src="${sanitizeImageSrc(coverImageBase64)}" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.2; pointer-events: none;" />` : ''}
       <div style="position: relative; z-index: 1;">
         <h1 style="font-size: 3.5rem; font-weight: 800; color: white; margin: 0 0 0.75rem; line-height: 1.15;">${escapedTitle}</h1>
         ${subtitle ? `<p style="font-size: 1.25rem; color: rgba(255,255,255,0.8); margin: 0;">${escapedSubtitle}</p>` : ''}
@@ -251,29 +256,54 @@ const extractInlineCSS = (): string => {
  * @param htmlContent - The raw HTML content from the editor.
  * @param theme - The document theme.
  */
-export const generateHTML = (title: string, htmlContent: string, theme?: ThemeConfig): string => {
+export const generateHTML = (title: string, htmlContent: string, theme?: ThemeConfig, options?: ExportOptions): string => {
+  const isRise = options?.mode === 'rise';
+  const includeToc = options?.includeToc ?? !isRise;
+  const includeHero = options?.includeHero ?? true;
+
+  // Include the Tailwind dump for Rise mode as well, otherwise all component formatting breaks
   const inlineCSS = extractInlineCSS();
 
   // Parse HTML to generate ToC and add IDs
+  // Note: we do NOT run DOMPurify on the full HTML here — the content comes
+  // from Tiptap's controlled serialization, and each user-supplied value
+  // (titles, URLs, colors) is individually sanitized with escapeHtml /
+  // sanitizeUrl / sanitizeImageSrc / sanitizeColor in the block transforms.
   const parser = new DOMParser();
   const doc = parser.parseFromString(htmlContent, 'text/html');
   const headings = doc.querySelectorAll('h1, h2');
   let tocHTML = '';
   
-  if (headings.length > 0) {
+  // Always add heading IDs (needed for anchor links), but only build ToC HTML if requested
+  headings.forEach((heading, index) => {
+    const id = `heading-${index}`;
+    heading.setAttribute('id', id);
+  });
+
+  if (includeToc && headings.length > 0) {
     tocHTML = `<aside class="toc-sidebar">
       <h3 class="font-semibold text-slate-900 mb-4 text-sm uppercase tracking-wider">On this page</h3>
       <nav class="flex flex-col">`;
     
     headings.forEach((heading, index) => {
       const id = `heading-${index}`;
-      heading.setAttribute('id', id); // Inject ID into the DOM node to ensure it persists in processedHTML
       const level = heading.tagName.toLowerCase() === 'h1' ? 1 : 2;
       tocHTML += `<a class="toc-link level-${level}" href="#${id}">${heading.textContent}</a>`;
     });
     
     tocHTML += `</nav></aside>`;
   }
+
+  // Wrap all tables in a tableWrapper div so they can scroll horizontally
+  doc.querySelectorAll('table').forEach((table) => {
+    // Only wrap if it's not already wrapped by a tableWrapper
+    if (!table.parentElement?.classList.contains('tableWrapper')) {
+      const wrapper = doc.createElement('div');
+      wrapper.className = 'tableWrapper';
+      table.parentNode?.insertBefore(wrapper, table);
+      wrapper.appendChild(table);
+    }
+  });
 
   // Transform accordion blocks into export-ready HTML
   doc.querySelectorAll('div[data-type="accordion"]').forEach((accordion) => {
@@ -341,13 +371,21 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     const isHtml5 = /\.(mp4|webm|ogg)(\?.*)?$/i.test(src);
 
     if (ytMatch) {
-      el.innerHTML = `<div class="video-embed-wrapper"><iframe src="https://www.youtube.com/embed/${ytMatch[1]}" title="YouTube video" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" style="border:none;"></iframe></div>`;
+      const vid = ytMatch[1];
+      el.innerHTML = `<div class="video-embed-wrapper video-facade" data-vid="${vid}">` +
+        `<img src="https://img.youtube.com/vi/${vid}/hqdefault.jpg" alt="Video thumbnail" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;cursor:pointer;" />` +
+        `<div class="video-play-btn" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;cursor:pointer;">` +
+          `<div style="width:68px;height:48px;background:rgba(255,0,0,0.9);border-radius:14px;display:flex;align-items:center;justify-content:center;transition:transform 0.15s;">` +
+            `<svg width="24" height="24" viewBox="0 0 24 24" fill="white"><polygon points="9.5 7 9.5 17 18 12"/></svg>` +
+          `</div>` +
+        `</div>` +
+      `</div>`;
     } else if (vimeoMatch) {
       el.innerHTML = `<div class="video-embed-wrapper"><iframe src="https://player.vimeo.com/video/${vimeoMatch[1]}" title="Vimeo video" allowfullscreen style="border:none;"></iframe></div>`;
     } else if (isHtml5 && src) {
-      el.innerHTML = `<video src="${src}" controls style="width:100%;border-radius:0.75rem;aspect-ratio:16/9;"></video>`;
+      el.innerHTML = `<video src="${sanitizeImageSrc(src)}" controls style="width:100%;border-radius:0.75rem;aspect-ratio:16/9;"></video>`;
     } else if (src) {
-      el.innerHTML = `<p style="color:#dc2626;font-size:0.875rem;">Unsupported video URL: ${src}</p>`;
+      el.innerHTML = `<p style="color:#dc2626;font-size:0.875rem;">Unsupported video URL: ${escapeHtml(src)}</p>`;
     }
   });
 
@@ -454,7 +492,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       }
 
       const imageHTML = image
-        ? `<div class="workflow-step-image"><img src="${image}" alt="" style="max-height:160px;width:100%;object-fit:cover;border-radius:0.5rem;" /></div>`
+        ? `<div class="workflow-step-image"><img src="${sanitizeImageSrc(image)}" alt="" style="max-height:160px;width:100%;object-fit:cover;border-radius:0.5rem;" /></div>`
         : '';
 
       step.className = 'workflow-step';
@@ -553,8 +591,8 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
 
   // Transform hero banner blocks
   doc.querySelectorAll('div[data-type="hero-banner"]').forEach((el) => {
-    const gradFrom = el.getAttribute('data-gradient-from') || '#6366f1';
-    const gradTo = el.getAttribute('data-gradient-to') || '#ec4899';
+    const gradFrom = sanitizeColor(el.getAttribute('data-gradient-from'), '#6366f1');
+    const gradTo = sanitizeColor(el.getAttribute('data-gradient-to'), '#ec4899');
     const title = el.getAttribute('data-title') || '';
     const subtitle = el.getAttribute('data-subtitle') || '';
     const ctaText = el.getAttribute('data-cta-text') || '';
@@ -566,7 +604,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       <div class="hero-banner-inner" style="background: linear-gradient(135deg, ${gradFrom}, ${gradTo});">
         <h2 class="hero-banner-title">${escapeHtml(title)}</h2>
         ${subtitle ? `<p class="hero-banner-subtitle">${escapeHtml(subtitle)}</p>` : ''}
-        ${ctaText && ctaUrl ? `<a href="${ctaUrl}" class="hero-banner-cta">${escapeHtml(ctaText)}</a>` : ''}
+        ${ctaText && ctaUrl ? `<a href="${sanitizeUrl(ctaUrl)}" class="hero-banner-cta">${escapeHtml(ctaText)}</a>` : ''}
       </div>
     `;
   });
@@ -578,7 +616,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     const description = el.getAttribute('data-description') || '';
     const liveUrl = el.getAttribute('data-live-url') || '';
     const repoUrl = el.getAttribute('data-repo-url') || '';
-    const accentColor = el.getAttribute('data-accent-color') || '#6366f1';
+    const accentColor = sanitizeColor(el.getAttribute('data-accent-color'), '#6366f1');
     let tags: string[] = [];
     try { tags = JSON.parse(el.getAttribute('data-tags') || '[]'); } catch { /* empty */ }
 
@@ -591,13 +629,13 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       : '';
     const linksHtml = (liveUrl || repoUrl)
       ? `<div class="project-card-links">
-          ${liveUrl ? `<a href="${liveUrl}" class="project-card-link-live" style="color:${accentColor}" target="_blank" rel="noopener">Live Demo ↗</a>` : ''}
-          ${repoUrl ? `<a href="${repoUrl}" class="project-card-link-repo" target="_blank" rel="noopener">Repository ↗</a>` : ''}
+          ${liveUrl ? `<a href="${sanitizeUrl(liveUrl)}" class="project-card-link-live" style="color:${accentColor}" target="_blank" rel="noopener">Live Demo ↗</a>` : ''}
+          ${repoUrl ? `<a href="${sanitizeUrl(repoUrl)}" class="project-card-link-repo" target="_blank" rel="noopener">Repository ↗</a>` : ''}
         </div>`
       : '';
 
     el.innerHTML = `
-      ${thumbnail ? `<div class="project-card-thumbnail"><img src="${thumbnail}" alt="${escapeHtml(title)}" /></div>` : `<div class="project-card-thumbnail project-card-thumbnail--placeholder" style="background:linear-gradient(135deg,${accentColor}22,${accentColor}0a)"></div>`}
+      ${thumbnail ? `<div class="project-card-thumbnail"><img src="${sanitizeImageSrc(thumbnail)}" alt="${escapeHtml(title)}" /></div>` : `<div class="project-card-thumbnail project-card-thumbnail--placeholder" style="background:linear-gradient(135deg,${accentColor}22,${accentColor}0a)"></div>`}
       <div class="project-card-body">
         <h3 class="project-card-title">${escapeHtml(title)}</h3>
         ${description ? `<p class="project-card-description">${escapeHtml(description)}</p>` : ''}
@@ -620,19 +658,19 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
 
     el.innerHTML = cards.map((card: any) => {
       const tags: string[] = Array.isArray(card.tags) ? card.tags : [];
-      const accentColor = card.accentColor || '#6366f1';
+      const accentColor = sanitizeColor(card.accentColor, '#6366f1');
       const tagsHtml = tags.length
         ? `<div class="project-card-tags">${tags.map((t: string) => `<span class="project-card-tag" style="background-color:${accentColor}18;color:${accentColor}">${escapeHtml(t)}</span>`).join('')}</div>`
         : '';
       const linksHtml = (card.liveUrl || card.repoUrl)
         ? `<div class="project-card-links">
-            ${card.liveUrl ? `<a href="${card.liveUrl}" class="project-card-link-live" style="color:${accentColor}" target="_blank" rel="noopener">Live Demo ↗</a>` : ''}
-            ${card.repoUrl ? `<a href="${card.repoUrl}" class="project-card-link-repo" target="_blank" rel="noopener">Repository ↗</a>` : ''}
+            ${card.liveUrl ? `<a href="${sanitizeUrl(card.liveUrl)}" class="project-card-link-live" style="color:${accentColor}" target="_blank" rel="noopener">Live Demo ↗</a>` : ''}
+            ${card.repoUrl ? `<a href="${sanitizeUrl(card.repoUrl)}" class="project-card-link-repo" target="_blank" rel="noopener">Repository ↗</a>` : ''}
           </div>`
         : '';
       return `
         <div class="project-card">
-          ${card.thumbnail ? `<div class="project-card-thumbnail"><img src="${card.thumbnail}" alt="${escapeHtml(card.title || '')}" /></div>` : `<div class="project-card-thumbnail project-card-thumbnail--placeholder" style="background:linear-gradient(135deg,${accentColor}22,${accentColor}0a)"></div>`}
+          ${card.thumbnail ? `<div class="project-card-thumbnail"><img src="${sanitizeImageSrc(card.thumbnail)}" alt="${escapeHtml(card.title || '')}" /></div>` : `<div class="project-card-thumbnail project-card-thumbnail--placeholder" style="background:linear-gradient(135deg,${accentColor}22,${accentColor}0a)"></div>`}
           <div class="project-card-body">
             <h3 class="project-card-title">${escapeHtml(card.title || 'Project Title')}</h3>
             ${card.description ? `<p class="project-card-description">${escapeHtml(card.description)}</p>` : ''}
@@ -649,7 +687,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     const name = el.getAttribute('data-name') || 'Your Name';
     const role = el.getAttribute('data-role') || '';
     const bio = el.getAttribute('data-bio') || '';
-    const accentColor = el.getAttribute('data-accent-color') || '#6366f1';
+    const accentColor = sanitizeColor(el.getAttribute('data-accent-color'), '#6366f1');
     const layout = el.getAttribute('data-layout') || 'left';
 
     el.className = 'about-me';
@@ -658,7 +696,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
 
     const initials = name.split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
     const avatarHtml = avatar
-      ? `<img src="${avatar}" alt="${escapeHtml(name)}" class="about-me-avatar-img" />`
+      ? `<img src="${sanitizeImageSrc(avatar)}" alt="${escapeHtml(name)}" class="about-me-avatar-img" />`
       : `<div class="about-me-avatar-placeholder" style="background:${accentColor};color:#fff;">${escapeHtml(initials)}</div>`;
 
     const avatarCol = `<div class="about-me-avatar-col">${avatarHtml}</div>`;
@@ -676,7 +714,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
   // Transform tech stack blocks
   doc.querySelectorAll('div[data-type="tech-stack"]').forEach((el) => {
     const cols = parseInt(el.getAttribute('data-cols') || '4', 10);
-    const accentColor = el.getAttribute('data-accent-color') || '#6366f1';
+    const accentColor = sanitizeColor(el.getAttribute('data-accent-color'), '#6366f1');
     let items: { icon: string; label: string }[] = [];
     try { items = JSON.parse(el.getAttribute('data-items') || '[]'); } catch { /* empty */ }
 
@@ -736,13 +774,13 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       const href = link.url || '#';
 
       if (style === 'icons') {
-        return `<a href="${href}" class="social-link social-link--icon" style="background:${meta.bg};color:${meta.color};" target="_blank" rel="noopener" title="${escapeHtml(label)}">${svg}</a>`;
+        return `<a href="${sanitizeUrl(href)}" class="social-link social-link--icon" style="background:${meta.bg};color:${meta.color};" target="_blank" rel="noopener" title="${escapeHtml(label)}">${svg}</a>`;
       }
       if (style === 'pills') {
-        return `<a href="${href}" class="social-link social-link--pill" style="background:${meta.bg};color:${meta.color};" target="_blank" rel="noopener">${svg}<span>${escapeHtml(label)}</span></a>`;
+        return `<a href="${sanitizeUrl(href)}" class="social-link social-link--pill" style="background:${meta.bg};color:${meta.color};" target="_blank" rel="noopener">${svg}<span>${escapeHtml(label)}</span></a>`;
       }
       // buttons
-      return `<a href="${href}" class="social-link social-link--button" style="border-color:${meta.color}40;color:${meta.color};background:${meta.bg};" target="_blank" rel="noopener">${svg}<span>${escapeHtml(label)}</span></a>`;
+      return `<a href="${sanitizeUrl(href)}" class="social-link social-link--button" style="border-color:${meta.color}40;color:${meta.color};background:${meta.bg};" target="_blank" rel="noopener">${svg}<span>${escapeHtml(label)}</span></a>`;
     }).join('');
   });
 
@@ -755,8 +793,8 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     const ctaUrl = el.getAttribute('data-cta-url') || '#';
     const ctaSecondaryText = el.getAttribute('data-cta-secondary-text') || '';
     const ctaSecondaryUrl = el.getAttribute('data-cta-secondary-url') || '#';
-    const gradFrom = el.getAttribute('data-gradient-from') || '#6366f1';
-    const gradTo = el.getAttribute('data-gradient-to') || '#ec4899';
+    const gradFrom = sanitizeColor(el.getAttribute('data-gradient-from'), '#6366f1');
+    const gradTo = sanitizeColor(el.getAttribute('data-gradient-to'), '#ec4899');
     const alignment = el.getAttribute('data-alignment') || 'center';
 
     el.className = 'portfolio-hero';
@@ -769,8 +807,8 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       : '';
     const ctaHtml = (ctaText || ctaSecondaryText)
       ? `<div class="portfolio-hero-ctas">
-          ${ctaText ? `<a href="${ctaUrl}" class="portfolio-hero-cta-primary" style="color:${gradFrom};">${escapeHtml(ctaText)}</a>` : ''}
-          ${ctaSecondaryText ? `<a href="${ctaSecondaryUrl}" class="portfolio-hero-cta-secondary">${escapeHtml(ctaSecondaryText)}</a>` : ''}
+          ${ctaText ? `<a href="${sanitizeUrl(ctaUrl)}" class="portfolio-hero-cta-primary" style="color:${gradFrom};">${escapeHtml(ctaText)}</a>` : ''}
+          ${ctaSecondaryText ? `<a href="${sanitizeUrl(ctaSecondaryUrl)}" class="portfolio-hero-cta-secondary">${escapeHtml(ctaSecondaryText)}</a>` : ''}
         </div>`
       : '';
 
@@ -911,15 +949,77 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
 
     el.innerHTML = `
       <div class="before-after-container" data-slider="${sliderPos}">
-        <img class="before-after-after-img" src="${afterImage}" alt="${escapeHtml(afterLabel)}" />
+        <img class="before-after-after-img" src="${sanitizeImageSrc(afterImage)}" alt="${escapeHtml(afterLabel)}" />
         <div class="before-after-before-clip" style="clip-path: inset(0 ${100 - parseFloat(sliderPos)}% 0 0);">
-          <img src="${beforeImage}" alt="${escapeHtml(beforeLabel)}" />
+          <img src="${sanitizeImageSrc(beforeImage)}" alt="${escapeHtml(beforeLabel)}" />
         </div>
         <div class="before-after-divider" style="left: ${sliderPos}%;"></div>
         <span class="before-after-label before-after-label-left">${escapeHtml(beforeLabel)}</span>
         <span class="before-after-label before-after-label-right">${escapeHtml(afterLabel)}</span>
       </div>
     `;
+  });
+
+  // Transform Interactive Demo blocks
+  doc.querySelectorAll('div[data-type="interactive-demo"]').forEach((el) => {
+    let frames: any[] = [];
+    let hotspots: any[] = [];
+    try { frames = JSON.parse(el.getAttribute('data-frames') || '[]'); } catch { /* empty */ }
+    try { hotspots = JSON.parse(el.getAttribute('data-hotspots') || '[]'); } catch { /* empty */ }
+    const transition = el.getAttribute('data-transition') || 'fade';
+    const showNav = el.getAttribute('data-show-nav') !== 'false';
+
+    el.className = 'interactive-demo';
+    el.removeAttribute('data-type');
+    ['data-frames', 'data-hotspots', 'data-transition', 'data-show-nav', 'data-active-frame-id'].forEach((a) => el.removeAttribute(a));
+
+    if (frames.length === 0) {
+      el.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:2rem;">Interactive Demo: no frames added</p>';
+      return;
+    }
+
+    const framesHtml = frames.map((frame: any, fi: number) => {
+      const frameHotspots = hotspots.filter((h: any) => h.frameId === frame.id);
+      const hotspotsHtml = frameHotspots.map((h: any) => {
+        const targetAttr = h.targetFrameId ? ` data-target="${escapeHtml(h.targetFrameId)}"` : '';
+        const tooltipAttr = h.tooltip ? ` title="${escapeHtml(h.tooltip)}"` : ' title="Click to continue"';
+        const transitionAttr = h.transition ? ` data-transition="${escapeHtml(h.transition)}"` : '';
+        return `<div class="id-hotspot"${targetAttr}${tooltipAttr}${transitionAttr} style="left:${h.x}%;top:${h.y}%;width:${h.width}%;height:${h.height}%;"></div>`;
+      }).join('');
+      return `<div class="id-frame${fi === 0 ? ' active' : ''}" data-frame-id="${escapeHtml(frame.id)}">${frame.image ? `<img src="${sanitizeImageSrc(frame.image)}" alt="${escapeHtml(frame.label || '')}" />` : ''}${hotspotsHtml}</div>`;
+    }).join('');
+
+    const navHtml = showNav ? `<div class="id-nav">${frames.map((f: any, i: number) => `<button class="id-nav-dot${i === 0 ? ' active' : ''}" data-frame-id="${escapeHtml(f.id)}" title="${escapeHtml(f.label || 'Frame ' + (i + 1))}"></button>`).join('')}<button class="id-back-btn" disabled>&#8592; Back</button></div>` : '';
+
+    // Use first frame image as a hidden sizer to establish viewport height
+    const sizerSrc = frames[0]?.image ? sanitizeImageSrc(frames[0].image) : '';
+    const sizerHtml = sizerSrc ? `<img class="id-sizer" src="${sizerSrc}" alt="" />` : '';
+
+    el.setAttribute('data-transition', transition);
+    el.innerHTML = `<div class="id-viewport">${sizerHtml}${framesHtml}</div>${navHtml}`;
+  });
+
+  // Transform Mermaid diagram blocks — inline cached SVG for static export
+  doc.querySelectorAll('div[data-type="mermaid"]').forEach((el) => {
+    const definition = el.getAttribute('data-definition') || '';
+    const theme = el.getAttribute('data-theme') || 'default';
+    const cachedSvg = el.getAttribute('data-cached-svg') || '';
+    el.className = 'mermaid-block';
+    el.removeAttribute('data-type');
+    el.removeAttribute('data-cached-svg');
+    // Remove legacy attrs that may linger from old node/edge format
+    el.removeAttribute('data-nodes');
+    el.removeAttribute('data-edges');
+    // Preserve definition + theme for round-trip import
+    el.setAttribute('data-definition', definition);
+    el.setAttribute('data-theme', theme);
+    if (cachedSvg) {
+      el.innerHTML = cachedSvg;
+      const svg = el.querySelector('svg');
+      if (svg) { svg.style.maxWidth = '100%'; svg.style.height = 'auto'; }
+    } else {
+      el.innerHTML = `<pre style="color:#94a3b8;text-align:center;padding:2rem;font-size:0.875rem;white-space:pre-wrap;">${escapeHtml(definition || '# Empty diagram')}</pre>`;
+    }
   });
 
   // Transform Bento Grid blocks
@@ -947,9 +1047,10 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     const icon = el.getAttribute('data-icon') || '';
     const title = el.getAttribute('data-title') || 'Feature Title';
     const description = el.getAttribute('data-description') || '';
-    const gradient = el.getAttribute('data-gradient') || 'linear-gradient(135deg, #6366f1, #a855f7)';
+    const rawGradient = el.getAttribute('data-gradient') || '';
+    const gradient = /^linear-gradient\(\s*[\d.]+deg\s*,\s*#[0-9a-fA-F]{3,8}\s*,\s*#[0-9a-fA-F]{3,8}\s*\)$/.test(rawGradient) ? rawGradient : 'linear-gradient(135deg, #6366f1, #a855f7)';
     const layout = el.getAttribute('data-layout') || 'image-left';
-    const accentColor = el.getAttribute('data-accent-color') || '#6366f1';
+    const accentColor = sanitizeColor(el.getAttribute('data-accent-color'), '#6366f1');
     let bullets: string[] = [];
     try { bullets = JSON.parse(el.getAttribute('data-bullets') || '[]'); } catch { /* empty */ }
 
@@ -960,7 +1061,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
 
     const visualHtml = `
       <div class="feature-spotlight-visual" style="background:${gradient};">
-        ${image ? `<img src="${image}" alt="${escapeHtml(title)}" class="feature-spotlight-img" />` : (icon ? `<span class="feature-spotlight-icon">${icon}</span>` : '')}
+        ${image ? `<img src="${sanitizeImageSrc(image)}" alt="${escapeHtml(title)}" class="feature-spotlight-img" />` : (icon ? `<span class="feature-spotlight-icon">${icon}</span>` : '')}
       </div>
     `;
     const bulletsHtml = bullets.length > 0
@@ -983,7 +1084,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
   doc.querySelectorAll('div[data-type="sticky-scroll"]').forEach((el) => {
     const stickyTitle = el.getAttribute('data-sticky-title') || 'How It Works';
     const stickyDescription = el.getAttribute('data-sticky-description') || '';
-    const accentColor = el.getAttribute('data-accent-color') || '#6366f1';
+    const accentColor = sanitizeColor(el.getAttribute('data-accent-color'), '#6366f1');
     let steps: any[] = [];
     try { steps = JSON.parse(el.getAttribute('data-steps') || '[]'); } catch { /* empty */ }
 
@@ -1129,7 +1230,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
         </div>
       </div>
       <div class="browser-screen" style="background:${bodyBg};">
-        ${image ? `<img src="${image}" alt="Browser screenshot" style="display:block;width:100%;" />` : '<div class="browser-empty">No screenshot</div>'}
+        ${image ? `<img src="${sanitizeImageSrc(image)}" alt="Browser screenshot" style="display:block;width:100%;" />` : '<div class="browser-empty">No screenshot</div>'}
       </div>
     `;
     el.setAttribute('style', `border:1px solid ${borderColor};`);
@@ -1163,7 +1264,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     el.innerHTML = `
       <div class="phone-inner" style="background:${phoneBg};border:4px solid ${frameColor};box-shadow:inset 0 0 0 1px ${isDark ? '#1a1a1a' : '#b8b8b8'},0 0 0 1px ${isDark ? '#333' : '#c5c5c5'},0 25px 50px rgba(0,0,0,${isDark ? '0.5' : '0.2'});">
         <div class="phone-screen" style="background:${phoneBg};">
-          ${image ? `<img src="${image}" alt="Phone screenshot" />` : '<div class="phone-empty">No screenshot</div>'}
+          ${image ? `<img src="${sanitizeImageSrc(image)}" alt="Phone screenshot" />` : '<div class="phone-empty">No screenshot</div>'}
           <div class="phone-notch">
             <div class="phone-island" style="background:${notchColor};"></div>
           </div>
@@ -1183,7 +1284,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     const speed = el.getAttribute('data-speed') || 'medium';
     const direction = el.getAttribute('data-direction') || 'left';
     const separator = el.getAttribute('data-separator') || 'star';
-    const accentColor = el.getAttribute('data-accent-color') || '#6366f1';
+    const accentColor = sanitizeColor(el.getAttribute('data-accent-color'), '#6366f1');
     const dur = speed === 'slow' ? 60 : speed === 'fast' ? 18 : 35;
     const animDir = direction === 'right' ? 'reverse' : 'normal';
     const sepChar = separator === 'dot' ? '●' : separator === 'star' ? '✦' : separator === 'dash' ? '—' : '';
@@ -1228,17 +1329,18 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     el.removeAttribute('data-type');
     ['data-cards','data-cols','data-card-bg','data-text-color'].forEach(a => el.removeAttribute(a));
 
-    el.innerHTML = cards.map((card: any) => `
-      <div class="glow-card" style="background:${bgColor};border:${border};border-radius:1rem;padding:1.5rem;position:relative;overflow:hidden;transition:transform 0.2s,box-shadow 0.3s;"
-        onmouseenter="this.querySelector('.glow-overlay').style.opacity='1';this.style.transform='translateY(-2px)';"
-        onmouseleave="this.querySelector('.glow-overlay').style.opacity='0';this.style.transform='';"
-        onmousemove="var r=this.getBoundingClientRect();this.querySelector('.glow-overlay').style.background='radial-gradient(300px circle at '+(event.clientX-r.left)+'px '+(event.clientY-r.top)+'px,${card.glowColor}22,transparent 70%)';">
-        <div class="glow-overlay" style="position:absolute;inset:0;opacity:0;transition:opacity 0.3s;pointer-events:none;border-radius:1rem;"></div>
-        <div style="font-size:2rem;margin-bottom:0.75rem;">${card.emoji || ''}</div>
-        <h3 style="font-weight:600;font-size:1rem;margin:0 0 0.5rem;color:${titleClr};">${escapeHtml(card.title || '')}</h3>
-        <p style="font-size:0.875rem;line-height:1.6;margin:0;color:${descClr};">${escapeHtml(card.description || '')}</p>
+    el.innerHTML = cards.map((card: any) => {
+      const safeGlow = sanitizeColor(card.glowColor, '#6366f1');
+      return `
+      <div class="glow-card" style="background:${bgColor};border:${border};border-radius:1rem;padding:1.5rem;position:relative;overflow:hidden;transition:transform 0.2s,box-shadow 0.3s;--glow-color:${safeGlow};">
+        <div class="glow-overlay" style="position:absolute;inset:0;opacity:0;transition:opacity 0.3s;pointer-events:none;border-radius:1rem;background:radial-gradient(300px circle at 50% 50%,${safeGlow}22,transparent 70%);"></div>
+        <div style="position:relative;z-index:1;">
+          <div style="font-size:2rem;margin-bottom:0.75rem;">${card.emoji || ''}</div>
+          <h3 style="font-weight:600;font-size:1rem;margin:0 0 0.5rem;color:${titleClr};">${escapeHtml(card.title || '')}</h3>
+          <p style="font-size:0.875rem;line-height:1.6;margin:0;color:${descClr};">${escapeHtml(card.description || '')}</p>
+        </div>
       </div>
-    `).join('');
+    `}).join('');
   });
 
   // Transform Gradient Border blocks
@@ -1268,7 +1370,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     ['data-title','data-description','data-preset','data-border-width','data-anim-speed','data-border-radius'].forEach(a => el.removeAttribute(a));
 
     el.innerHTML = `
-      <div style="background:linear-gradient(135deg,${colors.join(',')});background-size:200% 200%;animation:gradient-shift ${dur}s ease infinite;border-radius:${br};padding:${bw}px;">
+      <div style="background:linear-gradient(135deg,${colors.join(',')});background-size:200% 200%;animation:gradient-border-shift ${dur}s ease infinite;border-radius:${br};padding:${bw}px;">
         <div style="border-radius:calc(${br} - ${bw}px);background:#fff;padding:2rem 2.5rem;text-align:center;">
           ${title ? `<p style="font-size:1.5rem;font-weight:700;color:#1e293b;margin:0 0 0.5rem;">${escapeHtml(title)}</p>` : ''}
           ${description ? `<p style="color:#64748b;margin:0;">${escapeHtml(description)}</p>` : ''}
@@ -1292,9 +1394,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     el.innerHTML = cards.map((card: any) => {
       if (revealStyle === 'flip') {
         return `
-          <div class="hr-card" style="height:192px;border-radius:1rem;overflow:hidden;perspective:800px;cursor:pointer;"
-            onmouseenter="this.querySelector('.hr-inner').style.transform='rotateY(180deg)';"
-            onmouseleave="this.querySelector('.hr-inner').style.transform='';">
+          <div class="hr-card hr-flip" style="height:192px;border-radius:1rem;overflow:hidden;perspective:800px;cursor:pointer;">
             <div class="hr-inner" style="width:100%;height:100%;transition:transform 0.5s;transform-style:preserve-3d;position:relative;">
               <div style="position:absolute;inset:0;backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:1rem;background:${card.accentColor}12;border:1px solid ${card.accentColor}30;">
                 <span style="font-size:2.5rem;margin-bottom:0.75rem;">${card.emoji || ''}</span>
@@ -1308,9 +1408,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
         `;
       }
       return `
-        <div class="hr-card" style="height:192px;border-radius:1rem;overflow:hidden;position:relative;cursor:pointer;"
-          onmouseenter="this.querySelector('.hr-front').style.opacity='0';this.querySelector('.hr-front').style.transform='translateY(-100%)';this.querySelector('.hr-back').style.opacity='1';this.querySelector('.hr-back').style.transform='translateY(0)';"
-          onmouseleave="this.querySelector('.hr-front').style.opacity='1';this.querySelector('.hr-front').style.transform='';this.querySelector('.hr-back').style.opacity='0';this.querySelector('.hr-back').style.transform='translateY(100%)';">
+        <div class="hr-card hr-slide" style="height:192px;border-radius:1rem;overflow:hidden;position:relative;cursor:pointer;">
           <div class="hr-front" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:1rem;background:${card.accentColor}12;border:1px solid ${card.accentColor}30;transition:all 0.3s;">
             <span style="font-size:2.5rem;margin-bottom:0.75rem;">${card.emoji || ''}</span>
             <span style="font-weight:600;font-size:1.1rem;color:#1e293b;">${escapeHtml(card.frontTitle || '')}</span>
@@ -1347,16 +1445,18 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     el.removeAttribute('data-type');
     ['data-label','data-message','data-url','data-variant','data-shimmer','data-align'].forEach(a => el.removeAttribute(a));
 
-    const pillInner = `
-      <span style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;border-radius:9999px;background:${c.pill};border:1px solid ${c.pillBorder};color:${c.pillText};font-size:0.875rem;font-weight:500;position:relative;overflow:hidden;">
-        <span style="display:inline-flex;align-items:center;padding:0.125rem 0.5rem;border-radius:9999px;background:${c.badge};color:${c.badgeText};font-size:0.75rem;font-weight:600;">${escapeHtml(label)}</span>
-        <span>${escapeHtml(message)}</span>
-        ${url ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.6;"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>` : ''}
-        ${shimmer ? `<span style="position:absolute;inset:0;background:linear-gradient(110deg,transparent 20%,rgba(255,255,255,0.4) 50%,transparent 80%);background-size:200% 100%;animation:shimmer-sweep 2.5s ease-in-out infinite;pointer-events:none;"></span>` : ''}
-      </span>
-    `;
+    const textAlign = align === 'left' ? 'left' : align === 'right' ? 'right' : 'center';
+    const arrowSvg = url ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.6;flex-shrink:0;width:14px;height:14px;"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>' : '';
+    const shimmerSpan = shimmer ? `<span style="position:absolute;inset:0;background:linear-gradient(110deg,transparent 20%,rgba(255,255,255,0.4) 50%,transparent 80%);background-size:200% 100%;animation:shimmer-sweep 2.5s ease-in-out infinite;pointer-events:none;"></span>` : '';
+    const pillStyle = `display:inline-flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;border-radius:9999px;white-space:nowrap;background:${c.pill};border:1px solid ${c.pillBorder};color:${c.pillText};font-size:0.875rem;font-weight:500;position:relative;overflow:hidden;text-decoration:none;`;
+    const pillInner = `<span style="display:inline-block;padding:0.125rem 0.5rem;border-radius:9999px;background:${c.badge};color:${c.badgeText};font-size:0.75rem;font-weight:600;white-space:nowrap;">${escapeHtml(label)}</span><span>${escapeHtml(message)}</span>${arrowSvg}${shimmerSpan}`;
 
-    el.innerHTML = `<div style="display:flex;justify-content:${justifyStyle};">${url ? `<a href="${url}" style="text-decoration:none;">${pillInner}</a>` : pillInner}</div>`;
+    el.setAttribute('style', `text-align:${textAlign};margin:0.75rem 0;`);
+    if (url) {
+      el.innerHTML = `<a href="${sanitizeUrl(url)}" style="${pillStyle}">${pillInner}</a>`;
+    } else {
+      el.innerHTML = `<span style="${pillStyle}">${pillInner}</span>`;
+    }
   });
 
   // Transform Gradient Blobs blocks
@@ -1412,8 +1512,31 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     ];
     const bg = BG_PRESETS[bgPreset] ?? BG_PRESETS[0];
     const minH = height === 'sm' ? '180px' : height === 'lg' ? '380px' : '280px';
-    const freq = 0.4 + (noiseDensity / 100) * 0.6;
-    const noiseSvg = `<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='${freq}' numOctaves='4' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='200' height='200' filter='url(#n)' opacity='${noiseOpacity}'/></svg>`;
+    // Generate canvas-based noise (SVG feTurbulence filters don't render in CSS background-image on Chrome)
+    const noiseDataUrl = (() => {
+      const size = 256;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d')!;
+      const imageData = ctx.createImageData(size, size);
+      const px = imageData.data;
+      const blockSize = Math.max(1, Math.round(8 - (noiseDensity / 100) * 7));
+      const alpha = Math.floor(noiseOpacity * 255);
+      for (let y = 0; y < size; y += blockSize) {
+        for (let x = 0; x < size; x += blockSize) {
+          const value = Math.floor(Math.random() * 255);
+          for (let dy = 0; dy < blockSize && y + dy < size; dy++) {
+            for (let dx = 0; dx < blockSize && x + dx < size; dx++) {
+              const idx = ((y + dy) * size + (x + dx)) * 4;
+              px[idx] = value; px[idx + 1] = value; px[idx + 2] = value; px[idx + 3] = alpha;
+            }
+          }
+        }
+      }
+      ctx.putImageData(imageData, 0, 0);
+      return canvas.toDataURL('image/png');
+    })();
 
     el.className = 'noise-overlay-block';
     el.removeAttribute('data-type');
@@ -1421,7 +1544,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
 
     el.innerHTML = `
       <div style="position:relative;border-radius:1rem;overflow:hidden;min-height:${minH};background:${bg.value};display:flex;align-items:center;justify-content:center;text-align:center;">
-        <div style="position:absolute;inset:0;background-image:url('data:image/svg+xml,${encodeURIComponent(noiseSvg)}');background-repeat:repeat;background-size:200px 200px;pointer-events:none;"></div>
+        <div style="position:absolute;inset:0;background-image:url('${noiseDataUrl}');background-repeat:repeat;background-size:256px 256px;pointer-events:none;"></div>
         <div style="position:relative;z-index:1;padding:3rem 2rem;">
           ${title ? `<p style="font-size:1.5rem;font-weight:700;margin:0 0 0.5rem;color:${bg.dark ? '#f1f5f9' : '#0f172a'};">${escapeHtml(title)}</p>` : ''}
           ${subtitle ? `<p style="font-size:1rem;opacity:0.7;margin:0;color:${bg.dark ? '#cbd5e1' : '#475569'};">${escapeHtml(subtitle)}</p>` : ''}
@@ -1433,9 +1556,12 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
   // Transform Parallax Section blocks
 
   // processedHTML now contains the headings with their newly injected IDs
+  // Note: sanitization was already applied to the raw HTML before block transforms.
+  // We do NOT sanitize again here — the transforms produce trusted template HTML
+  // (buttons, SVGs, iframes, etc.) that must be preserved.
   const processedHTML = doc.body.innerHTML;
 
-  const primaryColor = theme?.primaryColor || '#2563eb';
+  const primaryColor = sanitizeColor(theme?.primaryColor, '#2563eb');
   const primaryColorRgb = hexToRgb(primaryColor);
   const fontStack = getFontStack(theme?.fontFamily);
 
@@ -1491,6 +1617,28 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
         });
         if (buttons[0]) buttons[0].classList.add('active');
         if (panels[0]) panels[0].classList.add('active');
+      });
+
+      // Click-to-play video facades — swap thumbnail for live iframe,
+      // or open YouTube directly when on file:// (where embeds are blocked)
+      document.querySelectorAll('.video-facade').forEach(wrapper => {
+        wrapper.addEventListener('click', () => {
+          const vid = wrapper.getAttribute('data-vid');
+          if (!vid) return;
+          if (window.location.protocol === 'file:') {
+            window.open('https://www.youtube.com/watch?v=' + vid, '_blank');
+            return;
+          }
+          const iframe = document.createElement('iframe');
+          iframe.src = 'https://www.youtube.com/embed/' + vid + '?autoplay=1';
+          iframe.title = 'YouTube video';
+          iframe.allowFullscreen = true;
+          iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+          iframe.style.cssText = 'border:none;position:absolute;inset:0;width:100%;height:100%;';
+          wrapper.innerHTML = '';
+          wrapper.classList.remove('video-facade');
+          wrapper.appendChild(iframe);
+        });
       });
 
       // Handle accordions/details toggles if any
@@ -1720,6 +1868,99 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
         document.addEventListener('touchend', () => { dragging = false; });
       });
 
+      // --- INTERACTIVE DEMO ---
+      document.querySelectorAll('.interactive-demo').forEach(demo => {
+        const viewport = demo.querySelector('.id-viewport');
+        if (!viewport) return;
+        const allFrames = viewport.querySelectorAll('.id-frame');
+        const navDots = demo.querySelectorAll('.id-nav-dot');
+        const backBtn = demo.querySelector('.id-back-btn');
+        const transitionType = demo.getAttribute('data-transition') || 'fade';
+        const history = [];
+        let currentId = allFrames[0] ? allFrames[0].getAttribute('data-frame-id') : null;
+        let animating = false;
+
+        function getFrame(id) {
+          return viewport.querySelector('.id-frame[data-frame-id="' + id + '"]');
+        }
+        function getFrameIds() {
+          return Array.from(allFrames).map(f => f.getAttribute('data-frame-id'));
+        }
+        function getNextId(id) {
+          const ids = getFrameIds();
+          const idx = ids.indexOf(id);
+          return idx >= 0 && idx < ids.length - 1 ? ids[idx + 1] : null;
+        }
+
+        function getTransitionClasses(type, reverse) {
+          if (type === 'slide-left') {
+            return { exitCls: reverse ? 'id-exit-slide-right' : 'id-exit-slide-left', enterCls: reverse ? 'id-enter-slide-right' : 'id-enter-slide-left' };
+          } else if (type === 'slide-right') {
+            return { exitCls: reverse ? 'id-exit-slide-left' : 'id-exit-slide-right', enterCls: reverse ? 'id-enter-slide-left' : 'id-enter-slide-right' };
+          } else if (type === 'slide-up') {
+            return { exitCls: reverse ? 'id-exit-slide-down' : 'id-exit-slide-up', enterCls: reverse ? 'id-enter-slide-down' : 'id-enter-slide-up' };
+          } else if (type === 'slide-down') {
+            return { exitCls: reverse ? 'id-exit-slide-up' : 'id-exit-slide-down', enterCls: reverse ? 'id-enter-slide-up' : 'id-enter-slide-down' };
+          }
+          return { exitCls: 'id-exit-fade', enterCls: 'id-enter-fade' };
+        }
+
+        function goTo(targetId, reverse, overrideTransition) {
+          if (animating || targetId === currentId || !targetId) return;
+          animating = true;
+          const cur = getFrame(currentId);
+          const next = getFrame(targetId);
+          if (!cur || !next) { animating = false; return; }
+
+          var type = overrideTransition || transitionType;
+          var { exitCls, enterCls } = getTransitionClasses(type, reverse);
+
+          next.classList.add('active', enterCls);
+          cur.classList.add(exitCls);
+
+          setTimeout(function() {
+            cur.classList.remove('active', exitCls);
+            next.classList.remove(enterCls);
+            currentId = targetId;
+            animating = false;
+            // Update nav dots
+            navDots.forEach(d => d.classList.toggle('active', d.getAttribute('data-frame-id') === targetId));
+            if (backBtn) backBtn.disabled = history.length === 0;
+          }, 350);
+        }
+
+        // Hotspot clicks
+        demo.querySelectorAll('.id-hotspot').forEach(hs => {
+          hs.addEventListener('click', function() {
+            var target = hs.getAttribute('data-target') || getNextId(currentId);
+            if (!target) return;
+            var hsTransition = hs.getAttribute('data-transition') || null;
+            history.push(currentId);
+            goTo(target, false, hsTransition);
+          });
+        });
+
+        // Nav dot clicks
+        navDots.forEach(dot => {
+          dot.addEventListener('click', function() {
+            var target = dot.getAttribute('data-frame-id');
+            if (target && target !== currentId) {
+              history.push(currentId);
+              goTo(target, false, null);
+            }
+          });
+        });
+
+        // Back button
+        if (backBtn) {
+          backBtn.addEventListener('click', function() {
+            if (history.length === 0) return;
+            var prev = history.pop();
+            goTo(prev, true, null);
+          });
+        }
+      });
+
       // --- PER-ELEMENT SCROLL REVEAL ---
       // Apply per-element reveal classes from data-scroll-reveal attribute
       document.querySelectorAll('[data-scroll-reveal]').forEach(el => {
@@ -1877,13 +2118,16 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     });
   `;
 
+
+
+
   const fullHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${title || 'Untitled Guide'}</title>
-  ${theme?.hero?.style === 'editorial' ? `
+  ${!isRise && theme?.hero?.style === 'editorial' ? `
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&display=swap">` : ''}
   <style>
@@ -1894,6 +2138,8 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     }
     
     /* Reset and base styles */
+    html { box-sizing: border-box; }
+    *, *::before, *::after { box-sizing: border-box; }
     body {
       margin: 0;
       padding: 0;
@@ -1902,6 +2148,8 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       color: #111827;
       line-height: 1.5;
       position: relative;
+      overflow-x: hidden;
+      max-width: 100vw;
     }
     /* Target specific elements with the brand color */
     .guide-container a { color: var(--brand-primary); }
@@ -1910,6 +2158,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     /* Layout */
     .export-layout {
       max-width: 80rem; /* max-w-7xl */
+      width: 100%;
       margin: 0 auto;
       padding: 3rem 1rem;
       display: flex;
@@ -1920,6 +2169,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     .guide-container {
       flex: 1;
       min-width: 0;
+      overflow-x: clip;
     }
 
     .brand-header {
@@ -2195,6 +2445,9 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       width: 100%;
       height: 100%;
     }
+    .video-facade:hover .video-play-btn div {
+      transform: scale(1.1);
+    }
 
     /* Timeline */
     .timeline {
@@ -2424,6 +2677,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       overflow-y: auto;
       padding-left: 1rem;
       border-left: 1px solid #f1f5f9;
+      z-index: 10;
     }
     .toc-sidebar h3 {
       font-size: 0.875rem;
@@ -2723,6 +2977,40 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     .before-after-label-left { left: 0.75rem; }
     .before-after-label-right { right: 0.75rem; }
 
+    /* Interactive Demo */
+    .interactive-demo { margin: 2rem 0; border-radius: 0.75rem; overflow: hidden; border: 1px solid #e2e8f0; background: #0f172a; }
+    .id-viewport { position: relative; overflow: hidden; }
+    .id-sizer { display: block; width: 100%; height: auto; visibility: hidden; }
+    .id-frame { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; transition: opacity 0.35s ease, transform 0.35s ease; }
+    .id-frame.active { opacity: 1; pointer-events: auto; z-index: 1; }
+    .id-frame img { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .id-hotspot { position: absolute; cursor: pointer; border-radius: 6px; z-index: 5; background: rgba(59,130,246,0.12); box-shadow: inset 0 0 0 2px rgba(59,130,246,0.4); transition: background 0.15s ease, box-shadow 0.15s ease; animation: idHotspotPulse 2s ease-in-out infinite; }
+    .id-hotspot:hover { background: rgba(59,130,246,0.3); box-shadow: inset 0 0 0 2px rgba(59,130,246,0.8); animation: none; }
+    @keyframes idHotspotPulse { 0%, 100% { box-shadow: inset 0 0 0 2px rgba(59,130,246,0.4); } 50% { box-shadow: inset 0 0 0 2px rgba(59,130,246,0.7), 0 0 12px rgba(59,130,246,0.25); } }
+    .id-nav { display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.75rem; background: #1e293b; }
+    .id-nav-dot { width: 10px; height: 10px; border-radius: 50%; background: #475569; border: none; cursor: pointer; padding: 0; transition: background 0.2s, transform 0.2s; }
+    .id-nav-dot.active { background: #3b82f6; transform: scale(1.3); }
+    .id-nav-dot:hover { background: #64748b; }
+    .id-back-btn { background: #334155; color: #cbd5e1; border: none; padding: 0.25rem 0.75rem; border-radius: 0.375rem; font-size: 0.75rem; cursor: pointer; margin-left: 0.75rem; transition: background 0.15s; }
+    .id-back-btn:hover:not(:disabled) { background: #475569; }
+    .id-back-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    /* Transition animations */
+    .id-exit-fade { opacity: 0 !important; }
+    .id-enter-fade { opacity: 0; animation: idFadeIn 0.35s ease forwards; }
+    @keyframes idFadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .id-exit-slide-left { transform: translateX(-100%); opacity: 0 !important; }
+    .id-enter-slide-left { animation: idSlideInFromRight 0.35s ease forwards; }
+    @keyframes idSlideInFromRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .id-exit-slide-right { transform: translateX(100%); opacity: 0 !important; }
+    .id-enter-slide-right { animation: idSlideInFromLeft 0.35s ease forwards; }
+    @keyframes idSlideInFromLeft { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .id-exit-slide-up { transform: translateY(-100%); opacity: 0 !important; }
+    .id-enter-slide-up { animation: idSlideInFromBottom 0.35s ease forwards; }
+    @keyframes idSlideInFromBottom { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .id-exit-slide-down { transform: translateY(100%); opacity: 0 !important; }
+    .id-enter-slide-down { animation: idSlideInFromTop 0.35s ease forwards; }
+    @keyframes idSlideInFromTop { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
     /* Bento Grid */
     .bento-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 2rem 0; }
     .bento-cell { border-radius: 1.25rem; padding: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; min-height: 130px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
@@ -2842,9 +3130,15 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     @keyframes gradient-border-shift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
     .gradient-border-block > div { background-size: 200% 200% !important; animation: gradient-border-shift 3.5s ease infinite; }
 
-    /* Hover Reveal */
-    .hr-card { }
+    /* Hover Reveal — CSS-only hover effects */
+    .hr-flip:hover .hr-inner { transform: rotateY(180deg); }
     .hr-inner { transition: transform 0.5s; transform-style: preserve-3d; }
+    .hr-slide:hover .hr-front { opacity: 0; transform: translateY(-100%); }
+    .hr-slide:hover .hr-back  { opacity: 1 !important; transform: translateY(0) !important; }
+
+    /* Glow Cards — CSS-only hover */
+    .glow-card:hover .glow-overlay { opacity: 1 !important; }
+    .glow-card:hover { transform: translateY(-2px); }
 
     /* Announcement Pill */
     @keyframes shimmer-sweep { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
@@ -2995,6 +3289,15 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>');
     }
 
+    .callout[data-type="danger"] {
+      background-color: #fef2f2;
+      border-color: #fee2e2;
+      color: #7f1d1d;
+    }
+    .callout[data-type="danger"]::before {
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>');
+    }
+
     /* Glass Callouts */
     .callout[data-type="glass-info"] {
       background: rgba(59, 130, 246, 0.08);
@@ -3028,7 +3331,8 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     table {
       border-collapse: collapse;
       table-layout: auto;
-      width: 100%;
+      width: max-content;
+      min-width: 100%;
       margin: 2rem 0;
       text-align: left;
     }
@@ -3056,6 +3360,15 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     .tableWrapper {
       padding: 1rem 0;
       overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      /* visual hint that content scrolls */
+      background: linear-gradient(to right, white 30%, rgba(255,255,255,0)),
+                  linear-gradient(to right, rgba(255,255,255,0), white 70%) 100% 0,
+                  linear-gradient(to right, rgba(0,0,0,0.08), rgba(255,255,255,0)),
+                  linear-gradient(to right, rgba(255,255,255,0), rgba(0,0,0,0.08)) 100% 0;
+      background-repeat: no-repeat;
+      background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+      background-attachment: local, local, scroll, scroll;
     }
 
     /* Table style variants */
@@ -3066,6 +3379,17 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     table[data-table-style="minimal"] td, table[data-table-style="minimal"] th { border-top: none; border-left: none; border-right: none; border-bottom: 1px solid #e2e8f0; padding-left: 0.25rem; padding-right: 0.25rem; }
     table[data-table-style="minimal"] th { background-color: transparent !important; color: #94a3b8 !important; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; }
     table[data-table-style="minimal"] tr:hover td { background-color: transparent; }
+
+    table[data-table-style="striped"] tbody tr:nth-child(even) td { background-color: #f8fafc; }
+    table[data-table-style="striped"] tr:hover td { background-color: #f1f5f9; }
+
+    table[data-table-style="dark"] th { background-color: #0f172a !important; color: #f8fafc !important; border-color: #1e293b !important; }
+    table[data-table-style="dark"] tr:hover td { background-color: rgba(15, 23, 42, 0.04); }
+
+    table[data-table-style="accent"] th { background-color: var(--brand-primary) !important; color: #fff !important; border-color: var(--brand-primary) !important; }
+    table[data-table-style="accent"] tr:hover td { background-color: rgba(59, 130, 246, 0.05); }
+
+    table[data-table-style="compact"] td, table[data-table-style="compact"] th { padding: 0.375rem 0.625rem; font-size: 0.8125rem; }
 
     /* Highlight */
     mark {
@@ -3446,6 +3770,21 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       .card-grid[data-cols="4"] {
         grid-template-columns: 1fr;
       }
+      /* Mockups: cap widths so fixed-size frames can't overflow on narrow screens */
+      .phone-mockup { max-width: 100%; }
+      .phone-inner { width: 100%; max-width: 240px; }
+      .browser-mockup { max-width: 100%; }
+      .browser-mockup img { max-width: 100%; height: auto; }
+      /* Prevent any oversized media in the guide body from forcing horizontal scroll */
+      .guide-container img,
+      .guide-container video,
+      .guide-container iframe { max-width: 100%; height: auto; }
+      .guide-container pre { max-width: 100%; overflow-x: auto; }
+      /* Shrink Tailwind prose rhythm on mobile so headings/body don't dominate */
+      .prose { font-size: 0.95rem; }
+      .prose h1 { font-size: 1.75rem !important; }
+      .prose h2 { font-size: 1.375rem !important; }
+      .prose h3 { font-size: 1.125rem !important; }
     }
     @media (min-width: 641px) and (max-width: 767px) {
       .card-grid[data-cols="3"] {
@@ -3460,6 +3799,13 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
         height: 3rem;
       }
     }
+    ${isRise ? `
+    /* Rise iframe mode: never be wider than the host, and tighten padding */
+    .export-layout { max-width: 100% !important; padding: 1.5rem 0.75rem !important; gap: 1.5rem !important; }
+    .guide-container { max-width: 100%; }
+    .phone-inner { max-width: 240px; }
+    .browser-mockup { max-width: 100%; }
+    ` : ''}
 
     ${getCodeThemeCSS(theme?.codeTheme)}
 
@@ -3486,6 +3832,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       .callout[data-type="info"] { background-color: rgba(37, 99, 235, 0.1); border-color: rgba(37, 99, 235, 0.2); color: #60a5fa; }
       .callout[data-type="warning"] { background-color: rgba(217, 119, 6, 0.1); border-color: rgba(217, 119, 6, 0.2); color: #fbbf24; }
       .callout[data-type="success"] { background-color: rgba(5, 150, 105, 0.1); border-color: rgba(5, 150, 105, 0.2); color: #34d399; }
+      .callout[data-type="danger"] { background-color: rgba(220, 38, 38, 0.1); border-color: rgba(220, 38, 38, 0.2); color: #fca5a5; }
       .callout[data-type="glass-info"] { background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.3); color: #93c5fd; }
       .callout[data-type="glass-warning"] { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.3); color: #fcd34d; }
       .callout[data-type="glass-success"] { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.3); color: #6ee7b7; }
@@ -3607,6 +3954,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     html.dark .callout[data-type="info"] { background-color: rgba(37, 99, 235, 0.1); border-color: rgba(37, 99, 235, 0.2); color: #60a5fa; }
     html.dark .callout[data-type="warning"] { background-color: rgba(217, 119, 6, 0.1); border-color: rgba(217, 119, 6, 0.2); color: #fbbf24; }
     html.dark .callout[data-type="success"] { background-color: rgba(5, 150, 105, 0.1); border-color: rgba(5, 150, 105, 0.2); color: #34d399; }
+    html.dark .callout[data-type="danger"] { background-color: rgba(220, 38, 38, 0.1); border-color: rgba(220, 38, 38, 0.2); color: #fca5a5; }
     html.dark .callout[data-type="glass-info"] { background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.3); color: #93c5fd; }
     html.dark .callout[data-type="glass-warning"] { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.3); color: #fcd34d; }
     html.dark .callout[data-type="glass-success"] { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.3); color: #6ee7b7; }
@@ -3833,12 +4181,12 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
   ${theme?.customCSS ? `<style>${theme.customCSS}</style>` : ''}
 </head>
 <body>
-  ${theme?.features?.readingProgressBar ? `<div id="reading-progress"></div>` : ''}
-  ${theme?.features?.backToTop ? `
+  ${theme?.features?.readingProgressBar && !isRise ? `<div id="reading-progress"></div>` : ''}
+  ${theme?.features?.backToTop && !isRise ? `
   <button id="back-to-top" aria-label="Back to top">
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
   </button>` : ''}
-  ${theme?.features?.shareButtons ? `
+  ${theme?.features?.shareButtons && !isRise ? `
   <div id="share-bar">
     <button class="share-btn" id="copy-link-btn" aria-label="Copy link">
       <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
@@ -3849,33 +4197,30 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       Print
     </button>
   </div>` : ''}
-  ${(() => {
-    // Only the legacy hero (enabled=true, no explicit style) renders full-bleed outside the layout.
-    // New named cover styles (gradient/dark/mesh/editorial) render inside the guide-container
-    // so they stay contained within the content width, matching the editor view.
+  ${!isRise ? (() => {
     const isLegacyFullBleed = !!(theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none'));
     return isLegacyFullBleed ? renderHeroCover(title, theme) : '';
-  })()}
-  ${theme?.features?.stickyHeader && theme?.logoBase64 ? `
+  })() : ''}
+  ${!isRise && theme?.features?.stickyHeader && theme?.logoBase64 ? `
     <div class="sticky-header" style="position: sticky; top: 0; z-index: 100; background: ${theme?.features?.darkModeSupport ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.9)'}; backdrop-filter: blur(8px); border-bottom: 1px solid ${theme?.features?.darkModeSupport ? '#1e293b' : '#f1f5f9'}; padding: 1rem 2rem; display: flex; align-items: center;">
-      <img src="${theme.logoBase64}" alt="Brand Logo" style="max-height: 32px; object-fit: contain;" />
+      <img src="${sanitizeImageSrc(theme.logoBase64)}" alt="Brand Logo" style="max-height: 32px; object-fit: contain;" />
       ${theme?.hero?.enabled || (theme?.hero?.style && theme?.hero?.style !== 'none') ? '' : `<span style="margin-left: 1rem; font-weight: 600;">${title || 'Untitled Guide'}</span>`}
     </div>
   ` : ''}
   <div class="export-layout">
-    <div class="guide-container prose prose-slate prose-lg max-w-none">
-      ${theme?.logoBase64 && !theme?.features?.stickyHeader && !theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none') ? `<div class="brand-header"><img src="${theme.logoBase64}" alt="Brand Logo" class="brand-logo" /></div>` : ''}
+    <div class="guide-container prose prose-slate prose-lg max-w-none prose-h1:text-4xl prose-h2:text-2xl prose-h3:text-xl prose-h4:text-lg prose-headings:font-bold prose-headings:tracking-tight">
+      ${theme?.logoBase64 && !theme?.features?.stickyHeader && !theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none') ? `<div class="brand-header"><img src="${sanitizeImageSrc(theme.logoBase64)}" alt="Brand Logo" class="brand-logo" /></div>` : ''}
       ${!(theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none')) ? renderHeroCover(title, theme) : ''}
       ${processedHTML}
     </div>
-    ${tocHTML}
+    ${!isRise ? tocHTML : ''}
   </div>
-  ${theme?.footer?.enabled ? `
+  ${!isRise && theme?.footer?.enabled ? `
   <footer class="site-footer">
     <div class="site-footer-inner">
       ${(theme.footer.links ?? []).length > 0 ? `
       <nav class="site-footer-links">
-        ${theme.footer.links.map(l => `<a href="${l.url}" target="_blank" rel="noopener noreferrer">${l.label}</a>`).join('')}
+        ${theme.footer.links.map(l => `<a href="${sanitizeUrl(l.url)}" target="_blank" rel="noopener noreferrer">${l.label}</a>`).join('')}
       </nav>` : ''}
       ${theme.footer.text ? `<p class="site-footer-text">${theme.footer.text}</p>` : ''}
       ${theme.footer.showBranding ? `<p class="site-footer-branding">Made with <a href="https://github.com/coletrain35/GuideEm" target="_blank" rel="noopener noreferrer">GuideEm</a></p>` : ''}
@@ -3896,9 +4241,8 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       }, { threshold: 0.1 });
       revealEls.forEach(function(el) { observer.observe(el); });
     }
-    ${theme?.features?.scrollReveal ? `
+    ${!isRise && theme?.features?.scrollReveal ? `
     document.addEventListener('DOMContentLoaded', () => {
-      // Apply fade-up to top-level blocks that don't have a per-element reveal
       document.querySelectorAll('.guide-container > *:not([data-scroll-reveal])').forEach(el => {
         el.classList.add('reveal-fade-up');
       });

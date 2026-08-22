@@ -1,8 +1,48 @@
-node_modules/
-build/
-dist/
-coverage/
-.DS_Store
+# Logs
+logs
 *.log
-.env*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencies
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Caching & Build
+.npm
+.eslintcache
+.vite/
+build/
+coverage/
+
+# Environment Variables
+.env
+.env.*
 !.env.example
+
+# IDEs and Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Local Testing/Exports
+Test/
+*.pdf
+# Ignore standalone generated HTML exports
+*-export.html
+
+# Project Planning / AI Context
+AGENTS.md
+IDEAS.md
+RISE_COMPATIBILITY_PLAN.md

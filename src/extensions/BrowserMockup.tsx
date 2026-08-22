@@ -1,21 +1,31 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
-import React, { useRef } from 'react';
-import { Image as ImageIcon } from 'lucide-react';
+import React, { useRef, useId } from 'react';
+import { Image as ImageIcon, X, Pencil } from 'lucide-react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 const BrowserMockupNodeView = (props: any) => {
   const { node, updateAttributes, selected, deleteNode, getPos, editor } = props;
-  const { image, url, variant } = node.attrs;
+  const { image, url, variant, alt, caption } = node.attrs;
   const isDark = variant === 'dark';
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const altInputId = useId();
+  const captionInputId = useId();
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => updateAttributes({ image: ev.target?.result as string });
+    reader.onload = (ev) => {
+      updateAttributes({ image: ev.target?.result as string });
+      if (e.target) e.target.value = '';
+    };
     reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    updateAttributes({ image: '' });
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const titleBarBg = isDark ? '#2d2d2d' : '#e8e8e8';
@@ -27,7 +37,7 @@ const BrowserMockupNodeView = (props: any) => {
   return (
     <NodeViewWrapper className="group/block relative my-8" contentEditable={false}>
       <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
-      <div className="rounded-xl overflow-hidden shadow-2xl" style={{ border: `1px solid ${borderColor}` }}>
+      <div className="rounded-xl overflow-hidden shadow-2xl relative" style={{ border: `1px solid ${borderColor}` }}>
         {/* Chrome bar */}
         <div className="flex items-center gap-3 px-4 py-2.5" style={{ backgroundColor: titleBarBg, borderBottom: `1px solid ${borderColor}` }}>
           <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -36,14 +46,14 @@ const BrowserMockupNodeView = (props: any) => {
             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#28c941' }} />
           </div>
           <div className="flex-1 flex items-center gap-2 px-3 py-1 rounded-md text-xs font-mono" style={{ backgroundColor: urlBarBg, color: urlTextColor }}>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" /></svg>
             <span className="truncate">{url || 'https://example.com'}</span>
           </div>
         </div>
         {/* Content */}
-        <div style={{ backgroundColor: bodyBg, lineHeight: 0 }}>
+        <div style={{ backgroundColor: bodyBg, lineHeight: 0, position: 'relative' }}>
           {image ? (
-            <img src={image} alt="Browser screenshot" className="w-full block" style={{ display: 'block' }} />
+            <img src={image} alt={alt || 'Browser screenshot'} className="w-full block" style={{ display: 'block' }} />
           ) : (
             <div
               className="flex flex-col items-center justify-center cursor-pointer py-20 hover:opacity-70 transition-opacity"
@@ -52,7 +62,37 @@ const BrowserMockupNodeView = (props: any) => {
             >
               <ImageIcon size={40} className="mb-3 opacity-40" />
               <span className="text-sm">Click to add screenshot</span>
-              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+            </div>
+          )}
+
+          {/* Hover overlay — only when selected AND an image exists, so the user
+              can replace or remove directly without hunting the toolbar. */}
+          {selected && image && (
+            <div
+              className="absolute inset-0 flex items-center justify-center gap-2 transition-opacity"
+              style={{
+                background: 'rgba(15, 23, 42, 0.55)',
+                zIndex: 3,
+              }}
+            >
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/95 hover:bg-white text-slate-700 rounded-full text-xs font-medium shadow-lg transition-colors"
+                title="Replace image"
+                type="button"
+              >
+                <Pencil size={12} />
+                Replace
+              </button>
+              <button
+                onClick={handleRemoveImage}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/95 hover:bg-red-50 text-red-600 hover:text-red-700 rounded-full text-xs font-medium shadow-lg transition-colors"
+                title="Remove image"
+                type="button"
+              >
+                <X size={12} />
+                Remove
+              </button>
             </div>
           )}
         </div>
@@ -69,7 +109,7 @@ const BrowserMockupNodeView = (props: any) => {
               placeholder="https://yourapp.com"
             />
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <span className="text-xs font-medium text-slate-500">Chrome:</span>
             {(['light', 'dark'] as const).map((v) => (
               <button
@@ -83,13 +123,68 @@ const BrowserMockupNodeView = (props: any) => {
             <button
               className="ml-auto px-3 py-1 text-xs bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
               onClick={() => fileInputRef.current?.click()}
+              type="button"
             >
               {image ? 'Change image' : 'Upload image'}
             </button>
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+            {image && (
+              <button
+                className="px-3 py-1 text-xs bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors flex items-center gap-1"
+                onClick={handleRemoveImage}
+                title="Remove image"
+                type="button"
+              >
+                <X size={12} />
+                Remove
+              </button>
+            )}
+          </div>
+          <div>
+            <label htmlFor={altInputId} className="text-xs font-medium text-slate-500 block mb-1">
+              Alt text {alt ? <span className="text-emerald-600">✓</span> : <span className="text-amber-600">⚠</span>}
+            </label>
+            <input
+              id={altInputId}
+              type="text"
+              value={alt || ''}
+              onChange={(e) => updateAttributes({ alt: e.target.value })}
+              placeholder="Describe this screenshot for screen readers…"
+              maxLength={280}
+              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-400"
+            />
+          </div>
+          <div>
+            <label htmlFor={captionInputId} className="text-xs font-medium text-slate-500 block mb-1">
+              Caption
+            </label>
+            <input
+              id={captionInputId}
+              type="text"
+              value={caption || ''}
+              onChange={(e) => updateAttributes({ caption: e.target.value })}
+              placeholder="Optional caption (shown below)…"
+              maxLength={240}
+              className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-400"
+            />
           </div>
         </div>
       )}
+
+      {caption && (
+        <p className="mt-2 text-center text-sm text-slate-500 italic">
+          {caption}
+        </p>
+      )}
+
+      {/* Single file input for the whole node view. Re-selected same file works
+          because the handler resets e.target.value to '' after every read. */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleImageUpload}
+      />
     </NodeViewWrapper>
   );
 };
@@ -116,6 +211,16 @@ export const BrowserMockup = Node.create({
         default: 'light',
         parseHTML: (el: HTMLElement) => el.getAttribute('data-variant') || 'light',
         renderHTML: (attrs: any) => ({ 'data-variant': attrs.variant }),
+      },
+      alt: {
+        default: '',
+        parseHTML: (el: HTMLElement) => el.getAttribute('data-alt') || '',
+        renderHTML: (attrs: any) => (attrs.alt ? { 'data-alt': attrs.alt } : {}),
+      },
+      caption: {
+        default: '',
+        parseHTML: (el: HTMLElement) => el.getAttribute('data-caption') || '',
+        renderHTML: (attrs: any) => (attrs.caption ? { 'data-caption': attrs.caption } : {}),
       },
     };
   },
