@@ -146,7 +146,20 @@ const DiagramNodeView = (props: any) => {
   const theme = (node.attrs.theme || 'default') as Theme;
   const cachedSvg = node.attrs.cachedSvg || '';
 
-  const [svg, setSvg] = useState(cachedSvg);
+  // The <svg> height / width attributes only accept a `<length>` — passing
+  // "auto" produces a console error and gets ignored by the browser.  Some
+  // diagram definitions (or older cached output) bake these values in, so we
+  // strip them defensively before they reach the DOM.  CSS handles the
+  // responsive sizing via the [&>svg] selectors on the preview wrappers.
+  const sanitizeSvgSizeAttrs = (markup: string): string => {
+    if (!markup) return markup;
+    return markup
+      .replace(/<svg\b([^>]*?)\bwidth="auto"/i, '<svg$1')
+      .replace(/<svg\b([^>]*?)\bheight="auto"/i, '<svg$1')
+      .replace(/\s+>/, '>');
+  };
+
+  const [svg, setSvg] = useState(() => sanitizeSvgSizeAttrs(cachedSvg));
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
@@ -201,7 +214,7 @@ const DiagramNodeView = (props: any) => {
         });
         const id = 'mmd-' + Math.random().toString(36).slice(2, 8);
         const { svg: out } = await mermaid.render(id, trimmed);
-        setSvg(out);
+        setSvg(sanitizeSvgSizeAttrs(out));
         setError('');
         lastRenderedRef.current = renderKey;
         updateAttributes({ cachedSvg: out });

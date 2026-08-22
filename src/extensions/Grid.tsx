@@ -13,39 +13,38 @@ const GridNodeView = (props: any) => {
     <NodeViewWrapper className={`group/block relative my-8 transition-all ${selected ? 'ring-2 ring-slate-200 rounded-lg p-2' : ''}`}>
       <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
       
-      {/* Contextual Menu: Only visible when the grid is clicked */}
-      {selected && (
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full mb-2 flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-10 text-sm">
-          <button 
-            onClick={() => updateAttributes({ layout: '50-50' })}
-            className={`px-3 py-1 rounded-full hover:bg-slate-100 ${layout === '50-50' ? 'bg-slate-100 font-medium' : 'text-slate-600'}`}
-          >
-            50/50
-          </button>
-          <button 
-            onClick={() => updateAttributes({ layout: '40-60' })}
-            className={`px-3 py-1 rounded-full hover:bg-slate-100 ${layout === '40-60' ? 'bg-slate-100 font-medium' : 'text-slate-600'}`}
-          >
-            40/60
-          </button>
-          <button 
-            onClick={() => updateAttributes({ layout: '60-40' })}
-            className={`px-3 py-1 rounded-full hover:bg-slate-100 ${layout === '60-40' ? 'bg-slate-100 font-medium' : 'text-slate-600'}`}
-          >
-            60/40
-          </button>
-          
-          <div className="w-px h-4 bg-slate-300 mx-1" />
-          
-          <button
-            onClick={() => deleteNode()}
-            className="p-1.5 text-red-500 hover:bg-red-50 hover:text-red-600 rounded-full transition-colors"
-            title="Delete Grid"
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
-      )}
+      {/* Contextual Menu: Visible on hover or when selected */}
+      <div
+        contentEditable={false}
+        className={`absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full mb-2 flex items-center gap-1 p-1 bg-white/95 backdrop-blur-sm border border-slate-200 rounded-full shadow-md z-20 text-xs transition-opacity select-none ${
+          selected ? 'opacity-100 pointer-events-auto' : 'opacity-0 group-hover/block:opacity-100 pointer-events-none group-hover/block:pointer-events-auto'
+        }`}
+      >
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => updateAttributes({ layout: '50-50' })}
+          className={`px-2.5 py-1 rounded-full transition-colors ${layout === '50-50' ? 'bg-slate-900 text-white font-medium shadow-xs' : 'text-slate-600 hover:bg-slate-100'}`}
+        >
+          50 / 50
+        </button>
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => updateAttributes({ layout: '40-60' })}
+          className={`px-2.5 py-1 rounded-full transition-colors ${layout === '40-60' ? 'bg-slate-900 text-white font-medium shadow-xs' : 'text-slate-600 hover:bg-slate-100'}`}
+        >
+          40 / 60
+        </button>
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => updateAttributes({ layout: '60-40' })}
+          className={`px-2.5 py-1 rounded-full transition-colors ${layout === '60-40' ? 'bg-slate-900 text-white font-medium shadow-xs' : 'text-slate-600 hover:bg-slate-100'}`}
+        >
+          60 / 40
+        </button>
+      </div>
 
       {/* The Grid Container */}
       {/* The Grid Container */}

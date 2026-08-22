@@ -7,7 +7,7 @@ import { BlockDeleteButton } from '../components/BlockDeleteButton';
 // --- AccordionItem ---
 
 const AccordionItemNodeView = (props: any) => {
-  const { node, updateAttributes, deleteNode, getPos, editor } = props;
+  const { node, updateAttributes, getPos, editor } = props;
   const { title } = node.attrs;
   const [isOpen, setIsOpen] = useState(true);
 
@@ -16,14 +16,19 @@ const AccordionItemNodeView = (props: any) => {
   const canDelete = editor && typeof getPos === 'function' && (() => {
     const pos = getPos();
     if (pos == null) return false;
-    const parent = editor.state.doc.nodeAt(pos);
-    return !!parent && parent.childCount > 1;
+    try {
+      const $pos = editor.state.doc.resolve(pos);
+      const parent = $pos.parent;
+      return !!parent && parent.type.name === 'accordion' && parent.childCount > 1;
+    } catch {
+      return false;
+    }
   })();
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!canDelete) return;
-    const pos = getPos();
+    const pos = typeof getPos === 'function' ? getPos() : undefined;
     if (pos == null) return;
     const itemNodeSize = node.nodeSize;
     editor.chain().focus().deleteRange({ from: pos, to: pos + itemNodeSize }).run();
@@ -32,6 +37,7 @@ const AccordionItemNodeView = (props: any) => {
   return (
     <NodeViewWrapper className="accordion-item-editor my-0.5 group/accordion-item">
       <div
+        contentEditable={false}
         className="flex items-center gap-2 px-4 py-3 bg-slate-100 border border-slate-200 cursor-pointer select-none"
         style={{ borderRadius: isOpen ? '0.5rem 0.5rem 0 0' : '0.5rem' }}
         onClick={() => setIsOpen(!isOpen)}
@@ -45,7 +51,15 @@ const AccordionItemNodeView = (props: any) => {
         <input
           value={title}
           onChange={(e) => updateAttributes({ title: e.target.value })}
+          onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              (e.target as HTMLInputElement).blur();
+            }
+            e.stopPropagation();
+          }}
           className="flex-1 bg-transparent font-medium text-slate-800 outline-none text-sm"
           placeholder="Section title..."
           aria-label="Section title"

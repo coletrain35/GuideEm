@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Editor } from './components/Editor';
 import { ThemeDrawer } from './components/ThemeDrawer';
 import { Sidebar } from './components/Sidebar';
@@ -14,10 +14,11 @@ import { LandingPage } from './components/LandingPage';
 import { markdownToHtml } from './utils/markdownImporter';
 import { importGuideHTML } from './utils/htmlImporter';
 import type { TemplateDefinition } from './data/templates';
-import { FileDown, FileText, Trash2, Loader2, Keyboard, HelpCircle, X, CheckCircle, AlertTriangle, Info, Menu, Plus, Settings, Upload, Palette, ArrowLeft, Eye, Maximize2, Minimize2, LayoutGrid, ChevronDown } from 'lucide-react';
+import { FileDown, FileText, Loader2, Keyboard, HelpCircle, X, CheckCircle, AlertTriangle, Info, Menu, Plus, Upload, Palette, ArrowLeft, Eye, Maximize2, Minimize2, LayoutGrid, ChevronDown } from 'lucide-react';
 import { BlockPalette } from './components/BlockPalette';
+import { ToastProvider, useToast } from './components/Toast';
 
-const DEFAULT_THEME: ThemeConfig = {
+export const DEFAULT_THEME: ThemeConfig = {
   primaryColor: '#2563eb', // Tailwind blue-600
   fontFamily: 'modern',
   hero: {
@@ -45,10 +46,44 @@ const DEFAULT_THEME: ThemeConfig = {
   codeTheme: 'dark',
 };
 
-export default function App() {
+export function cloneTheme(theme: ThemeConfig = DEFAULT_THEME): ThemeConfig {
+  return {
+    ...theme,
+    features: { ...(theme.features || DEFAULT_THEME.features) },
+    hero: { ...(theme.hero || DEFAULT_THEME.hero) },
+    footer: {
+      ...(theme.footer || DEFAULT_THEME.footer),
+      links: theme.footer?.links ? theme.footer.links.map(l => ({ ...l })) : [...DEFAULT_THEME.footer.links],
+    },
+  };
+}
+
+function parseHexColor(inputColor?: string) {
+  let hex = (inputColor || DEFAULT_THEME.primaryColor).replace('#', '').trim();
+  if (hex.length === 3) {
+    hex = hex.split('').map(c => c + c).join('');
+  }
+  if (!/^[0-9a-fA-F]{6}$/.test(hex)) {
+    hex = '2563eb';
+  }
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  const toLinear = (c: number) => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
+  const luminance = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+  return { hex, r, g, b, luminance };
+}
+
+function MainApp() {
+  const toast = useToast();
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [currentDocId, setCurrentDocId] = useState<string | null>(null);
-  const [currentView, setCurrentView] = useState<'landing' | 'editor'>('landing');
+  const [currentDocId, setCurrentDocId] = useState<string | null>(() => {
+    return localStorage.getItem('guideem_last_doc_id') || null;
+  });
+  const [currentView, setCurrentView] = useState<'landing' | 'editor'>(() => {
+    const saved = localStorage.getItem('guideem_view');
+    return saved === 'editor' ? 'editor' : 'landing';
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
@@ -68,106 +103,118 @@ export default function App() {
   const htmlImportRef = useRef<HTMLInputElement>(null);
   const [showImportMenu, setShowImportMenu] = useState(false);
   
-  // Always-current mirror of documents state for use in callbacks.
-  // Callbacks captured by useCallback only see the snapshot of state at the
-  // time they were created; the ref lets them read the latest value without
-  // being re-created on every render.
   const documentsRef = useRef<Document[]>([]);
   useEffect(() => { documentsRef.current = documents; }, [documents]);
 
-  // Tracks whether there is a save that has been queued but not yet persisted
-  // to IndexedDB.  Used by the beforeunload guard.
   const hasPendingSaveRef = useRef(false);
-
-  // Snapshot of the document that failed to save, used to power the Retry
-  // button on the save-status chip.  Cleared on the next successful save.
   const lastFailedSaveRef = useRef<Document | null>(null);
 
-  // Debounce machinery for the IndexedDB write.  Rapid edits (the Theme
-  // drawer fires handleThemeChange on every keystroke) collapse into a single
-  // write of the most recent document.  Without this, typing in the custom
-  // CSS field rewrites the full document — including all base64 images — on
-  // every keypress.
-  const pendingSaveDocRef = useRef<Document | null>(null);
-  const saveDebounceRef = useRef<number | null>(null);
-  const SAVE_DEBOUNCE_MS = 600;
+  // Multi-document pending save map to avoid clobbering saves on document switch
+  const pendingSavesMapRef = useRef<Map<string, Document>>(new Map());
+  const deletedDocIdsRef = useRef<Set<string>>(new Set());
+  const saveDebounceTimerRef = useRef<number | null>(null);
+  const SAVE_DEBOUNCE_MS = 500;
 
-  const flushPendingSave = useCallback(() => {
-    const doc = pendingSaveDocRef.current;
-    if (!doc) return;
-    pendingSaveDocRef.current = null;
-    if (saveDebounceRef.current) {
-      window.clearTimeout(saveDebounceRef.current);
-      saveDebounceRef.current = null;
+  // Persist current view & doc ID
+  useEffect(() => {
+    localStorage.setItem('guideem_view', currentView);
+  }, [currentView]);
+
+  useEffect(() => {
+    if (currentDocId) {
+      localStorage.setItem('guideem_last_doc_id', currentDocId);
     }
-    saveDocument(doc)
-      .then(() => {
-        if (lastFailedSaveRef.current?.id === doc.id) {
+  }, [currentDocId]);
+
+  const flushPendingSaves = useCallback(async () => {
+    if (saveDebounceTimerRef.current) {
+      window.clearTimeout(saveDebounceTimerRef.current);
+      saveDebounceTimerRef.current = null;
+    }
+
+    const entries = Array.from(pendingSavesMapRef.current.entries());
+    if (entries.length === 0) {
+      hasPendingSaveRef.current = false;
+      return;
+    }
+
+    pendingSavesMapRef.current.clear();
+
+    for (const [docId, doc] of entries) {
+      if (deletedDocIdsRef.current.has(docId)) {
+        continue; // Do not save deleted docs
+      }
+      try {
+        await saveDocument(doc);
+        if (lastFailedSaveRef.current?.id === docId) {
           lastFailedSaveRef.current = null;
         }
-        // Only flip to 'saved' if no newer debounced write has been queued
-        // while we were awaiting the previous one.
-        if (!pendingSaveDocRef.current) {
-          hasPendingSaveRef.current = false;
-          setSaveStatus('saved');
-        }
-      })
-      .catch((err) => {
-        console.error('Save failed:', err);
-        if (!pendingSaveDocRef.current) {
-          hasPendingSaveRef.current = false;
-        }
+      } catch (err) {
+        console.error('Save failed for doc:', docId, err);
         lastFailedSaveRef.current = doc;
         setSaveStatus('error');
-      });
+      }
+    }
+
+    if (pendingSavesMapRef.current.size === 0) {
+      hasPendingSaveRef.current = false;
+      if (!lastFailedSaveRef.current) {
+        setSaveStatus('saved');
+      }
+    }
   }, []);
 
-  // Persist a single document and reflect the result in the save-status chip.
-  // Errors are no longer swallowed: they surface as an 'error' status with a
-  // retry affordance instead of leaving the chip stuck on "Saving…".
-  // Coalesces rapid-fire calls (Theme drawer keystrokes) into a single write.
   const persistDoc = useCallback((doc: Document) => {
-    pendingSaveDocRef.current = doc;
+    if (deletedDocIdsRef.current.has(doc.id)) return;
+    pendingSavesMapRef.current.set(doc.id, doc);
     hasPendingSaveRef.current = true;
     setSaveStatus('saving');
-    if (saveDebounceRef.current) {
-      window.clearTimeout(saveDebounceRef.current);
+
+    if (saveDebounceTimerRef.current) {
+      window.clearTimeout(saveDebounceTimerRef.current);
     }
-    saveDebounceRef.current = window.setTimeout(flushPendingSave, SAVE_DEBOUNCE_MS);
-  }, [flushPendingSave]);
+    saveDebounceTimerRef.current = window.setTimeout(flushPendingSaves, SAVE_DEBOUNCE_MS);
+  }, [flushPendingSaves]);
 
   const retrySave = useCallback(() => {
     if (lastFailedSaveRef.current) {
       persistDoc(lastFailedSaveRef.current);
+      toast.info('Retrying save…');
     }
-  }, [persistDoc]);
+  }, [persistDoc, toast]);
 
-  // Fired by the Editor whenever its 1s autosave debounce is scheduled or
-  // cleared.  We mirror the state into hasPendingSaveRef so the beforeunload
-  // guard covers the full pending-and-in-flight window, not just the write.
   const handleEditorPendingChange = useCallback((pending: boolean) => {
     if (pending) {
       hasPendingSaveRef.current = true;
-    } else if (!lastFailedSaveRef.current) {
-      // Only clear the flag if no save is currently in flight and there is no
-      // failed save keeping the chip in the error state.
+    } else if (!lastFailedSaveRef.current && pendingSavesMapRef.current.size === 0) {
       hasPendingSaveRef.current = false;
     }
   }, []);
 
   const currentDoc = documents.find(d => d.id === currentDocId);
 
-  // Warn the user before closing/refreshing if there is a pending write.
+  // Browser title sync
+  useEffect(() => {
+    if (currentDoc?.title) {
+      document.title = `${currentDoc.title} — GuideEm`;
+    } else {
+      document.title = 'GuideEm — Local-first Documentation Editor';
+    }
+  }, [currentDoc?.title]);
+
+  // Safe document selection with immediate flush of prior saves
+  const handleSelectDoc = useCallback((id: string) => {
+    flushPendingSaves();
+    setSaveStatus('saved');
+    setCurrentDocId(id);
+    if (window.innerWidth < 768) setShowSidebar(false);
+  }, [flushPendingSaves]);
+
+  // BeforeUnload guard
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasPendingSaveRef.current) {
-        // Flush any debounced save synchronously so the most recent edit lands
-        // before the page is torn down.  We can't await the IndexedDB write
-        // here, but the chip's "Saving…" state and this warning give the user
-        // a chance to stay on the page.
-        if (pendingSaveDocRef.current) {
-          flushPendingSave();
-        }
+      if (hasPendingSaveRef.current || pendingSavesMapRef.current.size > 0) {
+        flushPendingSaves();
         e.preventDefault();
         e.returnValue = '';
       }
@@ -175,17 +222,11 @@ export default function App() {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      // Best-effort flush of any pending debounced save.
-      if (pendingSaveDocRef.current) {
-        flushPendingSave();
-      }
-      if (saveDebounceRef.current) {
-        window.clearTimeout(saveDebounceRef.current);
-      }
+      flushPendingSaves();
     };
-  }, [flushPendingSave]);
+  }, [flushPendingSaves]);
 
-  // Keyboard shortcuts: Ctrl+/ → help panel, Ctrl+Shift+F → zen mode, Esc → exit zen
+  // Keyboard shortcuts: Ctrl+/ → help, Ctrl+Shift+F → zen, Esc → exit zen
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === '/') {
@@ -214,7 +255,10 @@ export default function App() {
     try {
       const docs = await loadDocuments();
       setDocuments(docs);
-      setCurrentDocId(prev => prev && docs.some(d => d.id === prev) ? prev : (docs[0]?.id ?? null));
+      setCurrentDocId(prev => {
+        if (prev && docs.some(d => d.id === prev)) return prev;
+        return docs[0]?.id ?? null;
+      });
     } catch (err) {
       console.error('Failed to load documents:', err);
       setLoadError(err instanceof Error ? err.message : 'Unknown storage error');
@@ -239,58 +283,72 @@ export default function App() {
       content: tpl.content,
       htmlContent: '',
       lastEdited: Date.now(),
-      theme: { ...DEFAULT_THEME },
+      theme: cloneTheme(DEFAULT_THEME),
     };
     setDocuments(prev => [newDoc, ...prev]);
     setCurrentDocId(newDoc.id);
+    setCurrentView('editor');
     saveDocument(newDoc);
+    toast.success('New guide created');
   };
 
   const handleMarkdownImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const text = await file.text();
-    const html = markdownToHtml(text);
-    const title = file.name.replace(/\.md$/i, '').trim() || 'Imported Document';
-    const newDoc: Document = {
-      id: crypto.randomUUID(),
-      title,
-      content: html, // Tiptap parses HTML string as content on init
-      htmlContent: html,
-      lastEdited: Date.now(),
-      theme: { ...DEFAULT_THEME },
-    };
-    setDocuments(prev => [newDoc, ...prev]);
-    setCurrentDocId(newDoc.id);
-    await saveDocument(newDoc);
-    e.target.value = '';
+    try {
+      const text = await file.text();
+      const html = markdownToHtml(text);
+      const title = file.name.replace(/\.md$/i, '').trim() || 'Imported Document';
+      const newDoc: Document = {
+        id: crypto.randomUUID(),
+        title,
+        content: html,
+        htmlContent: html,
+        lastEdited: Date.now(),
+        theme: cloneTheme(DEFAULT_THEME),
+      };
+      setDocuments(prev => [newDoc, ...prev]);
+      setCurrentDocId(newDoc.id);
+      setCurrentView('editor');
+      await saveDocument(newDoc);
+      toast.success(`Imported "${title}"`);
+    } catch (err) {
+      toast.error('Markdown import failed');
+    } finally {
+      e.target.value = '';
+    }
   };
 
   const handleHtmlImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const text = await file.text();
-    const { title: importedTitle, content, theme: importedTheme } = importGuideHTML(text);
-    const docTitle = importedTitle || file.name.replace(/\.html?$/i, '').trim() || 'Imported Guide';
-    const newDoc: Document = {
-      id: crypto.randomUUID(),
-      title: docTitle,
-      content,
-      htmlContent: content,
-      lastEdited: Date.now(),
-      theme: { ...DEFAULT_THEME, ...importedTheme } as ThemeConfig,
-    };
-    setDocuments(prev => [newDoc, ...prev]);
-    setCurrentDocId(newDoc.id);
-    await saveDocument(newDoc);
-    e.target.value = '';
+    try {
+      const text = await file.text();
+      const { title: importedTitle, content, theme: importedTheme } = importGuideHTML(text);
+      const docTitle = importedTitle || file.name.replace(/\.html?$/i, '').trim() || 'Imported Guide';
+      const newDoc: Document = {
+        id: crypto.randomUUID(),
+        title: docTitle,
+        content,
+        htmlContent: content,
+        lastEdited: Date.now(),
+        theme: { ...cloneTheme(DEFAULT_THEME), ...importedTheme } as ThemeConfig,
+      };
+      setDocuments(prev => [newDoc, ...prev]);
+      setCurrentDocId(newDoc.id);
+      setCurrentView('editor');
+      await saveDocument(newDoc);
+      toast.success(`Imported guide "${docTitle}"`);
+    } catch (err) {
+      toast.error('HTML import failed');
+    } finally {
+      e.target.value = '';
+    }
   };
 
   const handleUpdate = useCallback((html: string, json: any, newTitle: string) => {
-    if (!currentDocId) return;
+    if (!currentDocId || deletedDocIdsRef.current.has(currentDocId)) return;
 
-    // Build the updated document from the ref so we always have the latest
-    // field values (e.g. theme) without needing `documents` in the dep array.
     const existing = documentsRef.current.find(d => d.id === currentDocId);
     if (!existing) return;
 
@@ -302,27 +360,34 @@ export default function App() {
       lastEdited: Date.now(),
     };
 
-    // Update React state synchronously (pure — no side effects inside updater).
     setDocuments(prev => prev.map(d => d.id === currentDocId ? updatedDoc : d));
-
-    // Persist asynchronously outside the state updater.
     persistDoc(updatedDoc);
   }, [currentDocId, persistDoc]);
 
   const handleThemeChange = useCallback((themeUpdates: Partial<ThemeConfig>) => {
-    if (!currentDocId) return;
+    if (!currentDocId || deletedDocIdsRef.current.has(currentDocId)) return;
 
     const existing = documentsRef.current.find(d => d.id === currentDocId);
     if (!existing) return;
 
+    const currentTheme = existing.theme ? cloneTheme(existing.theme) : cloneTheme(DEFAULT_THEME);
     const updatedDoc: Document = {
       ...existing,
-      theme: { ...(existing.theme || DEFAULT_THEME), ...themeUpdates },
+      theme: {
+        ...currentTheme,
+        ...themeUpdates,
+        features: { ...currentTheme.features, ...(themeUpdates.features || {}) },
+        hero: { ...currentTheme.hero, ...(themeUpdates.hero || {}) },
+        footer: {
+          ...currentTheme.footer,
+          ...(themeUpdates.footer || {}),
+          links: themeUpdates.footer?.links ?? currentTheme.footer?.links ?? [],
+        },
+      },
       lastEdited: Date.now(),
     };
 
     setDocuments(prev => prev.map(d => d.id === currentDocId ? updatedDoc : d));
-
     persistDoc(updatedDoc);
   }, [currentDocId, persistDoc]);
 
@@ -335,28 +400,19 @@ export default function App() {
 
   const handleExportDownload = (userFileName: string) => {
     if (!currentDoc) return;
-
-    // 1. Compile the final HTML string using your engine
     const opts: ExportOptions = isRiseMode ? { mode: 'rise' } : undefined;
     const finalHtmlString = generateHTML(currentDoc.title, currentDoc.htmlContent, currentDoc.theme || DEFAULT_THEME, opts);
-
-    // 2. Create a "Blob" (Binary Large Object) of text/html
     const blob = new Blob([finalHtmlString], { type: 'text/html;charset=utf-8' });
-
-    // 3. Create a temporary invisible hyperlink
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-
-    // 4. Set the downloaded file name, stripping characters invalid in filenames
     const safeFileName = userFileName.replace(/[/\\:*?"<>|]/g, '').trim() || 'Untitled Guide';
     link.download = `${safeFileName}.html`;
-
-    // 5. Fake a click to trigger the browser download, then clean up
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    toast.success(`Exported "${safeFileName}.html"`);
   };
 
   const handleMarkdownExport = (userFileName: string) => {
@@ -372,44 +428,86 @@ export default function App() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    toast.success(`Exported "${safeFileName}.md"`);
   };
 
   const handlePDFExport = async (userFileName: string) => {
     if (!currentDoc) return;
     const safeFileName = userFileName.replace(/[/\\:*?"<>|]/g, '').trim() || 'Untitled Guide';
-    await exportToPDF(
-      currentDoc.title,
-      currentDoc.htmlContent,
-      currentDoc.theme || DEFAULT_THEME,
-      safeFileName
-    );
+    try {
+      await exportToPDF(
+        currentDoc.title,
+        currentDoc.htmlContent,
+        currentDoc.theme || DEFAULT_THEME,
+        safeFileName
+      );
+      toast.success(`Exported "${safeFileName}.pdf"`);
+    } catch {
+      toast.error('PDF export failed');
+    }
   };
 
   const handleTagsChange = useCallback((id: string, tags: string[]) => {
     const existing = documentsRef.current.find(d => d.id === id);
     if (!existing) return;
-    const updatedDoc = { ...existing, tags };
+    const updatedDoc = { ...existing, tags, lastEdited: Date.now() };
     setDocuments(prev => prev.map(d => d.id === id ? updatedDoc : d));
-    saveDocument(updatedDoc);
-  }, []);
+    persistDoc(updatedDoc);
+  }, [persistDoc]);
 
-  const handleDelete = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleSidebarRename = useCallback((id: string, newTitle: string) => {
+    const trimmed = newTitle.trim();
+    if (!trimmed) return;
+    const existing = documentsRef.current.find(d => d.id === id);
+    if (!existing || existing.title === trimmed) return;
+    const updatedDoc = { ...existing, title: trimmed, lastEdited: Date.now() };
+    setDocuments(prev => prev.map(d => d.id === id ? updatedDoc : d));
+    persistDoc(updatedDoc);
+    toast.success(`Renamed to "${trimmed}"`);
+  }, [persistDoc, toast]);
+
+  const handleDelete = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setConfirmDeleteId(id);
   };
 
   const confirmDelete = async () => {
     if (!confirmDeleteId) return;
+    const deletedId = confirmDeleteId;
+    const deletedDoc = documentsRef.current.find(d => d.id === deletedId);
+    
+    // Mark as deleted so unmounting Editor will not resurrect it
+    deletedDocIdsRef.current.add(deletedId);
+    pendingSavesMapRef.current.delete(deletedId);
+
     try {
-      await deleteDocument(confirmDeleteId);
+      await deleteDocument(deletedId);
       const docs = await loadDocuments();
       setDocuments(docs);
-      if (currentDocId === confirmDeleteId) {
+      if (currentDocId === deletedId) {
         setCurrentDocId(docs.length > 0 ? docs[0].id : null);
+      }
+
+      if (deletedDoc) {
+        toast.showToast({
+          type: 'info',
+          message: `Deleted "${deletedDoc.title || 'Untitled Guide'}"`,
+          action: {
+            label: 'Undo',
+            onClick: async () => {
+              deletedDocIdsRef.current.delete(deletedId);
+              await saveDocument(deletedDoc);
+              setDocuments(prev => [deletedDoc, ...prev]);
+              setCurrentDocId(deletedDoc.id);
+              toast.success(`Restored "${deletedDoc.title || 'Untitled Guide'}"`);
+            },
+          },
+          duration: 6000,
+        });
       }
     } catch (err) {
       console.error('Delete failed:', err);
-      setLoadError(err instanceof Error ? err.message : 'Delete failed');
+      toast.error('Failed to delete document');
     } finally {
       setConfirmDeleteId(null);
     }
@@ -423,10 +521,14 @@ export default function App() {
       ...existing,
       id: crypto.randomUUID(),
       title: `${existing.title} (copy)`,
+      theme: existing.theme ? cloneTheme(existing.theme) : cloneTheme(DEFAULT_THEME),
+      tags: existing.tags ? [...existing.tags] : [],
       lastEdited: Date.now(),
     };
     setDocuments(prev => [newDoc, ...prev]);
+    setCurrentDocId(newDoc.id);
     await saveDocument(newDoc);
+    toast.success(`Duplicated "${existing.title}"`);
   };
 
   if (isLoading) {
@@ -447,24 +549,13 @@ export default function App() {
             </div>
             <div className="flex-1 min-w-0">
               <h2 className="text-base font-semibold text-slate-900">Could not load your documents</h2>
-              <p className="mt-1 text-sm text-slate-600">
-                Your saved guides are still in this browser's storage — this is usually a temporary issue (a locked database, a browser update, or a schema migration). Nothing has been deleted.
-              </p>
-              <p className="mt-2 text-xs text-slate-400 font-mono break-all">{loadError}</p>
-              <div className="mt-4 flex gap-2">
-                <button
-                  onClick={loadWorkspace}
-                  className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
-                >
-                  Retry
-                </button>
-                <button
-                  onClick={() => { setLoadError(null); setCurrentView('landing'); }}
-                  className="px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
-                >
-                  Continue without loading
-                </button>
-              </div>
+              <p className="mt-1 text-sm text-slate-600">{loadError}</p>
+              <button
+                onClick={loadWorkspace}
+                className="mt-4 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors"
+              >
+                Retry
+              </button>
             </div>
           </div>
         </div>
@@ -472,33 +563,53 @@ export default function App() {
     );
   }
 
+  // Marketing Landing Page view
   if (currentView === 'landing') {
-    return <LandingPage onStartWriting={() => setCurrentView('editor')} />;
+    return (
+      <LandingPage
+        onStartWriting={() => {
+          if (documents.length > 0 && currentDocId) {
+            setCurrentView('editor');
+          } else {
+            setShowTemplatePicker(true);
+          }
+        }}
+      />
+    );
   }
+
+  const { hex: brandHex, r: brandR, g: brandG, b: brandB, luminance: brandLuminance } = parseHexColor(currentDoc?.theme?.primaryColor);
 
   return (
     <div 
       className="min-h-screen bg-slate-50 text-slate-900 font-sans flex h-screen overflow-hidden transition-colors duration-300"
-      style={(() => {
-        const hex = (currentDoc?.theme?.primaryColor || DEFAULT_THEME.primaryColor).replace('#', '');
-        const r = parseInt(hex.slice(0, 2), 16);
-        const g = parseInt(hex.slice(2, 4), 16);
-        const b = parseInt(hex.slice(4, 6), 16);
-        const toLinear = (c: number) => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
-        const luminance = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
-        return {
-          '--brand-primary': `#${hex}`,
-          '--brand-primary-rgb': `${r}, ${g}, ${b}`,
-          '--brand-text-color': luminance > 0.179 ? '#111827' : '#f8fafc',
-          fontFamily: currentDoc?.theme?.fontFamily === 'editorial' ? 'Merriweather, serif' :
-                      currentDoc?.theme?.fontFamily === 'technical' ? '"Fira Code", monospace' :
-                      'Inter, system-ui, sans-serif',
-        } as React.CSSProperties;
-      })()}
+      style={{
+        '--brand-primary': `#${brandHex}`,
+        '--brand-primary-rgb': `${brandR}, ${brandG}, ${brandB}`,
+        '--brand-text-color': brandLuminance > 0.179 ? '#111827' : '#f8fafc',
+        fontFamily: currentDoc?.theme?.fontFamily === 'editorial' ? 'Merriweather, serif' :
+                    currentDoc?.theme?.fontFamily === 'technical' ? '"Fira Code", monospace' :
+                    'Inter, system-ui, sans-serif',
+      } as React.CSSProperties}
     >
-      
-      {/* Sidebar */}
-      {showSidebar && (
+      {/* Hidden file inputs for import (accessible in all states) */}
+      <input
+        ref={markdownImportRef}
+        type="file"
+        accept=".md,text/markdown"
+        className="hidden"
+        onChange={handleMarkdownImport}
+      />
+      <input
+        ref={htmlImportRef}
+        type="file"
+        accept=".html,.htm"
+        className="hidden"
+        onChange={handleHtmlImport}
+      />
+
+      {/* Sidebar — hidden in zen mode */}
+      {showSidebar && !isZenMode && (
         <>
           {/* Mobile backdrop */}
           <div
@@ -509,15 +620,12 @@ export default function App() {
             <Sidebar
               documents={documents}
               currentDocId={currentDocId}
-              onSelectDoc={(id) => {
-                setCurrentDocId(id);
-                // Auto-close sidebar on mobile
-                if (window.innerWidth < 768) setShowSidebar(false);
-              }}
+              onSelectDoc={handleSelectDoc}
               onCreateDoc={() => setShowTemplatePicker(true)}
               onDeleteDoc={handleDelete}
               onDuplicateDoc={handleDuplicate}
               onTagsChange={handleTagsChange}
+              onRenameDoc={handleSidebarRename}
               onClose={() => setShowSidebar(false)}
             />
           </div>
@@ -545,15 +653,14 @@ export default function App() {
                 className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 <ArrowLeft size={16} />
-                <span className="hidden sm:inline">Back to Site</span>
+                <span className="hidden sm:inline">Landing Page</span>
               </button>
             </div>
             
             <div className="flex items-center gap-2 sm:gap-3">
-              {currentDoc && (
+              {currentDoc ? (
                 <>
-                  {/* Auto-save status chip — wrapped in aria-live so AT users hear
-                      transitions between saving / saved / save-failed. */}
+                  {/* Auto-save status chip */}
                   {saveStatus === 'error' ? (
                     <button
                       onClick={retrySave}
@@ -566,7 +673,7 @@ export default function App() {
                     </button>
                   ) : (
                     <div
-                      className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-300 ${
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-300 ${
                         saveStatus === 'saving'
                           ? 'bg-amber-50 text-amber-600'
                           : 'bg-emerald-50 text-emerald-600'
@@ -576,9 +683,9 @@ export default function App() {
                       aria-atomic="true"
                     >
                       {saveStatus === 'saving' ? (
-                        <><Loader2 size={12} className="animate-spin" aria-hidden />Saving…</>
+                        <><Loader2 size={12} className="animate-spin" aria-hidden /><span className="hidden sm:inline">Saving…</span></>
                       ) : (
-                        <><CheckCircle size={12} aria-hidden />Saved</>
+                        <><CheckCircle size={12} aria-hidden /><span className="hidden sm:inline">Saved</span></>
                       )}
                     </div>
                   )}
@@ -620,21 +727,7 @@ export default function App() {
                     <Eye size={18} aria-hidden />
                     <span className="hidden sm:inline">Preview</span>
                   </button>
-                  {/* Hidden file inputs for import */}
-                  <input
-                    ref={markdownImportRef}
-                    type="file"
-                    accept=".md,text/markdown"
-                    className="hidden"
-                    onChange={handleMarkdownImport}
-                  />
-                  <input
-                    ref={htmlImportRef}
-                    type="file"
-                    accept=".html,.htm"
-                    className="hidden"
-                    onChange={handleHtmlImport}
-                  />
+
                   <div className="relative">
                     <button
                       onClick={() => setShowImportMenu(v => !v)}
@@ -676,6 +769,7 @@ export default function App() {
                       </>
                     )}
                   </div>
+
                   <button
                     onClick={() => setIsZenMode(v => !v)}
                     className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
@@ -686,7 +780,9 @@ export default function App() {
                     <Maximize2 size={18} aria-hidden />
                     <span className="hidden sm:inline">Focus</span>
                   </button>
+
                   <div className="w-px h-6 bg-slate-200 mx-1" />
+
                   <button
                     onClick={() => setIsExportModalOpen(true)}
                     className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors"
@@ -697,6 +793,23 @@ export default function App() {
                     <ChevronDown size={14} className="hidden sm:inline opacity-70" aria-hidden />
                   </button>
                 </>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => markdownImportRef.current?.click()}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                  >
+                    <Upload size={16} />
+                    <span>Import MD</span>
+                  </button>
+                  <button
+                    onClick={() => setShowTemplatePicker(true)}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors"
+                  >
+                    <Plus size={18} />
+                    <span>New Guide</span>
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -704,13 +817,11 @@ export default function App() {
 
         {/* Main Workspace */}
         <div className="flex flex-1 overflow-hidden">
-        {showBlockPalette && !isZenMode && editorInstance && (
+        {showBlockPalette && !isZenMode && editorInstance && currentDoc && (
           <>
-            {/* Desktop: in-flow sidebar.  Mobile: hidden (replaced by drawer). */}
             <div className="hidden sm:flex flex-shrink-0">
               <BlockPalette variant="inline" editor={editorInstance} onClose={() => setShowBlockPalette(false)} />
             </div>
-            {/* Mobile: overlay drawer with backdrop.  Hidden on sm+ via CSS. */}
             <div className="sm:hidden">
               <BlockPalette variant="drawer" editor={editorInstance} onClose={() => setShowBlockPalette(false)} />
             </div>
@@ -720,7 +831,18 @@ export default function App() {
           {currentDoc ? (
             <>
               <div className={`transition-all duration-300 ease-in-out ${showHelp && !isZenMode ? 'md:w-2/3 lg:w-3/4' : 'w-full'}`}>
-                <Editor key={currentDoc.id} initialContent={currentDoc.content} initialHtmlContent={currentDoc.htmlContent} initialTitle={currentDoc.title} onUpdate={handleUpdate} theme={currentDoc.theme} onThemeChange={handleThemeChange} zenMode={isZenMode} onEditorReady={setEditorInstance} onPendingChange={handleEditorPendingChange} />
+                <Editor
+                  key={currentDoc.id}
+                  initialContent={currentDoc.content}
+                  initialHtmlContent={currentDoc.htmlContent}
+                  initialTitle={currentDoc.title}
+                  onUpdate={handleUpdate}
+                  theme={currentDoc.theme}
+                  onThemeChange={handleThemeChange}
+                  zenMode={isZenMode}
+                  onEditorReady={setEditorInstance}
+                  onPendingChange={handleEditorPendingChange}
+                />
               </div>
 
               {/* Help Sidebar */}
@@ -816,17 +938,26 @@ export default function App() {
               )}
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-500 h-full">
+            <div className="flex-1 flex flex-col items-center justify-center text-slate-500 h-full p-6 text-center">
               <FileText size={64} className="mb-4 text-slate-300" />
               <h2 className="text-2xl font-semibold text-slate-700 mb-2">No Document Selected</h2>
-              <p className="mb-6">Create a new guide to get started.</p>
-              <button 
-                onClick={() => setShowTemplatePicker(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-medium"
-              >
-                <Plus size={20} />
-                <span>Create New Guide</span>
-              </button>
+              <p className="mb-6 max-w-sm">Create a new guide or import existing Markdown/HTML files to get started.</p>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <button 
+                  onClick={() => setShowTemplatePicker(true)}
+                  className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-medium"
+                >
+                  <Plus size={20} />
+                  <span>Create New Guide</span>
+                </button>
+                <button
+                  onClick={() => markdownImportRef.current?.click()}
+                  className="flex items-center gap-2 px-5 py-3 bg-white text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors font-medium shadow-xs"
+                >
+                  <Upload size={18} />
+                  <span>Import File</span>
+                </button>
+              </div>
             </div>
           )}
         </main>
@@ -852,9 +983,7 @@ export default function App() {
           aria-label="Document preview"
           onKeyDown={(e) => { if (e.key === 'Escape') setIsPreviewOpen(false); }}
         >
-          {/* Toolbar */}
           <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-800">
-            {/* Left: close + title */}
             <div className="flex items-center gap-3 min-w-0">
               <button
                 onClick={() => setIsPreviewOpen(false)}
@@ -867,12 +996,10 @@ export default function App() {
               <span className="text-sm font-medium text-slate-300 truncate">{currentDoc?.title || 'Preview'}</span>
             </div>
 
-            {/* Center: title */}
             <span className="text-xs text-slate-500 font-mono hidden sm:block">
               {currentDoc?.title ? `${currentDoc.title}.html` : 'exported-guide.html'}
             </span>
 
-            {/* Right: export shortcut */}
             <div className="flex items-center gap-2">
               <button
                 onClick={() => { setIsPreviewOpen(false); setIsExportModalOpen(true); }}
@@ -885,7 +1012,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* iframe */}
           <div className="flex-1 overflow-hidden bg-white">
             <iframe
               srcDoc={previewHtml}
@@ -936,11 +1062,20 @@ export default function App() {
       <ConfirmDialog
         isOpen={confirmDeleteId !== null}
         title="Delete document?"
-        message="This document will be permanently deleted. This action cannot be undone."
+        message="This document will be removed. You can immediately undo this action."
         confirmLabel="Delete"
+        variant="danger"
         onConfirm={confirmDelete}
         onCancel={() => setConfirmDeleteId(null)}
       />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ToastProvider>
+      <MainApp />
+    </ToastProvider>
   );
 }

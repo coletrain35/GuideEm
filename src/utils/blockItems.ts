@@ -247,8 +247,8 @@ export const BLOCK_ITEMS: BlockItem[] = [
     action: (e) => e.chain().focus().insertContent({
       type: 'tabGroup',
       content: [
-        { type: 'tabPanel', attrs: { label: 'Tab 1' }, content: [{ type: 'paragraph' }] },
-        { type: 'tabPanel', attrs: { label: 'Tab 2' }, content: [{ type: 'paragraph' }] },
+        { type: 'tabPanel', attrs: { label: 'Tab 1', active: true }, content: [{ type: 'paragraph' }] },
+        { type: 'tabPanel', attrs: { label: 'Tab 2', active: false }, content: [{ type: 'paragraph' }] },
       ],
     }).run(),
   },

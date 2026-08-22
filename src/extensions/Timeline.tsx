@@ -81,11 +81,20 @@ const TimelineStepNodeView = (props: any) => {
         <div className="w-0.5 bg-slate-200 flex-1 mt-2 min-h-[32px]" />
       </div>
       <div className="flex-1 min-w-0 pb-6">
-        <div className="flex items-center gap-2">
+        <div contentEditable={false} className="flex items-center gap-2 mb-1">
           <input
             value={date}
             onChange={(e) => updateAttributes({ date: e.target.value })}
-            className="flex-1 text-xs font-medium text-slate-400 bg-transparent outline-none mb-1 placeholder:text-slate-300 uppercase tracking-wide"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                (e.target as HTMLInputElement).blur();
+              }
+              e.stopPropagation();
+            }}
+            className="flex-1 text-xs font-medium text-slate-400 bg-transparent outline-none placeholder:text-slate-300 uppercase tracking-wide"
             placeholder="Date or label (optional)..."
             aria-label="Step date or label"
           />

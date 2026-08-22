@@ -2138,6 +2138,8 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     }
     
     /* Reset and base styles */
+    html { box-sizing: border-box; }
+    *, *::before, *::after { box-sizing: border-box; }
     body {
       margin: 0;
       padding: 0;
@@ -2146,6 +2148,8 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       color: #111827;
       line-height: 1.5;
       position: relative;
+      overflow-x: hidden;
+      max-width: 100vw;
     }
     /* Target specific elements with the brand color */
     .guide-container a { color: var(--brand-primary); }
@@ -2154,6 +2158,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     /* Layout */
     .export-layout {
       max-width: 80rem; /* max-w-7xl */
+      width: 100%;
       margin: 0 auto;
       padding: 3rem 1rem;
       display: flex;
@@ -3765,6 +3770,21 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       .card-grid[data-cols="4"] {
         grid-template-columns: 1fr;
       }
+      /* Mockups: cap widths so fixed-size frames can't overflow on narrow screens */
+      .phone-mockup { max-width: 100%; }
+      .phone-inner { width: 100%; max-width: 240px; }
+      .browser-mockup { max-width: 100%; }
+      .browser-mockup img { max-width: 100%; height: auto; }
+      /* Prevent any oversized media in the guide body from forcing horizontal scroll */
+      .guide-container img,
+      .guide-container video,
+      .guide-container iframe { max-width: 100%; height: auto; }
+      .guide-container pre { max-width: 100%; overflow-x: auto; }
+      /* Shrink Tailwind prose rhythm on mobile so headings/body don't dominate */
+      .prose { font-size: 0.95rem; }
+      .prose h1 { font-size: 1.75rem !important; }
+      .prose h2 { font-size: 1.375rem !important; }
+      .prose h3 { font-size: 1.125rem !important; }
     }
     @media (min-width: 641px) and (max-width: 767px) {
       .card-grid[data-cols="3"] {
@@ -3779,6 +3799,13 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
         height: 3rem;
       }
     }
+    ${isRise ? `
+    /* Rise iframe mode: never be wider than the host, and tighten padding */
+    .export-layout { max-width: 100% !important; padding: 1.5rem 0.75rem !important; gap: 1.5rem !important; }
+    .guide-container { max-width: 100%; }
+    .phone-inner { max-width: 240px; }
+    .browser-mockup { max-width: 100%; }
+    ` : ''}
 
     ${getCodeThemeCSS(theme?.codeTheme)}
 

@@ -70,6 +70,32 @@ export const AnnotatedImageView = ({ node, updateAttributes, selected, editor, d
     document.addEventListener('mouseup', onMouseUp);
   }, [updateAttributes]);
 
+  const handleResizeStartTouch = useCallback((e: React.TouchEvent, side: 'left' | 'right') => {
+    e.stopPropagation();
+    if (!e.touches[0]) return;
+    const startX = e.touches[0].clientX;
+    const startWidth = wrapperRef.current?.offsetWidth ?? 0;
+    const parentWidth = wrapperRef.current?.parentElement?.offsetWidth ?? 1;
+
+    setIsResizing(true);
+
+    const onTouchMove = (ev: TouchEvent) => {
+      if (!ev.touches[0]) return;
+      const delta = side === 'right' ? ev.touches[0].clientX - startX : startX - ev.touches[0].clientX;
+      const newPct = Math.round(Math.max(10, Math.min(100, ((startWidth + delta) / parentWidth) * 100)));
+      updateAttributes({ width: newPct });
+    };
+
+    const onTouchEnd = () => {
+      setIsResizing(false);
+      document.removeEventListener('touchmove', onTouchMove);
+      document.removeEventListener('touchend', onTouchEnd);
+    };
+
+    document.addEventListener('touchmove', onTouchMove);
+    document.addEventListener('touchend', onTouchEnd);
+  }, [updateAttributes]);
+
   const effect = node.attrs.effect || 'none';
   const width: number = node.attrs.width ?? 100;
   const align: 'left' | 'center' | 'right' = (node.attrs.align as any) || 'center';
@@ -158,9 +184,10 @@ export const AnnotatedImageView = ({ node, updateAttributes, selected, editor, d
       {/* Sizing wrapper */}
       <div ref={wrapperRef} style={{ width: `${width}%`, ...alignStyle }} className="relative">
 
-        {/* Left resize handle — centered on left edge of wrapper */}
+        {/* Left resize handle */}
         <div
           onMouseDown={(e) => handleResizeStart(e, 'left')}
+          onTouchStart={(e) => handleResizeStartTouch(e, 'left')}
           style={{ left: 0, top: '50%', transform: 'translate(-50%, -50%)' }}
           className={`absolute z-40 w-5 h-14 rounded-full bg-white border border-slate-300 shadow-lg cursor-ew-resize select-none transition-opacity duration-150 hover:border-blue-400 hover:bg-blue-50 ${showHandles ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         >
@@ -188,7 +215,19 @@ export const AnnotatedImageView = ({ node, updateAttributes, selected, editor, d
               className="absolute -translate-x-1/2 -translate-y-1/2 group z-20"
               onClick={(e) => { e.stopPropagation(); if (editor.isEditable) setEditingId(ann.id); }}
             >
-              <div className={`w-8 h-8 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-xs font-bold shadow-lg border-2 border-white transition-transform ${editingId === ann.id ? 'bg-amber-500 scale-110 ring-4 ring-amber-500/30' : 'bg-blue-600 hover:bg-blue-700 hover:scale-110'} text-white cursor-pointer`}>
+              <div
+                role="button"
+                tabIndex={0}
+                aria-label={`Hotspot ${i + 1}: ${ann.text}`}
+                onKeyDown={(e) => {
+                  if (e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (editor.isEditable) setEditingId(editingId === ann.id ? null : ann.id);
+                  }
+                }}
+                className={`w-8 h-8 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-xs font-bold shadow-lg border-2 border-white transition-transform focus:outline-none focus:ring-4 focus:ring-blue-400 ${editingId === ann.id ? 'bg-amber-500 scale-110 ring-4 ring-amber-500/30' : 'bg-blue-600 hover:bg-blue-700 hover:scale-110'} text-white cursor-pointer`}
+              >
                 {i + 1}
               </div>
 
@@ -227,9 +266,10 @@ export const AnnotatedImageView = ({ node, updateAttributes, selected, editor, d
           ))}
         </div>
 
-        {/* Right resize handle — centered on right edge of wrapper */}
+        {/* Right resize handle */}
         <div
           onMouseDown={(e) => handleResizeStart(e, 'right')}
+          onTouchStart={(e) => handleResizeStartTouch(e, 'right')}
           style={{ right: 0, top: '50%', transform: 'translate(50%, -50%)' }}
           className={`absolute z-40 w-5 h-14 rounded-full bg-white border border-slate-300 shadow-lg cursor-ew-resize select-none transition-opacity duration-150 hover:border-blue-400 hover:bg-blue-50 ${showHandles ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         >

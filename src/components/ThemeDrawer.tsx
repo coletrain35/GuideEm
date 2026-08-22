@@ -172,74 +172,102 @@ export const ThemeDrawer: React.FC<ThemeDrawerProps> = ({ isOpen, onClose, theme
           <div className="space-y-3">
             <label className="block text-sm font-medium text-slate-700">Web Page Features</label>
             
-            <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer border-slate-200 hover:bg-slate-50">
-              <input 
-                type="checkbox" 
-                checked={theme.features?.stickyHeader ?? true}
-                onChange={(e) => setTheme({ features: { ...theme.features, stickyHeader: e.target.checked } as any })}
-                className="w-4 h-4 text-blue-600 rounded border-slate-300"
-              />
+            <label className="flex items-center justify-between p-3 border rounded-xl cursor-pointer border-slate-200 hover:bg-slate-50 transition-colors">
               <span className="text-sm font-medium text-slate-700">Sticky App Header</span>
+              <div className="relative flex-shrink-0">
+                <input 
+                  type="checkbox" 
+                  checked={theme.features?.stickyHeader ?? true}
+                  onChange={(e) => setTheme({ features: { ...theme.features, stickyHeader: e.target.checked } as any })}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 rounded-full bg-slate-200 peer-checked:bg-blue-600 transition-colors duration-200" />
+                <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-4" />
+              </div>
             </label>
 
-            <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer border-slate-200 hover:bg-slate-50">
-              <input 
-                type="checkbox" 
-                checked={theme.features?.darkModeSupport ?? false}
-                onChange={(e) => setTheme({ features: { ...theme.features, darkModeSupport: e.target.checked } as any })}
-                className="w-4 h-4 text-blue-600 rounded border-slate-300"
-              />
+            <label className="flex items-center justify-between p-3 border rounded-xl cursor-pointer border-slate-200 hover:bg-slate-50 transition-colors">
               <span className="text-sm font-medium text-slate-700">Dark Mode Support</span>
+              <div className="relative flex-shrink-0">
+                <input 
+                  type="checkbox" 
+                  checked={theme.features?.darkModeSupport ?? false}
+                  onChange={(e) => setTheme({ features: { ...theme.features, darkModeSupport: e.target.checked } as any })}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 rounded-full bg-slate-200 peer-checked:bg-blue-600 transition-colors duration-200" />
+                <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-4" />
+              </div>
             </label>
             
-            <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer border-slate-200 hover:bg-slate-50">
-              <input
-                type="checkbox"
-                checked={theme.features?.scrollReveal ?? false}
-                onChange={(e) => setTheme({ features: { ...theme.features, scrollReveal: e.target.checked } as any })}
-                className="w-4 h-4 text-blue-600 rounded border-slate-300"
-              />
+            <label className="flex items-center justify-between p-3 border rounded-xl cursor-pointer border-slate-200 hover:bg-slate-50 transition-colors">
               <span className="text-sm font-medium text-slate-700">Scroll Reveal Animations</span>
+              <div className="relative flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={theme.features?.scrollReveal ?? false}
+                  onChange={(e) => setTheme({ features: { ...theme.features, scrollReveal: e.target.checked } as any })}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 rounded-full bg-slate-200 peer-checked:bg-blue-600 transition-colors duration-200" />
+                <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-4" />
+              </div>
             </label>
 
-            <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer border-slate-200 hover:bg-slate-50">
-              <input
-                type="checkbox"
-                checked={theme.features?.readingProgressBar ?? false}
-                onChange={(e) => setTheme({ features: { ...theme.features, readingProgressBar: e.target.checked } as any })}
-                className="w-4 h-4 text-blue-600 rounded border-slate-300"
-              />
+            <label className="flex items-center justify-between p-3 border rounded-xl cursor-pointer border-slate-200 hover:bg-slate-50 transition-colors">
               <span className="text-sm font-medium text-slate-700">Reading Progress Bar</span>
+              <div className="relative flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={theme.features?.readingProgressBar ?? false}
+                  onChange={(e) => setTheme({ features: { ...theme.features, readingProgressBar: e.target.checked } as any })}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 rounded-full bg-slate-200 peer-checked:bg-blue-600 transition-colors duration-200" />
+                <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-4" />
+              </div>
             </label>
 
-            <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer border-slate-200 hover:bg-slate-50">
-              <input
-                type="checkbox"
-                checked={theme.features?.backToTop ?? false}
-                onChange={(e) => setTheme({ features: { ...theme.features, backToTop: e.target.checked } as any })}
-                className="w-4 h-4 text-blue-600 rounded border-slate-300"
-              />
+            <label className="flex items-center justify-between p-3 border rounded-xl cursor-pointer border-slate-200 hover:bg-slate-50 transition-colors">
               <span className="text-sm font-medium text-slate-700">Back-to-Top Button</span>
+              <div className="relative flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={theme.features?.backToTop ?? false}
+                  onChange={(e) => setTheme({ features: { ...theme.features, backToTop: e.target.checked } as any })}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 rounded-full bg-slate-200 peer-checked:bg-blue-600 transition-colors duration-200" />
+                <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-4" />
+              </div>
             </label>
 
-            <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer border-slate-200 hover:bg-slate-50">
-              <input
-                type="checkbox"
-                checked={theme.features?.printStylesheet ?? true}
-                onChange={(e) => setTheme({ features: { ...theme.features, printStylesheet: e.target.checked } as any })}
-                className="w-4 h-4 text-blue-600 rounded border-slate-300"
-              />
+            <label className="flex items-center justify-between p-3 border rounded-xl cursor-pointer border-slate-200 hover:bg-slate-50 transition-colors">
               <span className="text-sm font-medium text-slate-700">Print Stylesheet</span>
+              <div className="relative flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={theme.features?.printStylesheet ?? true}
+                  onChange={(e) => setTheme({ features: { ...theme.features, printStylesheet: e.target.checked } as any })}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 rounded-full bg-slate-200 peer-checked:bg-blue-600 transition-colors duration-200" />
+                <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-4" />
+              </div>
             </label>
 
-            <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer border-slate-200 hover:bg-slate-50">
-              <input
-                type="checkbox"
-                checked={theme.features?.shareButtons ?? false}
-                onChange={(e) => setTheme({ features: { ...theme.features, shareButtons: e.target.checked } as any })}
-                className="w-4 h-4 text-blue-600 rounded border-slate-300"
-              />
+            <label className="flex items-center justify-between p-3 border rounded-xl cursor-pointer border-slate-200 hover:bg-slate-50 transition-colors">
               <span className="text-sm font-medium text-slate-700">Share Buttons</span>
+              <div className="relative flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={theme.features?.shareButtons ?? false}
+                  onChange={(e) => setTheme({ features: { ...theme.features, shareButtons: e.target.checked } as any })}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 rounded-full bg-slate-200 peer-checked:bg-blue-600 transition-colors duration-200" />
+                <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 peer-checked:translate-x-4" />
+              </div>
             </label>
           </div>
 

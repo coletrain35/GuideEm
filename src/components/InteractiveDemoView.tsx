@@ -137,18 +137,19 @@ export const InteractiveDemoView = ({ node, updateAttributes, selected, editor, 
 
   // ── Hotspot Drawing ──
 
-  const getPercentCoords = useCallback((e: React.MouseEvent) => {
+  const getPercentCoords = useCallback((e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) => {
     if (!viewportRef.current) return { x: 0, y: 0 };
     const rect = viewportRef.current.getBoundingClientRect();
+    const clientX = 'touches' in e && e.touches[0] ? e.touches[0].clientX : 'clientX' in e ? (e as MouseEvent).clientX : 0;
+    const clientY = 'touches' in e && e.touches[0] ? e.touches[0].clientY : 'clientY' in e ? (e as MouseEvent).clientY : 0;
     return {
-      x: Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100)),
-      y: Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100)),
+      x: Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100)),
+      y: Math.max(0, Math.min(100, ((clientY - rect.top) / rect.height) * 100)),
     };
   }, []);
 
   const handleViewportMouseDown = (e: React.MouseEvent) => {
     if (previewMode || !activeFrameId || !editor.isEditable) return;
-    // Don't start drawing if clicking an existing hotspot
     if ((e.target as HTMLElement).closest('.id-hotspot-rect')) return;
     e.preventDefault();
     const coords = getPercentCoords(e);
@@ -159,6 +160,21 @@ export const InteractiveDemoView = ({ node, updateAttributes, selected, editor, 
   };
 
   const handleViewportMouseMove = (e: React.MouseEvent) => {
+    if (!isDrawing) return;
+    setDrawCurrent(getPercentCoords(e));
+  };
+
+  const handleViewportTouchStart = (e: React.TouchEvent) => {
+    if (previewMode || !activeFrameId || !editor.isEditable) return;
+    if ((e.target as HTMLElement).closest('.id-hotspot-rect')) return;
+    const coords = getPercentCoords(e);
+    setIsDrawing(true);
+    setDrawStart(coords);
+    setDrawCurrent(coords);
+    setEditingHotspotId(null);
+  };
+
+  const handleViewportTouchMove = (e: React.TouchEvent) => {
     if (!isDrawing) return;
     setDrawCurrent(getPercentCoords(e));
   };
@@ -195,17 +211,21 @@ export const InteractiveDemoView = ({ node, updateAttributes, selected, editor, 
     setDrawCurrent(null);
   };
 
-  // Global mouseup to catch releases outside viewport
+  // Global mouseup / touchend to catch releases outside viewport
   useEffect(() => {
-    const onMouseUp = () => {
+    const onRelease = () => {
       if (isDrawing) {
         setIsDrawing(false);
         setDrawStart(null);
         setDrawCurrent(null);
       }
     };
-    document.addEventListener('mouseup', onMouseUp);
-    return () => document.removeEventListener('mouseup', onMouseUp);
+    document.addEventListener('mouseup', onRelease);
+    document.addEventListener('touchend', onRelease);
+    return () => {
+      document.removeEventListener('mouseup', onRelease);
+      document.removeEventListener('touchend', onRelease);
+    };
   }, [isDrawing]);
 
   // ── Hotspot Editing ──
@@ -371,7 +391,10 @@ export const InteractiveDemoView = ({ node, updateAttributes, selected, editor, 
                 return (
                   <div
                     key={hotspot.id}
-                    className={`absolute cursor-pointer transition-all duration-150 rounded-sm ${
+                    role="button"
+                    tabIndex={target ? 0 : -1}
+                    aria-label={hotspot.tooltip || (target ? 'Navigate to frame' : 'No target')}
+                    className={`absolute cursor-pointer transition-all duration-150 rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${
                       target ? 'hover:bg-blue-500/20 hover:ring-2 hover:ring-blue-400' : 'opacity-30 cursor-not-allowed'
                     }`}
                     style={{
@@ -381,6 +404,12 @@ export const InteractiveDemoView = ({ node, updateAttributes, selected, editor, 
                       height: `${hotspot.height}%`,
                     }}
                     onClick={() => target && handlePreviewHotspotClick(hotspot)}
+                    onKeyDown={(e) => {
+                      if (e.key === ' ' || e.key === 'Enter') {
+                        e.preventDefault();
+                        if (target) handlePreviewHotspotClick(hotspot);
+                      }
+                    }}
                     title={hotspot.tooltip || (target ? 'Click to navigate' : 'No target')}
                   />
                 );
@@ -468,6 +497,9 @@ export const InteractiveDemoView = ({ node, updateAttributes, selected, editor, 
           onMouseDown={handleViewportMouseDown}
           onMouseMove={handleViewportMouseMove}
           onMouseUp={handleViewportMouseUp}
+          onTouchStart={handleViewportTouchStart}
+          onTouchMove={handleViewportTouchMove}
+          onTouchEnd={handleViewportMouseUp}
         >
           <img
             src={activeFrame.image}

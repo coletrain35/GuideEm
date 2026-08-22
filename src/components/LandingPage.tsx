@@ -202,57 +202,89 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
               </div>
 
               <div className="pt-4 border-t border-slate-100 space-y-3">
-                <label onClick={toggleDarkMode} className="flex items-center justify-between cursor-pointer group">
+                <div
+                  role="switch"
+                  aria-checked={isDarkMode}
+                  tabIndex={0}
+                  onClick={toggleDarkMode}
+                  onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleDarkMode(); } }}
+                  className="flex items-center justify-between cursor-pointer group select-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg p-1 -m-1"
+                >
                   <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">Dark Mode</span>
                   <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 ${isDarkMode ? 'bg-slate-900' : 'bg-slate-200'}`}>
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ${isDarkMode ? 'translate-x-6' : 'translate-x-1'}`} />
                   </div>
-                </label>
-                <label
+                </div>
+
+                <div
+                  role="switch"
+                  aria-checked={theme.features.readingProgressBar}
+                  tabIndex={0}
                   onClick={() => setTheme(prev => ({ ...prev, features: { ...prev.features, readingProgressBar: !prev.features.readingProgressBar } }))}
-                  className="flex items-center justify-between cursor-pointer group"
+                  onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setTheme(prev => ({ ...prev, features: { ...prev.features, readingProgressBar: !prev.features.readingProgressBar } })); } }}
+                  className="flex items-center justify-between cursor-pointer group select-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg p-1 -m-1"
                 >
                   <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">Progress Bar</span>
                   <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 ${theme.features.readingProgressBar ? 'bg-slate-900' : 'bg-slate-200'}`}>
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ${theme.features.readingProgressBar ? 'translate-x-6' : 'translate-x-1'}`} />
                   </div>
-                </label>
-                <label
+                </div>
+
+                <div
+                  role="switch"
+                  aria-checked={theme.features.backToTop}
+                  tabIndex={0}
                   onClick={() => setTheme(prev => ({ ...prev, features: { ...prev.features, backToTop: !prev.features.backToTop } }))}
-                  className="flex items-center justify-between cursor-pointer group"
+                  onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setTheme(prev => ({ ...prev, features: { ...prev.features, backToTop: !prev.features.backToTop } })); } }}
+                  className="flex items-center justify-between cursor-pointer group select-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg p-1 -m-1"
                 >
                   <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">Back-to-Top</span>
                   <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 ${theme.features.backToTop ? 'bg-slate-900' : 'bg-slate-200'}`}>
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ${theme.features.backToTop ? 'translate-x-6' : 'translate-x-1'}`} />
                   </div>
-                </label>
-                <label
+                </div>
+
+                <div
+                  role="switch"
+                  aria-checked={!!theme.footer?.enabled}
+                  tabIndex={0}
                   onClick={() => setTheme(prev => ({ ...prev, footer: { ...(prev.footer ?? { text: '© 2025 GuideEm', links: [], showBranding: true }), enabled: !prev.footer?.enabled } }))}
-                  className="flex items-center justify-between cursor-pointer group"
+                  onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setTheme(prev => ({ ...prev, footer: { ...(prev.footer ?? { text: '© 2025 GuideEm', links: [], showBranding: true }), enabled: !prev.footer?.enabled } })); } }}
+                  className="flex items-center justify-between cursor-pointer group select-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg p-1 -m-1"
                 >
                   <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">Footer</span>
                   <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 ${theme.footer?.enabled ? 'bg-slate-900' : 'bg-slate-200'}`}>
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ${theme.footer?.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
                   </div>
-                </label>
-                <label
+                </div>
+
+                <div
+                  role="switch"
+                  aria-checked={theme.features.shareButtons}
+                  tabIndex={0}
                   onClick={() => setTheme(prev => ({ ...prev, features: { ...prev.features, shareButtons: !prev.features.shareButtons } }))}
-                  className="flex items-center justify-between cursor-pointer group"
+                  onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setTheme(prev => ({ ...prev, features: { ...prev.features, shareButtons: !prev.features.shareButtons } })); } }}
+                  className="flex items-center justify-between cursor-pointer group select-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg p-1 -m-1"
                 >
                   <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">Share Buttons</span>
                   <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 ${theme.features.shareButtons ? 'bg-slate-900' : 'bg-slate-200'}`}>
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ${theme.features.shareButtons ? 'translate-x-6' : 'translate-x-1'}`} />
                   </div>
-                </label>
-                <label
+                </div>
+
+                <div
+                  role="switch"
+                  aria-checked={theme.features.scrollReveal}
+                  tabIndex={0}
                   onClick={() => setTheme(prev => ({ ...prev, features: { ...prev.features, scrollReveal: !prev.features.scrollReveal } }))}
-                  className="flex items-center justify-between cursor-pointer group"
+                  onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setTheme(prev => ({ ...prev, features: { ...prev.features, scrollReveal: !prev.features.scrollReveal } })); } }}
+                  className="flex items-center justify-between cursor-pointer group select-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg p-1 -m-1"
                 >
                   <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">Scroll Reveal</span>
                   <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 ${theme.features.scrollReveal ? 'bg-slate-900' : 'bg-slate-200'}`}>
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ${theme.features.scrollReveal ? 'translate-x-6' : 'translate-x-1'}`} />
                   </div>
-                </label>
+                </div>
               </div>
 
               <div className="pt-4 border-t border-slate-100">
