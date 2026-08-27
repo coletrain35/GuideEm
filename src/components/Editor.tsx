@@ -813,6 +813,13 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
     setActivePopover(null);
   };
 
+  // Keep the editor selection during toolbar interaction, but let Tiptap's
+  // React adapter process transactions outside the current mouse event.
+  const scheduleToolbarAction = (event: React.MouseEvent, action: () => void) => {
+    event.preventDefault();
+    window.setTimeout(action, 0);
+  };
+
   return (
     <div
       className="flex flex-col max-w-4xl px-6 mx-auto mt-4 sm:mt-8 lg:mt-12 w-full"
@@ -846,38 +853,43 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
         >
           {/* Table editing toolbar — shown only when cursor is inside a table */}
           {inTable && (
-            <div className="flex items-center gap-0.5 px-2 sm:px-3 py-1.5 border-b border-slate-100 overflow-x-auto scrollbar-hide">
+            <div className="flex items-center w-full min-w-0">
+            <div className="flex items-center gap-0.5 px-2 sm:px-3 py-1.5 border-b border-slate-100 overflow-x-auto scrollbar-hide flex-1 min-w-0">
               <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider border-l-2 border-blue-400 pl-2 mr-1">Table</span>
               <div className="w-px h-4 bg-slate-200 mx-0.5" />
               {/* Row actions */}
               <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider px-0.5 select-none">Row</span>
-              <button type="button" onClick={() => editor.chain().focus().addRowBefore().run()} className="flex items-center gap-0.5 px-1.5 py-1 rounded text-[11px] font-medium hover:bg-slate-100 text-slate-600" title="Add row above">
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addRowBefore().run(); }} className="flex items-center gap-0.5 px-1.5 py-1 rounded text-[11px] font-medium hover:bg-slate-100 text-slate-600" title="Add row above">
                 <Plus size={10} /><ChevronUp size={10} />
               </button>
-              <button type="button" onClick={() => editor.chain().focus().addRowAfter().run()} className="flex items-center gap-0.5 px-1.5 py-1 rounded text-[11px] font-medium hover:bg-slate-100 text-slate-600" title="Add row below">
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addRowAfter().run(); }} className="flex items-center gap-0.5 px-1.5 py-1 rounded text-[11px] font-medium hover:bg-slate-100 text-slate-600" title="Add row below">
                 <Plus size={10} /><ChevronDown size={10} />
               </button>
-              <button type="button" onClick={() => editor.chain().focus().deleteRow().run()} className="flex items-center gap-0.5 px-1.5 py-1 rounded text-[11px] font-medium hover:bg-red-50 text-red-400" title="Delete row">
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().deleteRow().run(); }} className="flex items-center gap-0.5 px-1.5 py-1 rounded text-[11px] font-medium hover:bg-red-50 text-red-400" title="Delete row">
                 <Minus size={10} />Row
               </button>
               <div className="w-px h-4 bg-slate-200 mx-0.5" />
               {/* Column actions */}
               <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider px-0.5 select-none">Col</span>
-              <button type="button" onClick={() => editor.chain().focus().addColumnBefore().run()} className="flex items-center gap-0.5 px-1.5 py-1 rounded text-[11px] font-medium hover:bg-slate-100 text-slate-600" title="Add column left">
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addColumnBefore().run(); }} className="flex items-center gap-0.5 px-1.5 py-1 rounded text-[11px] font-medium hover:bg-slate-100 text-slate-600" title="Add column left">
                 <Plus size={10} /><ChevronLeft size={10} />
               </button>
-              <button type="button" onClick={() => editor.chain().focus().addColumnAfter().run()} className="flex items-center gap-0.5 px-1.5 py-1 rounded text-[11px] font-medium hover:bg-slate-100 text-slate-600" title="Add column right">
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().addColumnAfter().run(); }} className="flex items-center gap-0.5 px-1.5 py-1 rounded text-[11px] font-medium hover:bg-slate-100 text-slate-600" title="Add column right">
                 <Plus size={10} /><ChevronRight size={10} />
               </button>
-              <button type="button" onClick={() => editor.chain().focus().deleteColumn().run()} className="flex items-center gap-0.5 px-1.5 py-1 rounded text-[11px] font-medium hover:bg-red-50 text-red-400" title="Delete column">
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().deleteColumn().run(); }} className="flex items-center gap-0.5 px-1.5 py-1 rounded text-[11px] font-medium hover:bg-red-50 text-red-400" title="Delete column">
                 <Minus size={10} />Col
               </button>
               <div className="w-px h-4 bg-slate-200 mx-0.5" />
-              {/* Style picker */}
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().deleteTable().run(); }} className="p-1.5 rounded hover:bg-red-50 text-red-500" title="Delete table"><Trash2 size={14} /></button>
+            </div>
+            {/* Style picker lives OUTSIDE the scroll container — absolute popovers
+                are clipped by overflow-x-auto ancestors. */}
+            <div className="flex items-center pr-2 sm:pr-3 py-1.5 border-b border-slate-100 shrink-0">
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => setActivePopover(activePopover === 'tableStyle' ? null : 'tableStyle')}
+                  onMouseDown={(e) => { e.preventDefault(); setActivePopover(activePopover === 'tableStyle' ? null : 'tableStyle'); }}
                   className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium hover:bg-slate-200 ${activePopover === 'tableStyle' ? 'bg-slate-200 text-blue-600' : 'text-slate-600'}`}
                   title="Table style"
                 >
@@ -892,7 +904,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
                         <button
                           type="button"
                           key={id}
-                          onClick={() => { editor.chain().focus().updateAttributes('table', { tableStyle: id }).run(); setActivePopover(null); }}
+                          onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().updateAttributes('table', { tableStyle: id }).run(); setActivePopover(null); }}
                           className={`text-xs text-left px-2 py-1.5 rounded flex items-center gap-2 ${active ? 'bg-blue-50 text-blue-700 font-medium ring-1 ring-blue-300' : 'text-slate-700 hover:bg-slate-100'}`}
                         >
                           <span className={`w-4 h-4 rounded-sm flex-shrink-0 ${swatch}`} />
@@ -903,15 +915,17 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
                   </div>
                 )}
               </div>
-              <div className="w-px h-4 bg-slate-200 mx-0.5" />
-              <button type="button" onClick={() => editor.chain().focus().deleteTable().run()} className="p-1.5 rounded hover:bg-red-50 text-red-500" title="Delete table"><Trash2 size={14} /></button>
+            </div>
             </div>
           )}
 
-          <div className="flex items-center px-2 sm:px-3 py-1.5 gap-0.5 overflow-x-auto scrollbar-hide">
-            {/* History */}
-            <button type="button" onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} className="p-1.5 rounded hover:bg-slate-100 disabled:opacity-30 text-slate-600 transition-colors" title="Undo"><Undo size={15} /></button>
-            <button type="button" onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} className="p-1.5 rounded hover:bg-slate-100 disabled:opacity-30 text-slate-600 transition-colors" title="Redo"><Redo size={15} /></button>
+          <div className="flex items-center w-full min-w-0">
+          {/* Scrollable core — simple command buttons only. Popovers must NOT
+              live in here: overflow-x-auto clips absolutely-positioned menus,
+              making them invisible and unclickable. */}
+          <div className="flex items-center px-2 sm:px-3 py-1.5 gap-0.5 overflow-x-auto scrollbar-hide flex-1 min-w-0">
+              <button type="button" onMouseDown={(e) => scheduleToolbarAction(e, () => editor.chain().focus().undo().run())} disabled={!editor.can().undo()} className="p-1.5 rounded hover:bg-slate-100 disabled:opacity-30 text-slate-600 transition-colors" title="Undo"><Undo size={15} /></button>
+              <button type="button" onMouseDown={(e) => scheduleToolbarAction(e, () => editor.chain().focus().redo().run())} disabled={!editor.can().redo()} className="p-1.5 rounded hover:bg-slate-100 disabled:opacity-30 text-slate-600 transition-colors" title="Redo"><Redo size={15} /></button>
             <div className="w-px h-4 bg-slate-200 mx-0.5" />
 
             {/* Block Format (Heading / Paragraph) */}
@@ -925,11 +939,13 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
               }
               onChange={(e) => {
                 const val = e.target.value;
-                if (val === 'p') {
-                  editor.chain().focus().setParagraph().run();
-                } else {
-                  editor.chain().focus().toggleHeading({ level: parseInt(val) as 1|2|3|4 }).run();
-                }
+                window.setTimeout(() => {
+                  if (val === 'p') {
+                    editor.chain().focus().setParagraph().run();
+                  } else {
+                    editor.chain().focus().toggleHeading({ level: parseInt(val) as 1|2|3|4 }).run();
+                  }
+                }, 0);
               }}
               onMouseDown={(e) => e.stopPropagation()}
               className="text-xs bg-transparent border border-slate-200 rounded px-1.5 py-1 text-slate-700 cursor-pointer hover:bg-slate-100"
@@ -945,21 +961,21 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
             <div className="flex items-center gap-0.5 border border-slate-200 rounded px-0.5 py-0.5">
               <button
                 type="button"
-                onMouseDown={e => { e.preventDefault(); editor.chain().focus().setFontSize('small' as FontSizeValue).run(); }}
+                onMouseDown={e => scheduleToolbarAction(e, () => editor.chain().focus().setFontSize('small' as FontSizeValue).run())}
                 className={`px-1 py-0.5 rounded leading-none font-medium hover:bg-slate-200 ${editor.isActive('fontSize', { size: 'small' }) ? 'bg-slate-200 text-blue-600 font-bold' : 'text-slate-500'}`}
                 style={{ fontSize: '10px' }}
                 title="Small text"
               >A</button>
               <button
                 type="button"
-                onMouseDown={e => { e.preventDefault(); editor.chain().focus().unsetFontSize().run(); }}
+                onMouseDown={e => scheduleToolbarAction(e, () => editor.chain().focus().unsetFontSize().run())}
                 className="px-1 py-0.5 rounded leading-none font-medium hover:bg-slate-200 text-slate-500"
                 style={{ fontSize: '12px' }}
                 title="Normal text"
               >A</button>
               <button
                 type="button"
-                onMouseDown={e => { e.preventDefault(); editor.chain().focus().setFontSize('large' as FontSizeValue).run(); }}
+                onMouseDown={e => scheduleToolbarAction(e, () => editor.chain().focus().setFontSize('large' as FontSizeValue).run())}
                 className={`px-1 py-0.5 rounded leading-none font-medium hover:bg-slate-200 ${editor.isActive('fontSize', { size: 'large' }) ? 'bg-slate-200 text-blue-600 font-bold' : 'text-slate-500'}`}
                 style={{ fontSize: '15px' }}
                 title="Large text"
@@ -969,16 +985,58 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
             <div className="w-px h-4 bg-slate-200 mx-0.5" />
 
             {/* Formatting */}
-            <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded hover:bg-slate-100 ${editor.isActive('bold') ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600'}`} title="Bold"><Bold size={15} /></button>
-            <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded hover:bg-slate-100 ${editor.isActive('italic') ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`} title="Italic"><Italic size={15} /></button>
-            <button type="button" onClick={() => editor.chain().focus().toggleStrike().run()} className={`p-1.5 rounded hover:bg-slate-100 ${editor.isActive('strike') ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`} title="Strikethrough"><Strikethrough size={15} /></button>
-            <button type="button" onClick={() => editor.chain().focus().toggleHighlight().run()} className={`p-1.5 rounded hover:bg-slate-100 ${editor.isActive('highlight') ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`} title="Highlight"><Highlighter size={15} /></button>
+            <button type="button" onMouseDown={(e) => scheduleToolbarAction(e, () => editor.chain().focus().toggleBold().run())} className={`p-1.5 rounded hover:bg-slate-100 ${editor.isActive('bold') ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600'}`} title="Bold"><Bold size={15} /></button>
+            <button type="button" onMouseDown={(e) => scheduleToolbarAction(e, () => editor.chain().focus().toggleItalic().run())} className={`p-1.5 rounded hover:bg-slate-100 ${editor.isActive('italic') ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`} title="Italic"><Italic size={15} /></button>
+            <button type="button" onMouseDown={(e) => scheduleToolbarAction(e, () => editor.chain().focus().toggleStrike().run())} className={`p-1.5 rounded hover:bg-slate-100 ${editor.isActive('strike') ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`} title="Strikethrough"><Strikethrough size={15} /></button>
+            <button type="button" onMouseDown={(e) => scheduleToolbarAction(e, () => editor.chain().focus().toggleHighlight().run())} className={`p-1.5 rounded hover:bg-slate-100 ${editor.isActive('highlight') ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`} title="Highlight"><Highlighter size={15} /></button>
+
+            {/* Inline Code */}
+            <button
+              type="button"
+              onMouseDown={(e) => scheduleToolbarAction(e, () => editor.chain().focus().toggleCode().run())}
+              className={`p-1.5 rounded hover:bg-slate-100 text-xs font-mono font-bold ${editor.isActive('code') ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`}
+              title="Inline Code"
+            >&lt;/&gt;</button>
+
+            <div className="w-px h-4 bg-slate-200 mx-0.5" />
+
+            {/* Text Alignment — ALWAYS ACCESSIBLE */}
+            <button
+              type="button"
+              onMouseDown={(e) => scheduleToolbarAction(e, () => editor.chain().focus().setTextAlign('left').run())}
+              className={`p-1.5 rounded hover:bg-slate-100 ${editor.isActive({ textAlign: 'left' }) ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`}
+              title="Align Left"
+            >
+              <AlignLeft size={15} />
+            </button>
+            <button
+              type="button"
+              onMouseDown={(e) => scheduleToolbarAction(e, () => editor.chain().focus().setTextAlign('center').run())}
+              className={`p-1.5 rounded hover:bg-slate-100 ${editor.isActive({ textAlign: 'center' }) ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`}
+              title="Align Center"
+            >
+              <AlignCenter size={15} />
+            </button>
+            <button
+              type="button"
+              onMouseDown={(e) => scheduleToolbarAction(e, () => editor.chain().focus().setTextAlign('right').run())}
+              className={`p-1.5 rounded hover:bg-slate-100 ${editor.isActive({ textAlign: 'right' }) ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`}
+              title="Align Right"
+            >
+              <AlignRight size={15} />
+            </button>
+          </div>
+
+          {/* Popover group — outside the scroll container so the absolutely
+              positioned menus are visible and clickable. */}
+          <div className="flex items-center gap-0.5 pr-2 sm:pr-3 py-1.5 shrink-0">
+            <div className="w-px h-4 bg-slate-200 mx-0.5" />
 
             {/* Link Popover */}
             <div className="relative">
               <button
                 type="button"
-                onClick={openLinkPopover}
+                onMouseDown={(e) => scheduleToolbarAction(e, openLinkPopover)}
                 className={`p-1.5 rounded hover:bg-slate-100 ${editor.isActive('link') ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`}
                 title="Insert / edit link"
               >
@@ -987,7 +1045,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
               {activePopover === 'link' && (
                 <div
                   onMouseDown={(e) => e.stopPropagation()}
-                  className="absolute top-full mt-2 left-0 sm:left-auto sm:right-0 bg-white rounded-xl shadow-xl border border-slate-200 p-2.5 z-50 flex flex-col gap-2 w-72"
+                  className="absolute top-full mt-2 right-0 bg-white rounded-xl shadow-xl border border-slate-200 p-2.5 z-50 flex flex-col gap-2 w-72"
                 >
                   <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Hyperlink URL</label>
                   <input
@@ -1008,7 +1066,8 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
                     {editor.isActive('link') && (
                       <button
                         type="button"
-                        onClick={() => {
+                        onMouseDown={(e) => {
+                          e.preventDefault();
                           editor.chain().focus().extendMarkRange('link').unsetLink().run();
                           setActivePopover(null);
                         }}
@@ -1019,14 +1078,14 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
                     )}
                     <button
                       type="button"
-                      onClick={() => setActivePopover(null)}
+                      onMouseDown={(e) => { e.preventDefault(); setActivePopover(null); }}
                       className="px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-100 rounded"
                     >
                       Cancel
                     </button>
                     <button
                       type="button"
-                      onClick={applyLink}
+                      onMouseDown={(e) => { e.preventDefault(); applyLink(); }}
                       className="px-3 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs"
                     >
                       Apply
@@ -1036,49 +1095,12 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
               )}
             </div>
 
-            {/* Inline Code */}
-            <button
-              type="button"
-              onClick={() => editor.chain().focus().toggleCode().run()}
-              className={`p-1.5 rounded hover:bg-slate-100 text-xs font-mono font-bold ${editor.isActive('code') ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`}
-              title="Inline Code"
-            >&lt;/&gt;</button>
-
-            <div className="w-px h-4 bg-slate-200 mx-0.5" />
-
-            {/* Text Alignment — ALWAYS ACCESSIBLE */}
-            <button
-              type="button"
-              onClick={() => editor.chain().focus().setTextAlign('left').run()}
-              className={`p-1.5 rounded hover:bg-slate-100 ${editor.isActive({ textAlign: 'left' }) ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`}
-              title="Align Left"
-            >
-              <AlignLeft size={15} />
-            </button>
-            <button
-              type="button"
-              onClick={() => editor.chain().focus().setTextAlign('center').run()}
-              className={`p-1.5 rounded hover:bg-slate-100 ${editor.isActive({ textAlign: 'center' }) ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`}
-              title="Align Center"
-            >
-              <AlignCenter size={15} />
-            </button>
-            <button
-              type="button"
-              onClick={() => editor.chain().focus().setTextAlign('right').run()}
-              className={`p-1.5 rounded hover:bg-slate-100 ${editor.isActive({ textAlign: 'right' }) ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`}
-              title="Align Right"
-            >
-              <AlignRight size={15} />
-            </button>
-
-            <div className="w-px h-4 bg-slate-200 mx-0.5" />
-
             {/* Gradient Popover */}
             <div className="relative">
-              <button
-                type="button"
-                onClick={() => setActivePopover(activePopover === 'gradient' ? null : 'gradient')}
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setActivePopover(activePopover === 'gradient' ? null : 'gradient')}
                 className={`px-2 py-1 text-xs font-medium rounded hover:bg-slate-100 ${editor.isActive('gradientText') ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600'}`}
               >
                 Gradient
@@ -1102,13 +1124,21 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
                   <div className="flex gap-2 pt-1">
                     <button
                       type="button"
-                      onClick={() => { editor.chain().focus().setGradientText({ colorFrom: gradientFrom, colorTo: gradientTo, direction: gradientDir }).run(); setActivePopover(null); }}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        editor.chain().focus().setGradientText({ colorFrom: gradientFrom, colorTo: gradientTo, direction: gradientDir }).run();
+                        setActivePopover(null);
+                      }}
                       className="flex-1 text-xs bg-blue-600 text-white rounded px-2 py-1 hover:bg-blue-700"
                     >Apply</button>
                     {editor.isActive('gradientText') && (
                       <button
                         type="button"
-                        onClick={() => { editor.chain().focus().unsetGradientText().run(); setActivePopover(null); }}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          editor.chain().focus().unsetGradientText().run();
+                          setActivePopover(null);
+                        }}
                         className="flex-1 text-xs bg-slate-100 text-slate-700 rounded px-2 py-1 hover:bg-slate-200"
                       >Remove</button>
                     )}
@@ -1121,6 +1151,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
             <div className="relative">
               <button
                 type="button"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   if (editor.isActive('textBadge')) {
                     editor.chain().focus().unsetTextBadge().run();
@@ -1140,7 +1171,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
                   <p className="text-xs font-medium text-slate-600 mb-2">Badge color</p>
                   <div className="flex gap-1.5 flex-wrap">
                     {([['#6366f1', 'Indigo'], ['#16a34a', 'Green'], ['#d97706', 'Amber'], ['#dc2626', 'Red'], ['#7c3aed', 'Purple']] as const).map(([color, name]) => (
-                      <button key={color} type="button" onClick={() => { editor.chain().focus().setTextBadge({ color }).run(); setActivePopover(null); }} style={{ background: color }} className="w-6 h-6 rounded-full hover:scale-110 transition-transform" title={name} />
+                      <button key={color} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { editor.chain().focus().setTextBadge({ color }).run(); setActivePopover(null); }} style={{ background: color }} className="w-6 h-6 rounded-full hover:scale-110 transition-transform" title={name} />
                     ))}
                   </div>
                 </div>
@@ -1151,6 +1182,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
             <div className="relative">
               <button
                 type="button"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   if (editor.isActive('animatedText')) {
                     editor.chain().focus().unsetAnimatedText().run();
@@ -1169,7 +1201,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
                 >
                   <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-2 py-1">Animation</p>
                   {(['shimmer', 'typewriter', 'fade-in-word'] as const).map(anim => (
-                    <button key={anim} type="button" onClick={() => { editor.chain().focus().setAnimatedText({ animation: anim }).run(); setActivePopover(null); }} className="text-xs text-left px-2 py-1.5 rounded hover:bg-slate-100 text-slate-700 capitalize">{anim.replace(/-/g, ' ')}</button>
+                    <button key={anim} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { editor.chain().focus().setAnimatedText({ animation: anim }).run(); setActivePopover(null); }} className="text-xs text-left px-2 py-1.5 rounded hover:bg-slate-100 text-slate-700 capitalize">{anim.replace(/-/g, ' ')}</button>
                   ))}
                 </div>
               )}
@@ -1253,7 +1285,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
                 <div className="relative">
                   <button
                     type="button"
-                    onClick={() => setActivePopover(activePopover === 'reveal' ? null : 'reveal')}
+                    onMouseDown={(e) => { e.preventDefault(); setActivePopover(activePopover === 'reveal' ? null : 'reveal'); }}
                     className={`p-1.5 rounded hover:bg-slate-100 flex items-center gap-1 ${activeReveal ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`}
                     title={activeReveal ? `Scroll reveal: ${activeReveal}` : 'Scroll Reveal Animation'}
                   >
@@ -1269,7 +1301,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
                         <button
                           key={type}
                           type="button"
-                          onClick={() => { editor.chain().focus().setScrollReveal(type).run(); setActivePopover(null); }}
+                          onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().setScrollReveal(type).run(); setActivePopover(null); }}
                           className={`text-xs text-left px-2 py-1.5 rounded hover:bg-slate-100 capitalize flex items-center justify-between ${activeReveal === type ? 'text-blue-600 font-medium' : 'text-slate-700'}`}
                         >
                           <span>{type === 'none' ? 'None' : type.replace(/-/g, ' ')}</span>
@@ -1285,12 +1317,13 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
             {/* Outline Toggle */}
             <button
               type="button"
-              onClick={() => setShowOutline(v => !v)}
+              onMouseDown={(e) => { e.preventDefault(); setShowOutline(v => !v); }}
               className={`p-1.5 rounded hover:bg-slate-100 flex items-center ${showOutline ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`}
               title="Toggle Document Outline"
             >
               <List size={15} />
             </button>
+          </div>
           </div>
         </div>
       </div>

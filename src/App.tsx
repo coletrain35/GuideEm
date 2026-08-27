@@ -566,15 +566,25 @@ function MainApp() {
   // Marketing Landing Page view
   if (currentView === 'landing') {
     return (
-      <LandingPage
-        onStartWriting={() => {
-          if (documents.length > 0 && currentDocId) {
-            setCurrentView('editor');
-          } else {
-            setShowTemplatePicker(true);
-          }
-        }}
-      />
+      <>
+        <LandingPage
+          onStartWriting={() => {
+            if (documents.length > 0 && currentDocId) {
+              setCurrentView('editor');
+            } else {
+              setShowTemplatePicker(true);
+            }
+          }}
+        />
+        {/* The template picker must live outside LandingPage's tree — the
+            landing view returns early, so modals rendered only in the editor
+            branch below would never mount here. */}
+        <TemplatePickerModal
+          isOpen={showTemplatePicker}
+          onClose={() => setShowTemplatePicker(false)}
+          onSelect={createNewDocument}
+        />
+      </>
     );
   }
 
