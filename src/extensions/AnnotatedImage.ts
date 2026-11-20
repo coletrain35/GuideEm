@@ -37,17 +37,59 @@ export const AnnotatedImage = Node.create<AnnotatedImageOptions>({
 
   addAttributes() {
     return {
-      src: { default: null },
-      alt: { default: null },
-      width: { default: 100 },
-      effect: { default: 'none' },
-      align: { default: 'center' },
-      caption: { default: '' },
+      src: {
+        default: null,
+        parseHTML: element =>
+          element.getAttribute('src') ||
+          element.getAttribute('data-src') ||
+          element.querySelector('img')?.getAttribute('src') ||
+          null,
+      },
+      alt: {
+        default: null,
+        parseHTML: element =>
+          element.getAttribute('alt') ||
+          element.getAttribute('data-alt') ||
+          element.querySelector('img')?.getAttribute('alt') ||
+          null,
+      },
+      width: {
+        default: 100,
+        parseHTML: element => {
+          const attrVal = element.getAttribute('data-width');
+          const styleMatch = element.getAttribute('style')?.match(/\bwidth\s*:\s*([\d.]+)%?/i);
+          const raw = attrVal || styleMatch?.[1];
+          if (!raw) return 100;
+          const n = Math.round(parseFloat(raw));
+          return Number.isFinite(n) ? Math.min(100, Math.max(10, n)) : 100;
+        },
+      },
+      effect: {
+        default: 'none',
+        parseHTML: element => element.getAttribute('data-effect') || 'none',
+      },
+      align: {
+        default: 'center',
+        parseHTML: element => element.getAttribute('data-align') || 'center',
+      },
+      caption: {
+        default: '',
+        parseHTML: element =>
+          element.getAttribute('data-caption')
+          || element.querySelector('.annotated-image-caption')?.textContent
+          || '',
+      },
       annotations: {
         default: [],
         parseHTML: element => {
-          const parsed = element.getAttribute('data-annotations');
-          return parsed ? JSON.parse(parsed) : [];
+          const raw = element.getAttribute('data-annotations');
+          if (!raw) return [];
+          try {
+            const val = JSON.parse(raw);
+            return Array.isArray(val) ? val : [];
+          } catch {
+            return [];
+          }
         },
         renderHTML: attributes => {
           // In Tiptap v3, `attributes` is the attribute value itself (the array), not the full node attrs
@@ -62,6 +104,7 @@ export const AnnotatedImage = Node.create<AnnotatedImageOptions>({
   parseHTML() {
     return [
       { tag: 'div[data-type="annotated-image"]' },
+      { tag: 'img[src]' },
     ];
   },
 
@@ -69,17 +112,22 @@ export const AnnotatedImage = Node.create<AnnotatedImageOptions>({
     // node.attrs.annotations is the most direct source; HTMLAttributes['data-annotations']
     // is a fallback for Tiptap versions where node may not be passed.
     const fromNode: any[] = node?.attrs?.annotations ?? [];
-    const fromAttrs: any[] = HTMLAttributes['data-annotations']
-      ? JSON.parse(HTMLAttributes['data-annotations'] as string)
-      : [];
+    let fromAttrs: any[] = [];
+    if (HTMLAttributes['data-annotations']) {
+      try {
+        const parsed = JSON.parse(HTMLAttributes['data-annotations'] as string);
+        if (Array.isArray(parsed)) fromAttrs = parsed;
+      } catch { /* ignore malformed JSON */ }
+    }
     const annotations: any[] = fromNode.length > 0 ? fromNode : fromAttrs;
 
-    const effect: string = node?.attrs?.effect || 'none';
+    const effect: string = node?.attrs?.effect ?? HTMLAttributes.effect ?? 'none';
     const effectClass = effect !== 'none' ? ` image-effect-${effect}` : '';
-    const align: string = node?.attrs?.align || 'center';
-    const width: number = node?.attrs?.width ?? 100;
+    const align: string = node?.attrs?.align ?? HTMLAttributes.align ?? 'center';
+    const rawWidth = Number(node?.attrs?.width ?? HTMLAttributes.width ?? 100);
+    const width: number = Number.isFinite(rawWidth) ? Math.min(100, Math.max(10, rawWidth)) : 100;
     const alignStyle = alignToMargin(align, width);
-    const alignDataAttr = align !== 'center' ? ` data-align="${align}"` : '';
+    const caption: string = String(node?.attrs?.caption ?? HTMLAttributes.caption ?? '').trim();
 
     const markers = annotations.map((ann: any, index: number) => {
       const safeX = Math.min(100, Math.max(0, parseFloat(ann.x) || 0));
@@ -91,6 +139,21 @@ export const AnnotatedImage = Node.create<AnnotatedImageOptions>({
       }, (index + 1).toString()];
     });
 
+    const children: any[] = [
+      ['img', { src: HTMLAttributes.src, alt: HTMLAttributes.alt }],
+      ...markers,
+    ];
+    if (caption) {
+      children.push([
+        'p',
+        {
+          class: 'annotated-image-caption',
+          style: 'margin-top: 0.5rem; font-size: 0.875rem; color: #64748b; text-align: center;',
+        },
+        caption,
+      ]);
+    }
+
     return [
       'div',
       mergeAttributes(
@@ -99,12 +162,14 @@ export const AnnotatedImage = Node.create<AnnotatedImageOptions>({
           'data-type': 'annotated-image',
           class: `annotated-image-container${effectClass}`,
           'data-effect': effect,
-          style: `width: ${width}%; ${alignStyle}${alignDataAttr}`,
+          'data-width': String(width),
+          'data-align': align,
+          style: `width: ${width}%; ${alignStyle}`,
         },
+        caption ? { 'data-caption': caption } : {},
         annotations.length > 0 ? { 'data-annotations': JSON.stringify(annotations) } : {}
       ),
-      ['img', { src: HTMLAttributes.src, alt: HTMLAttributes.alt }],
-      ...markers
+      ...children
     ];
   },
 

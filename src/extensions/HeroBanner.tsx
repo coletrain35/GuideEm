@@ -1,6 +1,6 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Paintbrush } from 'lucide-react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
@@ -18,15 +18,40 @@ const HeroBannerNodeView = (props: any) => {
   const { gradientFrom, gradientTo, title, subtitle, ctaText, ctaUrl } = node.attrs;
   const [showStyle, setShowStyle] = useState(false);
   const styleRef = useRef<HTMLDivElement>(null);
+  const subtitleInputRef = useRef<HTMLInputElement>(null);
+  const ctaInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!showStyle) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (styleRef.current && !styleRef.current.contains(e.target as globalThis.Node)) {
+        setShowStyle(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [showStyle]);
+
+  const exitHeroBelow = () => {
+    const pos = typeof getPos === 'function' ? getPos() : undefined;
+    if (pos === undefined) return;
+    const afterPos = pos + node.nodeSize;
+    if (afterPos >= editor.state.doc.content.size) {
+      editor.chain().insertContentAt(afterPos, { type: 'paragraph' }).focus(afterPos + 1).run();
+    } else {
+      editor.commands.focus(afterPos + 1);
+    }
+  };
 
   return (
     <NodeViewWrapper className="group/block hero-banner-editor-wrapper my-6 relative">
       <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
 
-      {/* Floating style toolbar */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-30 text-sm opacity-0 group-hover/block:opacity-100 pointer-events-none group-hover/block:pointer-events-auto transition-opacity">
+      {/* Floating style toolbar — anchored inside top-left so it never overlaps blocks above */}
+      <div className={`absolute top-3 left-3 flex items-center gap-1 p-1 bg-white/95 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-30 text-sm transition-opacity ${showStyle || selected ? 'opacity-100 pointer-events-auto' : 'opacity-0 group-hover/block:opacity-100 pointer-events-none group-hover/block:pointer-events-auto'}`}>
         <div ref={styleRef} className="relative">
           <button
+            type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setShowStyle(!showStyle)}
             className={`flex items-center gap-1 px-3 py-1 rounded-full transition-colors ${showStyle ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-600'}`}
@@ -36,7 +61,7 @@ const HeroBannerNodeView = (props: any) => {
           {showStyle && (
             <div
               onMouseDown={(e) => e.stopPropagation()}
-              className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-white border border-slate-200 rounded-xl shadow-xl p-3 w-64"
+              className="absolute top-full left-0 mt-1.5 z-50 bg-white border border-slate-200 rounded-xl shadow-xl p-3 w-64"
             >
               <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Gradient Presets</p>
               <div className="flex flex-wrap gap-1.5 mb-3">
@@ -90,18 +115,38 @@ const HeroBannerNodeView = (props: any) => {
           <input
             value={title}
             onChange={(e) => updateAttributes({ title: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                subtitleInputRef.current?.focus();
+              }
+            }}
             placeholder="Your Title Here"
             className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white text-center bg-transparent outline-none border-b-2 border-transparent hover:border-white/40 focus:border-white/70 transition-colors w-full max-w-xl placeholder:text-white/50"
           />
           <input
+            ref={subtitleInputRef}
             value={subtitle}
             onChange={(e) => updateAttributes({ subtitle: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                ctaInputRef.current?.focus();
+              }
+            }}
             placeholder="Optional subtitle..."
             className="text-lg text-white/90 text-center bg-transparent outline-none border-b border-transparent hover:border-white/30 focus:border-white/60 transition-colors w-full max-w-xl placeholder:text-white/40"
           />
           <input
+            ref={ctaInputRef}
             value={ctaText}
             onChange={(e) => updateAttributes({ ctaText: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                exitHeroBelow();
+              }
+            }}
             placeholder="CTA Button Text"
             className="inline-block px-8 py-3 rounded-full font-semibold text-white text-center bg-transparent border-2 border-white/40 hover:border-white/70 focus:border-white outline-none transition-colors placeholder:text-white/40 max-w-xs"
           />

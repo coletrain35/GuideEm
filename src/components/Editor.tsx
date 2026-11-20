@@ -57,31 +57,65 @@ import { AnnouncementPill } from '../extensions/AnnouncementPill';
 import { GradientBlobs } from '../extensions/GradientBlobs';
 import { NoiseOverlay } from '../extensions/NoiseOverlay';
 import { Mermaid } from '../extensions/Mermaid';
+import { Kbd } from '../extensions/Kbd';
+import { MathBlock } from '../extensions/MathBlock';
+import { ApiEndpoint } from '../extensions/ApiEndpoint';
 import { ScrollReveal, REVEAL_TYPES, BLOCK_TYPES } from '../extensions/ScrollReveal';
 import { InlineCode, type InlineCodeLanguage } from '../extensions/InlineCode';
 import { FontSize, type FontSizeValue } from '../extensions/FontSize';
 import { SlashCommand } from '../extensions/SlashCommand';
-import { SearchReplace } from '../extensions/SearchReplace';
+import { SearchReplace, searchReplaceKey } from '../extensions/SearchReplace';
 import GlobalDragHandle from 'tiptap-extension-global-drag-handle';
 import type { Node as PmNode } from 'prosemirror-model';
 import { TextSelection } from 'prosemirror-state';
 import { PlusMenu } from './PlusMenu';
 import { compressImageToWebP } from '../utils/imageCompressor';
 import { sanitizeHtml, sanitizeUrl } from '../utils/sanitize';
-import { BLOCK_ITEMS } from '../utils/blockItems';
+import { getFontStack } from '../utils/exporter';
+import { BLOCK_ITEMS, openBlockGallery, type BlockCategory } from '../utils/blockItems';
 import { SECTION_BG_PRESETS } from '../utils/backgroundPresets';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { DocumentCover } from './DocumentCover';
 import type { ThemeConfig } from '../utils/storage';
 import {
   Link as LinkIcon, Highlighter, AlignLeft, AlignCenter, AlignRight,
-  Minus, Undo, Redo, Bold, Italic, Strikethrough, Columns,
-  Sparkles, Trash2, Palette, Plus,
+  Minus, Undo, Redo, Bold, Italic, Strikethrough, Columns, Table2,
+  Sparkles, Trash2, Palette, Plus, LayoutGrid,
   Search, X as XIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, List,
 } from 'lucide-react';
 import { TableInsertModal } from './TableInsertModal';
+import { BlockGalleryModal } from './BlockGalleryModal';
 
 const lowlight = createLowlight(common);
+
+function swapTopLevelBlock(view: import('prosemirror-view').EditorView | undefined, dir: 'up' | 'down'): boolean {
+  if (!view) return false;
+  const { state } = view;
+  const { $from } = state.selection;
+  const topIdx = $from.index(0);
+  const doc = state.doc;
+  if (topIdx < 0 || topIdx >= doc.childCount) return false;
+  const pos = $from.depth >= 1 ? $from.before(1) : $from.pos;
+  const node = doc.child(topIdx);
+  const innerOffset = node.isAtom ? 0 : Math.min(Math.max(1, $from.pos - pos), Math.max(1, node.nodeSize - 1));
+  if (dir === 'up' && topIdx > 0) {
+    const prevNode = doc.child(topIdx - 1);
+    const prevPos = pos - prevNode.nodeSize;
+    const tr = state.tr.delete(pos, pos + node.nodeSize).insert(prevPos, node);
+    tr.setSelection(TextSelection.near(tr.doc.resolve(prevPos + innerOffset)));
+    view.dispatch(tr.scrollIntoView());
+    return true;
+  }
+  if (dir === 'down' && topIdx < doc.childCount - 1) {
+    const nextNode = doc.child(topIdx + 1);
+    const insertPos = pos + nextNode.nodeSize;
+    const tr = state.tr.delete(pos, pos + node.nodeSize).insert(insertPos, node);
+    tr.setSelection(TextSelection.near(tr.doc.resolve(insertPos + innerOffset)));
+    view.dispatch(tr.scrollIntoView());
+    return true;
+  }
+  return false;
+}
 
 // Inline style definitions per table style variant applied directly to <th> elements.
 // Inline styles have absolute highest priority — no CSS rule can override them.
@@ -155,7 +189,7 @@ interface EditorProps {
   initialContent: any;
   initialHtmlContent: string;
   initialTitle: string;
-  onUpdate: (html: string, json: any, newTitle: string) => void;
+  onUpdate: (html: string, json: any, newTitle: string, options?: { silent?: boolean }) => void;
   theme?: ThemeConfig;
   onThemeChange?: (updates: Partial<ThemeConfig>) => void;
   zenMode?: boolean;
@@ -173,6 +207,11 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
   const [content, setContent] = useState<any>(initialContent);
   const [htmlContent, setHtmlContent] = useState<string>(initialHtmlContent || '');
   const [title, setTitle] = useState(initialTitle);
+
+  // Sync title when updated externally (e.g. renamed in sidebar)
+  useEffect(() => {
+    setTitle(initialTitle);
+  }, [initialTitle]);
   const [headings, setHeadings] = useState<{ text: string; level: number; id: string; pos?: number }[]>([]);
   const [wordCount, setWordCount] = useState(0);
 
@@ -186,6 +225,8 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
   const [gradientTo, setGradientTo] = useState('#ec4899');
   const [gradientDir, setGradientDir] = useState('to right');
   const [showTableModal, setShowTableModal] = useState(false);
+  const [showBlockGallery, setShowBlockGallery] = useState(false);
+  const [galleryInitialState, setGalleryInitialState] = useState<{ blockId?: string | null; category?: BlockCategory | 'All' }>({});
 
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [findTerm, setFindTerm] = useState('');
@@ -232,6 +273,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
   }, []);
 
   const isFirstRender = useRef(true);
+  const hasUserEdited = useRef(false);
   const editorRef = useRef<import('@tiptap/core').Editor | null>(null);
   const hasPendingSave = useRef(false);
   const latestSaveArgs = useRef({ html: htmlContent, json: content, t: title, fn: onUpdate });
@@ -254,9 +296,17 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
     };
   }, []);
 
+  const handleTitleChange = useCallback((newTitle: string) => {
+    hasUserEdited.current = true;
+    setTitle(newTitle);
+  }, []);
+
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
+      return;
+    }
+    if (!hasUserEdited.current) {
       return;
     }
 
@@ -277,9 +327,52 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
     return () => window.removeEventListener('tiptap:open-table-modal', handler);
   }, []);
 
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail || {};
+      setGalleryInitialState({ blockId: detail.blockId ?? null, category: detail.category ?? 'All' });
+      setShowBlockGallery(true);
+    };
+    window.addEventListener('tiptap:open-block-gallery', handler);
+    return () => window.removeEventListener('tiptap:open-block-gallery', handler);
+  }, []);
+
   const countWords = (editor: any) => {
-    const text = editor.state.doc.textContent;
-    const count = text.trim() ? text.trim().split(/\s+/).length : 0;
+    const chunks: string[] = [editor.state.doc.textContent || ''];
+    const TEXT_ATTRS = ['title', 'subtitle', 'ctaText', 'quote', 'authorName', 'authorRole', 'description', 'label', 'message', 'summary', 'code', 'name', 'role', 'bio', 'tagline', 'badgeText'];
+    const JSON_ATTRS = ['cells', 'cards', 'bullets', 'stats', 'items', 'entries', 'steps'];
+    const SUB_FIELDS = ['title', 'description', 'label', 'frontTitle', 'backDescription', 'quote', 'summary', 'text'];
+
+    editor.state.doc.descendants((node: any) => {
+      if (!node.attrs) return;
+      for (const k of TEXT_ATTRS) {
+        const val = node.attrs[k];
+        if (typeof val === 'string' && val.trim()) chunks.push(val);
+      }
+      for (const k of JSON_ATTRS) {
+        const raw = node.attrs[k];
+        if (typeof raw === 'string' && raw.startsWith('[')) {
+          try {
+            const arr = JSON.parse(raw);
+            if (Array.isArray(arr)) {
+              for (const item of arr) {
+                if (typeof item === 'string') chunks.push(item);
+                else if (item && typeof item === 'object') {
+                  for (const sf of SUB_FIELDS) {
+                    if (typeof item[sf] === 'string' && item[sf].trim()) chunks.push(item[sf]);
+                  }
+                }
+              }
+            }
+          } catch {
+            // ignore non-JSON
+          }
+        }
+      }
+    });
+
+    const combined = chunks.join(' ').trim();
+    const count = combined ? combined.split(/\s+/).length : 0;
     setWordCount(count);
   };
 
@@ -336,7 +429,13 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       AnnotatedImage,
       ImagePlaceholder,
       Placeholder.configure({
-        placeholder: 'Type "/" for commands or start writing...',
+        placeholder: ({ node }) => {
+          if (node.type.name === 'callout') {
+            return 'Type callout text...';
+          }
+          return 'Type "/" for commands or start writing...';
+        },
+        showOnlyCurrent: true,
       }),
       TaskList,
       TaskItem.configure({
@@ -420,6 +519,9 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       GradientBlobs,
       NoiseOverlay,
       Mermaid,
+      Kbd,
+      MathBlock,
+      ApiEndpoint,
       ScrollReveal,
       SlashCommand,
       SearchReplace,
@@ -433,11 +535,33 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
         'aria-label': 'Document editor. Use slash command or block palette to insert blocks.',
         'role': 'textbox',
       },
-      handleKeyDown: (_view, event) => {
+      handleKeyDown: (view, event) => {
         if (event.ctrlKey && event.key === 'f') {
           event.preventDefault();
           setShowFindReplace(true);
           return true;
+        }
+        if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+          return swapTopLevelBlock(view, event.key === 'ArrowUp' ? 'up' : 'down');
+        }
+        if (event.key === ' ' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          const { selection } = view.state;
+          const { $from } = selection;
+          if (selection.empty && $from.parent.type.name === 'paragraph') {
+            const textBefore = $from.parent.textBetween(0, $from.parentOffset);
+            const startPos = $from.start();
+            if (textBefore === '[]' || textBefore === '[ ]') {
+              event.preventDefault();
+              editorRef.current?.chain().focus().deleteRange({ from: startPos, to: $from.pos }).toggleTaskList().run();
+              return true;
+            }
+            const headingMatch = /^(#{1,4})$/.exec(textBefore);
+            if (headingMatch && $from.depth === 1) {
+              event.preventDefault();
+              editorRef.current?.chain().focus().deleteRange({ from: startPos, to: $from.pos }).toggleHeading({ level: headingMatch[1].length as 1 | 2 | 3 | 4 }).run();
+              return true;
+            }
+          }
         }
         return false;
       },
@@ -467,10 +591,10 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
 
               if (mouseY < midY) {
                 // Insert before this block
-                insertPos = $resolved.before(1);
+                insertPos = $resolved.depth >= 1 ? $resolved.before(1) : pmPos;
               } else {
                 // Insert after this block (last block, bottom half)
-                insertPos = $resolved.after(1);
+                insertPos = $resolved.depth >= 1 ? $resolved.after(1) : pmPos;
               }
               break;
             }
@@ -530,7 +654,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
         // between words. Inject a space before closing block tags so adjacent text nodes
         // always have a word boundary when the HTML is flattened into a text run.
         return html
-          .replace(/(<\/(p|div|li|h[1-6]|td|th|blockquote|pre)>)/gi, ' $1')
+          .replace(/(<\/(p|div|li|h[1-6]|td|th|blockquote)>)/gi, ' $1')
           .replace(/(<br\s*\/?>)/gi, ' $1');
       },
       handlePaste: (view, event, slice) => {
@@ -562,6 +686,7 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
       }
     },
     onUpdate: ({ editor }) => {
+      hasUserEdited.current = true;
       const html = editor.getHTML();
       const json = editor.getJSON();
 
@@ -573,7 +698,17 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
     onCreate: ({ editor }) => {
       extractHeadings(editor);
       countWords(editor);
-      onEditorReady?.(editor);
+      const html = editor.getHTML();
+      const json = editor.getJSON();
+      setContent(json);
+      setHtmlContent(html);
+      window.setTimeout(() => {
+        if (editor.isDestroyed) return;
+        onEditorReady?.(editor);
+        if (!initialHtmlContent || typeof initialContent === 'string') {
+          onUpdate(html, json, initialTitle, { silent: true });
+        }
+      }, 0);
     },
     onSelectionUpdate: ({ editor }) => {
       setHasSelection(!editor.state.selection.empty);
@@ -583,6 +718,12 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
 
   // Keep ref in sync for use in drop handler
   editorRef.current = editor;
+
+  useEffect(() => {
+    if (editor && !editor.isDestroyed) {
+      onEditorReady?.(editor);
+    }
+  }, [editor, onEditorReady]);
 
   // Scroll-spy: update active heading based on scroll position, not just cursor
   useEffect(() => {
@@ -709,62 +850,74 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
     s.searchTerm = term;
     s.caseSensitive = caseSens;
     s.currentMatchIndex = 0;
-    editor.view.dispatch(editor.state.tr);
+    editor.view.dispatch(editor.state.tr.setMeta(searchReplaceKey, true));
   };
 
   const findNext = () => {
     if (!editor) return;
     const storage = getSearchStorage();
+    if (!storage) return;
     const { matches } = storage;
     if (!matches.length) return;
-    const nextIdx = (storage.currentMatchIndex + 1) % matches.length;
+    const cur = Math.min(storage.currentMatchIndex, matches.length - 1);
+    const nextIdx = (cur + 1) % matches.length;
     storage.currentMatchIndex = nextIdx;
     const match = matches[nextIdx];
     editor.view.dispatch(
-      editor.state.tr.setSelection(
-        // @ts-ignore
-        TextSelection.create(editor.state.doc, match.from, match.to)
-      ).scrollIntoView()
+      editor.state.tr
+        .setSelection(
+          // @ts-ignore
+          TextSelection.create(editor.state.doc, match.from, match.to)
+        )
+        .setMeta(searchReplaceKey, true)
+        .scrollIntoView()
     );
-    editor.view.dispatch(editor.state.tr); // re-render decorations
   };
 
   const findPrev = () => {
     if (!editor) return;
     const storage = getSearchStorage();
+    if (!storage) return;
     const { matches } = storage;
     if (!matches.length) return;
-    const prevIdx = (storage.currentMatchIndex - 1 + matches.length) % matches.length;
+    const cur = Math.min(storage.currentMatchIndex, matches.length - 1);
+    const prevIdx = (cur - 1 + matches.length) % matches.length;
     storage.currentMatchIndex = prevIdx;
     const match = matches[prevIdx];
     editor.view.dispatch(
-      editor.state.tr.setSelection(
-        // @ts-ignore
-        TextSelection.create(editor.state.doc, match.from, match.to)
-      ).scrollIntoView()
+      editor.state.tr
+        .setSelection(
+          // @ts-ignore
+          TextSelection.create(editor.state.doc, match.from, match.to)
+        )
+        .setMeta(searchReplaceKey, true)
+        .scrollIntoView()
     );
-    editor.view.dispatch(editor.state.tr);
   };
 
   const replaceCurrentMatch = () => {
     if (!editor) return;
     const storage = getSearchStorage();
+    if (!storage) return;
     const { matches, currentMatchIndex, replaceTerm: replTerm } = storage;
     if (!matches.length) return;
-    const match = matches[currentMatchIndex];
+    const idx = Math.min(currentMatchIndex, matches.length - 1);
+    storage.currentMatchIndex = idx;
+    const match = matches[idx];
     const { tr } = editor.state;
     if (replTerm) {
       tr.replaceWith(match.from, match.to, editor.state.schema.text(replTerm));
     } else {
       tr.delete(match.from, match.to);
     }
+    tr.setMeta(searchReplaceKey, true);
     editor.view.dispatch(tr);
-    editor.view.dispatch(editor.state.tr);
   };
 
   const replaceAllMatches = () => {
     if (!editor) return;
     const storage = getSearchStorage();
+    if (!storage) return;
     const { matches } = storage;
     if (!matches.length) return;
     const replTerm = storage.replaceTerm;
@@ -776,8 +929,9 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
         tr.delete(from, to);
       }
     });
+    storage.currentMatchIndex = 0;
+    tr.setMeta(searchReplaceKey, true);
     editor.view.dispatch(tr);
-    editor.view.dispatch(editor.state.tr);
   };
 
   const closeFindReplace = () => {
@@ -786,8 +940,11 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
     setReplaceTerm('');
     if (editor) {
       const s = getSearchStorage();
-      if (s) s.searchTerm = '';
-      editor.view.dispatch(editor.state.tr);
+      if (s) {
+        s.searchTerm = '';
+        s.currentMatchIndex = 0;
+      }
+      editor.view.dispatch(editor.state.tr.setMeta(searchReplaceKey, true));
     }
   };
 
@@ -926,24 +1083,51 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
           <div className="flex items-center px-2 sm:px-3 py-1.5 gap-0.5 overflow-x-auto scrollbar-hide flex-1 min-w-0">
               <button type="button" onMouseDown={(e) => scheduleToolbarAction(e, () => editor.chain().focus().undo().run())} disabled={!editor.can().undo()} className="p-1.5 rounded hover:bg-slate-100 disabled:opacity-30 text-slate-600 transition-colors" title="Undo"><Undo size={15} /></button>
               <button type="button" onMouseDown={(e) => scheduleToolbarAction(e, () => editor.chain().focus().redo().run())} disabled={!editor.can().redo()} className="p-1.5 rounded hover:bg-slate-100 disabled:opacity-30 text-slate-600 transition-colors" title="Redo"><Redo size={15} /></button>
+              <button id="toolbar-move-up-btn" type="button" onMouseDown={(e) => scheduleToolbarAction(e, () => swapTopLevelBlock(editor.view, 'up'))} className="p-1.5 rounded hover:bg-slate-100 text-slate-600 transition-colors" title="Move block up (Alt+↑)"><ChevronUp size={14} /></button>
+              <button id="toolbar-move-down-btn" type="button" onMouseDown={(e) => scheduleToolbarAction(e, () => swapTopLevelBlock(editor.view, 'down'))} className="p-1.5 rounded hover:bg-slate-100 text-slate-600 transition-colors" title="Move block down (Alt+↓)"><ChevronDown size={14} /></button>
             <div className="w-px h-4 bg-slate-200 mx-0.5" />
 
-            {/* Block Format (Heading / Paragraph) */}
+            {/* Turn Into... Block Format */}
             <select
+              id="turn-into-select"
+              title="Turn into block type"
               value={
                 editor.isActive('heading', { level: 1 }) ? '1' :
                 editor.isActive('heading', { level: 2 }) ? '2' :
                 editor.isActive('heading', { level: 3 }) ? '3' :
                 editor.isActive('heading', { level: 4 }) ? '4' :
+                editor.isActive('callout') ? `callout:${editor.getAttributes('callout').type || 'info'}` :
+                editor.isActive('blockquote') ? 'blockquote' :
+                editor.isActive('codeBlock') ? 'codeBlock' :
+                editor.isActive('bulletList') ? 'bulletList' :
+                editor.isActive('orderedList') ? 'orderedList' :
+                editor.isActive('taskList') ? 'taskList' :
                 'p'
               }
               onChange={(e) => {
                 const val = e.target.value;
                 window.setTimeout(() => {
                   if (val === 'p') {
-                    editor.chain().focus().setParagraph().run();
-                  } else {
-                    editor.chain().focus().toggleHeading({ level: parseInt(val) as 1|2|3|4 }).run();
+                    editor.chain().focus().clearNodes().setParagraph().run();
+                  } else if (['1', '2', '3', '4'].includes(val)) {
+                    editor.chain().focus().clearNodes().setHeading({ level: parseInt(val, 10) as 1 | 2 | 3 | 4 }).run();
+                  } else if (val.startsWith('callout:')) {
+                    const kind = val.split(':')[1] as 'info' | 'warning' | 'success' | 'danger';
+                    if (editor.isActive('callout')) {
+                      editor.chain().focus().updateAttributes('callout', { type: kind }).run();
+                    } else {
+                      editor.chain().focus().clearNodes().setCallout(kind).run();
+                    }
+                  } else if (val === 'blockquote') {
+                    editor.chain().focus().clearNodes().toggleBlockquote().run();
+                  } else if (val === 'codeBlock') {
+                    editor.chain().focus().clearNodes().toggleCodeBlock().run();
+                  } else if (val === 'bulletList') {
+                    editor.chain().focus().toggleBulletList().run();
+                  } else if (val === 'orderedList') {
+                    editor.chain().focus().toggleOrderedList().run();
+                  } else if (val === 'taskList') {
+                    editor.chain().focus().toggleTaskList().run();
                   }
                 }, 0);
               }}
@@ -955,7 +1139,28 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
               <option value="2">H2</option>
               <option value="3">H3</option>
               <option value="4">H4</option>
+              <option value="callout:info">Info Callout</option>
+              <option value="callout:warning">Warning Callout</option>
+              <option value="callout:success">Success Callout</option>
+              <option value="callout:danger">Danger Callout</option>
+              <option value="blockquote">Quote</option>
+              <option value="codeBlock">Code Block</option>
+              <option value="bulletList">Bullet List</option>
+              <option value="orderedList">Numbered List</option>
+              <option value="taskList">Checklist</option>
             </select>
+
+            {editor.isActive('callout') && (
+              <input
+                id="callout-title-input"
+                type="text"
+                value={editor.getAttributes('callout').title || ''}
+                onMouseDown={(e) => e.stopPropagation()}
+                onChange={(e) => editor.chain().updateAttributes('callout', { title: e.target.value }).run()}
+                placeholder="Callout title…"
+                className="text-xs px-2 py-1 w-28 border border-slate-200 rounded bg-slate-50 text-slate-700 outline-none focus:border-blue-500 focus:bg-white"
+              />
+            )}
 
             {/* Font Size */}
             <div className="flex items-center gap-0.5 border border-slate-200 rounded px-0.5 py-0.5">
@@ -997,6 +1202,13 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
               className={`p-1.5 rounded hover:bg-slate-100 text-xs font-mono font-bold ${editor.isActive('code') ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`}
               title="Inline Code"
             >&lt;/&gt;</button>
+            <button
+              id="toolbar-kbd-btn"
+              type="button"
+              onMouseDown={(e) => scheduleToolbarAction(e, () => editor.chain().focus().toggleMark('kbd').run())}
+              className={`px-1.5 py-1 rounded hover:bg-slate-100 text-[11px] font-mono font-semibold border border-slate-200 leading-none ${editor.isActive('kbd') ? 'bg-blue-50 text-blue-600 border-blue-300' : 'text-slate-600'}`}
+              title="Keyboard Shortcut (<kbd>) (Ctrl+Shift+K)"
+            >kbd</button>
 
             <div className="w-px h-4 bg-slate-200 mx-0.5" />
 
@@ -1024,6 +1236,14 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
               title="Align Right"
             >
               <AlignRight size={15} />
+            </button>
+            <button
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); setShowTableModal(true); }}
+              className={`p-1.5 rounded hover:bg-slate-100 ${inTable ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`}
+              title="Insert Table"
+            >
+              <Table2 size={15} />
             </button>
           </div>
 
@@ -1112,11 +1332,43 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
                 >
                   <div className="flex gap-2 items-center">
                     <label className="text-xs text-slate-600">From</label>
-                    <input type="color" value={gradientFrom} onChange={e => setGradientFrom(e.target.value)} className="w-8 h-6 cursor-pointer rounded" />
+                    <input
+                      type="color"
+                      value={gradientFrom}
+                      onChange={e => {
+                        const next = e.target.value;
+                        setGradientFrom(next);
+                        if (editor.isActive('gradientText')) {
+                          editor.chain().focus().setGradientText({ colorFrom: next, colorTo: gradientTo, direction: gradientDir }).run();
+                        }
+                      }}
+                      className="w-8 h-6 cursor-pointer rounded"
+                    />
                     <label className="text-xs text-slate-600">To</label>
-                    <input type="color" value={gradientTo} onChange={e => setGradientTo(e.target.value)} className="w-8 h-6 cursor-pointer rounded" />
+                    <input
+                      type="color"
+                      value={gradientTo}
+                      onChange={e => {
+                        const next = e.target.value;
+                        setGradientTo(next);
+                        if (editor.isActive('gradientText')) {
+                          editor.chain().focus().setGradientText({ colorFrom: gradientFrom, colorTo: next, direction: gradientDir }).run();
+                        }
+                      }}
+                      className="w-8 h-6 cursor-pointer rounded"
+                    />
                   </div>
-                  <select value={gradientDir} onChange={e => setGradientDir(e.target.value)} className="text-xs border border-slate-200 rounded px-2 py-1 text-slate-700">
+                  <select
+                    value={gradientDir}
+                    onChange={e => {
+                      const next = e.target.value;
+                      setGradientDir(next);
+                      if (editor.isActive('gradientText')) {
+                        editor.chain().focus().setGradientText({ colorFrom: gradientFrom, colorTo: gradientTo, direction: next }).run();
+                      }
+                    }}
+                    className="text-xs border border-slate-200 rounded px-2 py-1 text-slate-700"
+                  >
                     <option value="to right">→ Horizontal</option>
                     <option value="to bottom">↓ Vertical</option>
                     <option value="135deg">↘ Diagonal</option>
@@ -1314,6 +1566,17 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
               );
             })()}
 
+            {/* Block Gallery Toggle */}
+            <button
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); openBlockGallery(); }}
+              className={`p-1.5 rounded hover:bg-slate-100 flex items-center ${showBlockGallery ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`}
+              title="Browse Block Gallery"
+              aria-label="Browse Block Gallery"
+            >
+              <LayoutGrid size={15} />
+            </button>
+
             {/* Outline Toggle */}
             <button
               type="button"
@@ -1421,15 +1684,16 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
 
       <DocumentCover
         title={title}
-        onTitleChange={setTitle}
+        onTitleChange={handleTitleChange}
         theme={theme}
         onThemeChange={onThemeChange}
+        onEnterTitle={() => editor?.commands.focus('start')}
       />
 
       {editor && <PlusMenu editor={editor} />}
 
 
-      <div className="flex-1 w-full prose-li:my-0 prose-p:my-2 pb-32">
+      <div className="flex-1 w-full prose-li:my-0 prose-p:my-2 pb-32" style={{ fontFamily: getFontStack(theme?.fontFamily) }}>
         <EditorContent editor={editor} className="prose prose-slate prose-lg max-w-none focus:outline-none" />
       </div>
 
@@ -1501,6 +1765,14 @@ export const Editor = ({ initialContent, initialHtmlContent, initialTitle, onUpd
           editor.chain().focus().insertTable({ rows, cols, withHeaderRow }).run();
           setShowTableModal(false);
         }}
+      />
+
+      <BlockGalleryModal
+        isOpen={showBlockGallery}
+        onClose={() => setShowBlockGallery(false)}
+        editor={editor}
+        initialCategory={galleryInitialState.category}
+        initialBlockId={galleryInitialState.blockId}
       />
     </div>
   );

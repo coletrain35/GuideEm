@@ -1,6 +1,6 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Paintbrush } from 'lucide-react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
@@ -50,6 +50,17 @@ const NoiseOverlayNodeView = (props: any) => {
   const [showStyle, setShowStyle] = useState(false);
   const styleRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (!showStyle) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (styleRef.current && !styleRef.current.contains(e.target as globalThis.Node)) {
+        setShowStyle(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showStyle]);
+
   const bg = BG_PRESETS[parseInt(bgPreset) ?? 0] ?? BG_PRESETS[0];
   const noiseBg = useMemo(() => buildNoiseDataUrl(parseFloat(noiseOpacity) || 0.15, parseInt(noiseDensity) || 50), [noiseOpacity, noiseDensity]);
   const h = height === 'sm' ? '180px' : height === 'lg' ? '380px' : '280px';
@@ -59,7 +70,7 @@ const NoiseOverlayNodeView = (props: any) => {
       <BlockDeleteButton deleteNode={deleteNode} getPos={getPos} node={node} editor={editor} />
 
       {/* Floating Style/Settings Toolbar */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-30 text-sm opacity-0 group-hover/block:opacity-100 pointer-events-none group-hover/block:pointer-events-auto transition-opacity">
+      <div className={`absolute top-3 left-3 flex items-center gap-1 p-1 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-sm z-30 text-sm transition-opacity ${showStyle || selected ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none group-hover/block:opacity-100 group-hover/block:pointer-events-auto'}`}>
         <div ref={styleRef} className="relative">
           <button
             onMouseDown={(e) => e.preventDefault()}
@@ -71,7 +82,7 @@ const NoiseOverlayNodeView = (props: any) => {
           {showStyle && (
             <div
               onMouseDown={(e) => e.stopPropagation()}
-              className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-white border border-slate-200 rounded-xl shadow-xl p-3 w-56 space-y-3"
+              className="absolute top-full left-0 mt-1.5 z-50 bg-white border border-slate-200 rounded-xl shadow-xl p-3 w-56 space-y-3"
             >
               <div>
                 <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Background Presets</label>

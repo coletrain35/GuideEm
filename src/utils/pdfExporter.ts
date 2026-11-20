@@ -14,7 +14,7 @@ export const exportToPDF = async (
   title: string,
   htmlContent: string,
   theme: ThemeConfig,
-  _fileName: string
+  fileName: string
 ): Promise<void> => {
   const fullHTML = generateHTML(title, htmlContent, theme);
 
@@ -39,6 +39,7 @@ export const exportToPDF = async (
     iframeDoc.open();
     iframeDoc.write(fullHTML);
     iframeDoc.close();
+    if (fileName) iframeDoc.title = fileName;
 
     // Wait for the document to fully load (images, fonts, styles)
     await new Promise<void>(resolve => {

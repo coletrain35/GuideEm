@@ -5,15 +5,17 @@ import {
   FileDown, Loader2, X,
   FileCode2, FileText, FileType2,
   Pin, Moon, Sparkles, BarChart2, ArrowUp, Printer, Share2,
-  Info, Layout
+  Info, Layout, Search
 } from 'lucide-react';
 
 interface ExportModalProps {
   isOpen: boolean;
   onClose: () => void;
   onExport: (fileName: string) => void;
+  onExportCollection?: (fileName: string, docIds: string[]) => void;
   onExportMarkdown?: (fileName: string) => void;
   onExportPDF?: (fileName: string) => Promise<void>;
+  documents?: Array<{ id: string; title: string; tags?: string[] }>;
   theme: ThemeConfig;
   setTheme: (themeUpdates: Partial<ThemeConfig>) => void;
   documentTitle: string;
@@ -21,14 +23,15 @@ interface ExportModalProps {
   onRiseModeChange: (enabled: boolean) => void;
 }
 
-type ExportFormat = 'html' | 'md' | 'pdf';
+type ExportFormat = 'html' | 'collection' | 'md' | 'pdf';
 
 export const ExportModal: React.FC<ExportModalProps> = ({
-  isOpen, onClose, onExport, onExportMarkdown, onExportPDF, theme, setTheme, documentTitle, isRiseMode, onRiseModeChange
+  isOpen, onClose, onExport, onExportCollection, onExportMarkdown, onExportPDF, documents, theme, setTheme, documentTitle, isRiseMode, onRiseModeChange
 }) => {
   const [fileName, setFileName] = useState(documentTitle || 'Untitled Guide');
   const [isPDFExporting, setIsPDFExporting] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('html');
+  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
   const [localFeatures, setLocalFeatures] = useState<ThemeConfig['features']>({ ...theme.features });
   const [saveToTheme, setSaveToTheme] = useState(true);
   const dialogRef = useDialog<HTMLDivElement>(isOpen, onClose);
@@ -37,9 +40,15 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     if (isOpen) {
       setFileName(documentTitle || 'Untitled Guide');
       setSelectedFormat('html');
+      setSelectedDocIds((documents || []).map(d => d.id));
+    }
+  }, [isOpen, documentTitle]);
+
+  useEffect(() => {
+    if (isOpen) {
       setLocalFeatures({ ...theme.features });
     }
-  }, [isOpen, documentTitle, theme.features]);
+  }, [isOpen, theme.features]);
 
   if (!isOpen) return null;
 
@@ -55,9 +64,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   };
 
   const formatCards: { id: ExportFormat; icon: React.ReactNode; ext: string; subtitle: string }[] = [
-    { id: 'html', icon: <FileCode2 size={20} />, ext: '.html', subtitle: 'Interactive' },
-    { id: 'md',   icon: <FileText size={20} />,  ext: '.md',   subtitle: 'Plain text' },
-    { id: 'pdf',  icon: <FileType2 size={20} />, ext: '.pdf',  subtitle: 'Print-ready' },
+    { id: 'html',       icon: <FileCode2 size={20} />, ext: '.html',  subtitle: 'Interactive' },
+    { id: 'collection', icon: <Layout size={20} />,    ext: 'Portal', subtitle: 'Multi-guide' },
+    { id: 'md',         icon: <FileText size={20} />,  ext: '.md',    subtitle: 'Plain text' },
+    { id: 'pdf',        icon: <FileType2 size={20} />, ext: '.pdf',   subtitle: 'Print-ready' },
   ];
 
   const features: {
@@ -74,9 +84,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     { key: 'backToTop',         icon: <ArrowUp size={14} />,  label: 'Back to Top',         description: 'Quick return button after scrolling down',     default: false },
     { key: 'printStylesheet',   icon: <Printer size={14} />,  label: 'Print Stylesheet',    description: 'Optimized page layout when printing',          default: true  },
     { key: 'shareButtons',      icon: <Share2 size={14} />,   label: 'Share Buttons',       description: 'Copy Link and Print buttons in exported guide', default: false },
+    { key: 'searchBar',         icon: <Search size={14} />,   label: 'Reader Search (Ctrl+K)', description: 'In-page search modal that auto-opens matching tabs & accordions', default: true },
   ];
 
-  const formatNotes: Record<Exclude<ExportFormat, 'html'>, string> = {
+  const formatNotes: Record<Exclude<ExportFormat, 'html' | 'collection'>, string> = {
     md:  'Markdown export preserves text structure and basic formatting. Interactive blocks like tabs and diagrams are represented in clean markdown.',
     pdf: 'PDF export renders a print-ready snapshot using your browser print engine.',
   };
@@ -85,18 +96,23 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     ? 'Exporting…'
     : selectedFormat === 'html'
       ? 'Download .html'
-      : selectedFormat === 'md'
-        ? 'Download .md'
-        : 'Download .pdf';
+      : selectedFormat === 'collection'
+        ? 'Download Portal .html'
+        : selectedFormat === 'md'
+          ? 'Download .md'
+          : 'Download .pdf';
 
   const handleDownload = async () => {
-    const name = fileName.trim() || 'Untitled Guide';
-    if (saveToTheme && selectedFormat === 'html') {
+    const name = fileName.trim() || (selectedFormat === 'collection' ? 'Documentation Portal' : 'Untitled Guide');
+    if (saveToTheme && (selectedFormat === 'html' || selectedFormat === 'collection')) {
       setTheme({ features: localFeatures });
     }
 
     if (selectedFormat === 'html') {
       onExport(name);
+      onClose();
+    } else if (selectedFormat === 'collection') {
+      onExportCollection?.(name, selectedDocIds);
       onClose();
     } else if (selectedFormat === 'md') {
       onExportMarkdown?.(name);
@@ -110,6 +126,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       }
       onClose();
     }
+  };
+
+  const toggleCollectionDoc = (id: string) => {
+    setSelectedDocIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
   return (
@@ -146,7 +166,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           {/* Format Selector */}
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Export Format</p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {formatCards.map(({ id, icon, ext, subtitle }) => (
                 <button
                   type="button"
@@ -181,13 +201,53 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 spellCheck={false}
               />
               <span className="pr-3.5 text-xs text-slate-400 font-mono select-none">
-                {selectedFormat === 'html' ? '.html' : selectedFormat === 'md' ? '.md' : '.pdf'}
+                {selectedFormat === 'html' || selectedFormat === 'collection' ? '.html' : selectedFormat === 'md' ? '.md' : '.pdf'}
               </span>
             </div>
           </div>
 
+          {/* Multi-guide selection when Portal mode is active */}
+          {selectedFormat === 'collection' && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Included Guides ({selectedDocIds.length}/{documents?.length || 0})
+                </p>
+                {documents && documents.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDocIds(documents.map(d => d.id))}
+                    className="text-xs font-medium text-blue-600 hover:underline"
+                  >
+                    Select All
+                  </button>
+                )}
+              </div>
+              <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100 bg-white">
+                {(documents || []).length === 0 ? (
+                  <p className="p-3 text-xs text-slate-400 text-center">No guides available.</p>
+                ) : (
+                  (documents || []).map(d => {
+                    const checked = selectedDocIds.includes(d.id);
+                    return (
+                      <label key={d.id} className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-slate-50 text-xs">
+                        <input
+                          type="checkbox"
+                          className="collection-doc-checkbox rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          checked={checked}
+                          onChange={() => toggleCollectionDoc(d.id)}
+                        />
+                        <span className="font-medium text-slate-700 truncate flex-1">{d.title || 'Untitled Guide'}</span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Features section — conditional on format */}
-          {selectedFormat === 'html' ? (
+          {selectedFormat === 'html' || selectedFormat === 'collection' ? (
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Interactive Features</p>
               <div className="space-y-1">
@@ -249,7 +309,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             <div className="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3.5 flex items-start gap-3">
               <Info size={16} className="text-slate-400 mt-0.5 flex-shrink-0" />
               <p className="text-xs text-slate-600 leading-relaxed">
-                {formatNotes[selectedFormat as Exclude<ExportFormat, 'html'>]}
+                {formatNotes[selectedFormat as Exclude<ExportFormat, 'html' | 'collection'>]}
               </p>
             </div>
           )}
@@ -266,7 +326,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           </button>
           <button
             type="button"
-            disabled={isPDFExporting}
+            disabled={isPDFExporting || (selectedFormat === 'collection' && selectedDocIds.length === 0)}
             onClick={handleDownload}
             className="px-5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >

@@ -128,6 +128,8 @@ const GlowCardItem = ({
           value={card.emoji}
           onChange={e => onUpdate('emoji', e.target.value)}
           placeholder="⚡"
+          maxLength={4}
+          aria-label="Card emoji"
           className="text-3xl bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 outline-none w-10 py-0.5 transition-colors shrink-0"
         />
 

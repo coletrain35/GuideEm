@@ -1,7 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap/react';
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Pencil, Plus, X } from 'lucide-react';
 import { BlockDeleteButton } from '../components/BlockDeleteButton';
 
 // --- TabPanel ---
@@ -269,16 +269,32 @@ const TabGroupNodeView = (props: any) => {
                   style={{ width: `${Math.max(editingLabel.length, 3) + 1}ch` }}
                 />
               ) : (
-                <span
-                  onDoubleClick={(e) => {
-                    e.stopPropagation();
-                    startEditing(i, label);
-                  }}
-                  title="Double-click to rename"
-                  className="py-0.5"
-                >
-                  {label}
-                </span>
+                <>
+                  <span
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      startEditing(i, label);
+                    }}
+                    title="Double-click to rename"
+                    className="py-0.5"
+                  >
+                    {label}
+                  </span>
+                  {isActive && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startEditing(i, label);
+                      }}
+                      className="opacity-50 hover:opacity-100 transition-opacity rounded p-0.5 hover:bg-indigo-50 text-indigo-500"
+                      title="Rename tab"
+                      aria-label={`Rename tab ${label}`}
+                    >
+                      <Pencil size={11} />
+                    </button>
+                  )}
+                </>
               )}
 
               {/* Remove Tab Button */}
@@ -286,7 +302,7 @@ const TabGroupNodeView = (props: any) => {
                 <button
                   type="button"
                   onClick={(e) => removeTab(e, i)}
-                  className="opacity-0 group-hover/tab:opacity-100 transition-opacity ml-1 rounded-full p-0.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                  className={`${isActive ? 'opacity-60 hover:opacity-100' : 'opacity-0 group-hover/tab:opacity-100 focus:opacity-100'} transition-opacity ml-0.5 rounded-full p-0.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600`}
                   title="Close tab"
                   aria-label="Close tab"
                 >

@@ -1,7 +1,16 @@
-import { useState, useRef } from 'react';
-import { BLOCK_ITEMS, BLOCK_CATEGORIES, type BlockItem } from '../utils/blockItems';
-import { Search, X, ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import {
+  BLOCK_ITEMS,
+  BLOCK_CATEGORIES,
+  insertBlock,
+  insertBlockAction,
+  openBlockGallery,
+  type BlockItem,
+  type BlockPreset,
+} from '../utils/blockItems';
+import { Search, X, ChevronDown, ChevronRight, GripVertical, Sparkles } from 'lucide-react';
 import type { Editor } from '@tiptap/core';
+import { BlockFlyoutCard } from './BlockPreview';
 
 interface BlockPaletteProps {
   editor: Editor;
@@ -18,7 +27,46 @@ interface BlockPaletteProps {
 export const BlockPalette = ({ editor, onClose, variant = 'inline' }: BlockPaletteProps) => {
   const [search, setSearch] = useState('');
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  const [hoveredItem, setHoveredItem] = useState<BlockItem | null>(null);
+  const [flyoutPos, setFlyoutPos] = useState<{ top: number; left: number }>({ top: 100, left: 256 });
   const searchRef = useRef<HTMLInputElement>(null);
+  const paletteRef = useRef<HTMLDivElement>(null);
+  const closeTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
+
+  const cancelCloseTimer = () => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  };
+
+  const scheduleFlyoutClose = () => {
+    cancelCloseTimer();
+    closeTimerRef.current = window.setTimeout(() => {
+      setHoveredItem(null);
+    }, 150);
+  };
+
+  const handleItemHover = (e: React.MouseEvent<HTMLElement>, item: BlockItem) => {
+    if (variant === 'drawer' && window.innerWidth < 640) return;
+    cancelCloseTimer();
+    const rowRect = e.currentTarget.getBoundingClientRect();
+    const paletteRect = paletteRef.current?.getBoundingClientRect();
+    const rightEdge = paletteRect ? paletteRect.right : rowRect.right;
+    const clampedTop = Math.max(12, Math.min(rowRect.top - 8, window.innerHeight - 390));
+    const clampedLeft = Math.min(rightEdge + 8, window.innerWidth - 300);
+
+    setFlyoutPos({ top: clampedTop, left: clampedLeft });
+    setHoveredItem(item);
+  };
 
   const filtered = search.trim()
     ? BLOCK_ITEMS.filter(item =>
@@ -38,6 +86,8 @@ export const BlockPalette = ({ editor, onClose, variant = 'inline' }: BlockPalet
   };
 
   const handleDragStart = (e: React.DragEvent, item: BlockItem) => {
+    cancelCloseTimer();
+    setHoveredItem(null);
     e.dataTransfer.setData('application/x-block-palette', item.id);
     e.dataTransfer.effectAllowed = 'copy';
 
@@ -51,7 +101,20 @@ export const BlockPalette = ({ editor, onClose, variant = 'inline' }: BlockPalet
   };
 
   const handleClick = (item: BlockItem) => {
-    item.action(editor);
+    insertBlock(editor, item);
+    if (variant === 'drawer') onClose();
+  };
+
+  const handlePresetClick = (_item: BlockItem, preset: BlockPreset) => {
+    setHoveredItem(null);
+    insertBlockAction(editor, preset.action);
+    if (variant === 'drawer') onClose();
+  };
+
+  const handleOpenGallery = (item?: BlockItem) => {
+    setHoveredItem(null);
+    if (variant === 'drawer') onClose();
+    openBlockGallery(item ? { blockId: item.id, category: item.category } : undefined);
   };
 
   const containerClass =
@@ -71,6 +134,23 @@ export const BlockPalette = ({ editor, onClose, variant = 'inline' }: BlockPalet
           aria-label="Close blocks palette"
         >
           <X size={14} />
+        </button>
+      </div>
+
+      {/* Browse Block Gallery CTA */}
+      <div className="px-3 pb-2">
+        <button
+          type="button"
+          onClick={() => handleOpenGallery()}
+          className="w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-semibold shadow-xs transition-all"
+        >
+          <span className="flex items-center gap-1.5">
+            <Sparkles size={13} aria-hidden />
+            <span>Browse Gallery</span>
+          </span>
+          <span className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-medium">
+            {BLOCK_ITEMS.length}
+          </span>
         </button>
       </div>
 
@@ -100,7 +180,10 @@ export const BlockPalette = ({ editor, onClose, variant = 'inline' }: BlockPalet
       </div>
 
       {/* Block list */}
-      <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-1">
+      <div
+        className="flex-1 overflow-y-auto px-2 pb-4 space-y-1"
+        onMouseLeave={scheduleFlyoutClose}
+      >
         {BLOCK_CATEGORIES.map(category => {
           const items = filtered.filter(i => i.category === category);
           if (items.length === 0) return null;
@@ -122,13 +205,19 @@ export const BlockPalette = ({ editor, onClose, variant = 'inline' }: BlockPalet
                 <div className="space-y-0.5">
                   {items.map(item => {
                     const Icon = item.icon;
+                    const isHovered = hoveredItem?.id === item.id;
                     return (
                       <div
                         key={item.id}
                         draggable="true"
                         onDragStart={e => handleDragStart(e, item)}
+                        onMouseEnter={e => handleItemHover(e, item)}
                         onClick={() => handleClick(item)}
-                        className="group flex items-center gap-2.5 px-2 py-2 rounded-lg cursor-grab hover:bg-white hover:shadow-sm border border-transparent hover:border-slate-200 transition-all active:cursor-grabbing"
+                        className={`group flex items-center gap-2.5 px-2 py-2 rounded-lg cursor-grab transition-all active:cursor-grabbing border ${
+                          isHovered
+                            ? 'bg-white shadow-sm border-blue-200'
+                            : 'hover:bg-white hover:shadow-sm border-transparent hover:border-slate-200'
+                        }`}
                         title={`${item.label} — ${item.description}\nDrag to insert or click`}
                         role="button"
                         tabIndex={0}
@@ -157,6 +246,24 @@ export const BlockPalette = ({ editor, onClose, variant = 'inline' }: BlockPalet
           </div>
         )}
       </div>
+
+      {/* Hover Flyout Preview Card */}
+      {hoveredItem && (
+        <div
+          onMouseEnter={cancelCloseTimer}
+          onMouseLeave={scheduleFlyoutClose}
+          className="fixed z-50 w-72 max-h-[380px] flex flex-col bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden"
+          style={{ top: flyoutPos.top, left: flyoutPos.left }}
+        >
+          <BlockFlyoutCard
+            item={hoveredItem}
+            onSelectDefault={(it) => { setHoveredItem(null); handleClick(it); }}
+            onSelectPreset={handlePresetClick}
+            onOpenGallery={handleOpenGallery}
+            compact
+          />
+        </div>
+      )}
     </>
   );
 
@@ -169,6 +276,7 @@ export const BlockPalette = ({ editor, onClose, variant = 'inline' }: BlockPalet
           aria-hidden
         />
         <div
+          ref={paletteRef}
           className={containerClass}
           role="dialog"
           aria-modal="true"
@@ -181,7 +289,7 @@ export const BlockPalette = ({ editor, onClose, variant = 'inline' }: BlockPalet
   }
 
   return (
-    <div className={containerClass} aria-label="Blocks palette">
+    <div ref={paletteRef} className={containerClass} aria-label="Blocks palette">
       {content}
     </div>
   );

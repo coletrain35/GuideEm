@@ -44,6 +44,15 @@ const CardNodeView = (props: any) => {
         <input
           value={title}
           onChange={(e) => updateAttributes({ title: e.target.value })}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === 'ArrowDown') {
+              e.preventDefault();
+              const pos = typeof getPos === 'function' ? getPos() : undefined;
+              if (pos !== undefined) {
+                editor.commands.focus(pos + 2);
+              }
+            }
+          }}
           className="flex-1 min-w-0 font-semibold text-slate-900 bg-transparent outline-none text-base placeholder:text-slate-400"
           placeholder="Card title..."
           aria-label="Card title"
@@ -53,7 +62,7 @@ const CardNodeView = (props: any) => {
             type="button"
             onClick={handleDeleteCard}
             onMouseDown={(e) => e.stopPropagation()}
-            className="opacity-0 group-hover/card:opacity-100 p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors flex-shrink-0"
+            className="opacity-0 group-hover/card:opacity-100 focus:opacity-100 p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors flex-shrink-0"
             title="Delete this card"
             aria-label={`Delete card "${title || 'Untitled'}"`}
           >
@@ -151,9 +160,10 @@ const CardGridNodeView = (props: any) => {
           disabled={atMax}
           className="flex items-center gap-1 px-3 py-1 rounded-full hover:bg-slate-100 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
           title={atMax ? `Maximum ${MAX_CARDS} cards` : 'Add a card'}
-          aria-label={atMax ? `Maximum ${MAX_CARDS} cards reached` : 'Add a card'}
+          aria-label={atMax ? `Maximum ${MAX_CARDS} cards reached` : 'Add Card'}
         >
-          <Plus size={14} aria-hidden /> Add Card
+          <Plus size={14} aria-hidden />
+          <span>Add Card</span>
         </button>
       </div>
       <NodeViewContent className={`grid gap-4 ${gridClass}`} />

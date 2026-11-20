@@ -56,6 +56,8 @@ const FeatureSpotlightNodeView = (props: any) => {
             value={icon}
             onChange={e => updateAttributes({ icon: e.target.value })}
             placeholder="🚀"
+            maxLength={4}
+            aria-label="Spotlight icon or emoji"
             onClick={e => e.stopPropagation()}
             className="w-14 text-center text-4xl bg-transparent border border-transparent hover:border-white/30 focus:border-white/50 outline-none rounded transition-all"
           />

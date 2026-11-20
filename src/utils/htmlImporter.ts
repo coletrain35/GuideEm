@@ -24,12 +24,19 @@ const TIMELINE_COLOR_MAP: Record<string, string> = {
 
 const WORKFLOW_COLOR_MAP: Record<string, string> = {
   '#6366f1': 'indigo',
+  '#4f46e5': 'indigo',
   '#10b981': 'emerald',
+  '#059669': 'emerald',
   '#f59e0b': 'amber',
+  '#d97706': 'amber',
   '#f43f5e': 'rose',
+  '#e11d48': 'rose',
   '#0ea5e9': 'sky',
+  '#0284c7': 'sky',
   '#8b5cf6': 'violet',
+  '#7c3aed': 'violet',
   '#64748b': 'slate',
+  '#475569': 'slate',
 };
 
 // Reverse-map icon SVGs to names by detecting a unique path segment
@@ -494,9 +501,8 @@ function reverseBackgroundSections(doc: Document) {
       else if (r === '1.5rem') radiusKey = 'lg';
     }
 
-    // Best-effort preset detection - just store what we can
     const sectionNode = makeBlock(doc, 'background-section', {
-      'data-bg-preset': 'light-gray', // fallback
+      'data-bg-preset': attr(section, 'data-bg-preset') || 'light-gray',
       'data-padding': paddingKey,
       'data-border-radius': radiusKey,
     });
@@ -519,9 +525,12 @@ function reverseVideoEmbeds(doc: Document) {
   doc.querySelectorAll('.video-embed').forEach(el => {
     if (el.getAttribute('data-type')) return;
     let src = '';
+    const facade = el.querySelector('.video-facade[data-vid]');
     const iframe = el.querySelector('iframe');
     const video = el.querySelector('video');
-    if (iframe) {
+    if (facade) {
+      src = `https://www.youtube.com/watch?v=${attr(facade, 'data-vid')}`;
+    } else if (iframe) {
       const iframeSrc = attr(iframe, 'src');
       // Reverse embed URLs back to watch URLs
       const ytMatch = iframeSrc.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]+)/);
@@ -1120,14 +1129,16 @@ function reverseGlowCards(doc: Document) {
       const emojiEl = card.querySelector('div[style*="font-size:2rem"]');
       const titleEl = card.querySelector('h3');
       const descEl = card.querySelector('p');
-      // Extract glow color from onmousemove attribute
+      // Extract glow color from data attribute, inline CSS variable, or onmousemove handler
+      const dataGlow = attr(card, 'data-glow-color');
+      const styleGlow = cardStyle.match(/--glow-color:\s*(#[0-9a-fA-F]{3,8})/)?.[1] || '';
       const mousemove = attr(card, 'onmousemove');
       const glowMatch = mousemove.match(/(#[0-9a-fA-F]{6})/);
       cards.push({
         emoji: txt(emojiEl),
         title: txt(titleEl),
         description: txt(descEl),
-        glowColor: glowMatch ? glowMatch[1] : '#6366f1',
+        glowColor: dataGlow || styleGlow || glowMatch?.[1] || '#6366f1',
       });
     });
 
@@ -1184,7 +1195,7 @@ function reverseGradientBorders(doc: Document) {
     const borderWidth = paddingMatch ? paddingMatch[1] : '2';
 
     // Detect animation speed
-    const durMatch = outerStyle.match(/gradient-shift\s+([\d.]+)s/);
+    const durMatch = outerStyle.match(/gradient-(?:border-)?shift\s+([\d.]+)s/);
     const dur = durMatch ? parseFloat(durMatch[1]) : 3.5;
     const animSpeed = dur <= 2.5 ? 'fast' : dur >= 5 ? 'slow' : 'medium';
 
@@ -1252,11 +1263,15 @@ function reverseHoverReveal(doc: Document) {
 function reverseAnnouncementPills(doc: Document) {
   doc.querySelectorAll('.announcement-pill-wrapper').forEach(el => {
     if (el.getAttribute('data-type')) return;
+    const elStyle = attr(el, 'style');
     const wrapper = el.querySelector('div[style*="display:flex"]');
     const justifyStyle = wrapper ? attr(wrapper, 'style') : '';
-    let align = 'center';
-    if (justifyStyle.includes('flex-start')) align = 'left';
-    else if (justifyStyle.includes('flex-end')) align = 'right';
+    const textAlignMatch = elStyle.match(/text-align:\s*(left|center|right)/i);
+    let align = textAlignMatch ? textAlignMatch[1].toLowerCase() : 'center';
+    if (!textAlignMatch) {
+      if (justifyStyle.includes('flex-start')) align = 'left';
+      else if (justifyStyle.includes('flex-end')) align = 'right';
+    }
 
     const badge = el.querySelector('span[style*="border-radius:9999px"][style*="font-size:0.75rem"]');
     const messageSpan = badge?.nextElementSibling;
@@ -1346,14 +1361,18 @@ function reverseNoiseOverlays(doc: Document) {
     const minH = minHMatch ? parseInt(minHMatch[1]) : 280;
     const height = minH <= 200 ? 'sm' : minH >= 350 ? 'lg' : 'md';
 
-    // Try to extract noise opacity from SVG
+    // Try data-noise-* attributes first, then extract noise opacity/density from SVG
+    const dataOpacity = attr(el, 'data-noise-opacity');
+    const dataDensity = attr(el, 'data-noise-density');
     const noiseBg = el.querySelector('div[style*="background-image:url"]');
     const noiseSvg = noiseBg ? decodeURIComponent(attr(noiseBg, 'style')) : '';
     const opacityMatch = noiseSvg.match(/opacity='([\d.]+)'/);
-    const noiseOpacity = opacityMatch ? opacityMatch[1] : '0.15';
+    const noiseOpacity = dataOpacity || (opacityMatch ? opacityMatch[1] : '0.15');
     const freqMatch = noiseSvg.match(/baseFrequency='([\d.]+)'/);
     const freq = freqMatch ? parseFloat(freqMatch[1]) : 0.65;
-    const noiseDensity = Math.round(((freq - 0.4) / 0.6) * 100);
+    const computedDensity = Math.round(((freq - 0.4) / 0.6) * 100);
+    const parsedDensity = dataDensity ? parseInt(dataDensity, 10) : NaN;
+    const noiseDensity = Number.isFinite(parsedDensity) ? parsedDensity : computedDensity;
 
     const node = makeBlock(doc, 'noise-overlay', {
       'data-bg-preset': String(bgPreset),
@@ -1362,6 +1381,75 @@ function reverseNoiseOverlays(doc: Document) {
       'data-title': title,
       'data-subtitle': subtitle,
       'data-height': height,
+    });
+    replaceElement(el, node);
+  });
+}
+
+function reverseMathBlocks(doc: Document) {
+  doc.querySelectorAll('.math-block-export').forEach((el) => {
+    if (el.getAttribute('data-type')) return;
+    const latex = attr(el, 'data-latex') || 'E = mc^2';
+    const caption = attr(el, 'data-caption') || '';
+    const node = makeBlock(doc, 'math-block', {
+      'data-latex': latex,
+      'data-caption': caption,
+    });
+    replaceElement(el, node);
+  });
+}
+
+function reverseApiEndpoints(doc: Document) {
+  doc.querySelectorAll('.api-endpoint-export').forEach((el) => {
+    if (el.getAttribute('data-type')) return;
+    const node = makeBlock(doc, 'api-endpoint', {
+      'data-method': attr(el, 'data-method') || 'GET',
+      'data-path': attr(el, 'data-path') || '/api/v1/resources',
+      'data-summary': attr(el, 'data-summary') || '',
+      'data-response-code': attr(el, 'data-response-code') || '200 OK',
+      'data-response-body': attr(el, 'data-response-body') || '',
+    });
+    replaceElement(el, node);
+  });
+}
+
+function reverseInteractiveDemos(doc: Document) {
+  doc.querySelectorAll('.interactive-demo').forEach(el => {
+    if (el.getAttribute('data-type')) return;
+    const transition = attr(el, 'data-transition') || 'fade';
+    const showNav = attr(el, 'data-show-nav') !== 'false';
+    const frames: any[] = [];
+    const hotspots: any[] = [];
+    el.querySelectorAll('.id-frame').forEach((frameEl, idx) => {
+      const frameId = attr(frameEl, 'data-frame-id') || `frame-${idx + 1}`;
+      const img = frameEl.querySelector('img');
+      const image = img ? attr(img, 'src') : '';
+      const label = (img ? attr(img, 'alt') : '') || `Frame ${idx + 1}`;
+      frames.push({ id: frameId, image, label });
+      frameEl.querySelectorAll('.id-hotspot').forEach((hsEl, hIdx) => {
+        const style = attr(hsEl, 'style');
+        const x = parseFloat(style.match(/left:\s*([\d.]+)%/)?.[1] || '0');
+        const y = parseFloat(style.match(/top:\s*([\d.]+)%/)?.[1] || '0');
+        const width = parseFloat(style.match(/width:\s*([\d.]+)%/)?.[1] || '10');
+        const height = parseFloat(style.match(/height:\s*([\d.]+)%/)?.[1] || '10');
+        hotspots.push({
+          id: `hs-${idx + 1}-${hIdx + 1}`,
+          frameId,
+          targetFrameId: attr(hsEl, 'data-target') || '',
+          tooltip: attr(hsEl, 'title') || '',
+          transition: attr(hsEl, 'data-transition') || undefined,
+          x,
+          y,
+          width,
+          height,
+        });
+      });
+    });
+    const node = makeBlock(doc, 'interactive-demo', {
+      'data-frames': JSON.stringify(frames),
+      'data-hotspots': JSON.stringify(hotspots),
+      'data-transition': transition,
+      'data-show-nav': String(showNav),
     });
     replaceElement(el, node);
   });
@@ -1442,8 +1530,8 @@ export function importGuideHTML(rawHtml: string): ImportResult {
   // Remove ToC sidebar (it's a sibling of guide-container in .export-layout)
   doc.querySelectorAll('.toc-sidebar').forEach(el => el.remove());
 
-  // Remove reading progress, back to top, share bar
-  ['reading-progress', 'back-to-top', 'share-bar'].forEach(id => {
+  // Remove reading progress, back to top, share bar, theme toggle button, reader search UI
+  ['reading-progress', 'back-to-top', 'share-bar', 'theme-toggle-btn', 'guide-search-btn', 'guide-search-modal'].forEach(id => {
     doc.getElementById(id)?.remove();
   });
 
@@ -1508,6 +1596,9 @@ export function importGuideHTML(rawHtml: string): ImportResult {
   reverseAnnouncementPills(doc);
   reverseGradientBlobs(doc);
   reverseNoiseOverlays(doc);
+  reverseInteractiveDemos(doc);
+  reverseMathBlocks(doc);
+  reverseApiEndpoints(doc);
   reverseMermaid(doc);
 
   // 7. Return cleaned content

@@ -68,6 +68,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
       if (isDarkMode) {
         html = html.replace('<html lang="en">', '<html lang="en" class="dark">');
       }
+      // Prevent external link navigation inside the sandboxed preview iframe
+      const linkGuardScript = `<script>document.addEventListener('click',function(e){var a=e.target&&e.target.closest&&e.target.closest('a');if(!a)return;var h=a.getAttribute('href')||'';if(!h.startsWith('#'))e.preventDefault();},true);</script>`;
+      if (html.includes('</body>')) {
+        html = html.replace('</body>', `${linkGuardScript}</body>`);
+      }
       setGeneratedHtml(html);
     }, 50);
     return () => clearTimeout(timeout);
@@ -93,7 +98,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
       
       {/* 1. The Marketing Hero */}
       <section className="pt-32 pb-20 text-center px-4 relative">
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-5 mix-blend-overlay pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px] opacity-40 pointer-events-none" />
         <div className="absolute inset-0 bg-gradient-to-b from-blue-50/50 to-transparent pointer-events-none" />
         
         <div className="relative z-10 max-w-4xl mx-auto">
@@ -339,15 +344,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartWriting }) => {
                <iframe
                  srcDoc={generatedHtml}
                  title="Exported Document Preview"
-                 sandbox="allow-scripts allow-same-origin allow-presentation"
-                 onLoad={(e) => {
-                   const doc = (e.target as HTMLIFrameElement).contentDocument;
-                   if (!doc) return;
-                   doc.addEventListener('click', (ev) => {
-                     const a = (ev.target as Element).closest('a');
-                     if (a) ev.preventDefault();
-                   }, true);
-                 }}
+                 sandbox="allow-scripts allow-presentation"
                  style={iframeScale < 1 ? {
                    position: 'absolute',
                    top: 0,

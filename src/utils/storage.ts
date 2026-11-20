@@ -23,6 +23,7 @@ export interface ThemeConfig {
     backToTop: boolean;
     printStylesheet: boolean;
     shareButtons: boolean;
+    searchBar?: boolean;
   };
   footer?: {
     enabled: boolean;
@@ -46,6 +47,22 @@ export interface Document {
   tags?: string[];
 }
 
+export interface DocumentSnapshot {
+  id: string;
+  docId: string;
+  title: string;
+  content: any;
+  htmlContent: string;
+  timestamp: number;
+  label?: string;
+}
+
+export interface WorkspaceBackupBundle {
+  version: 1;
+  exportedAt: number;
+  documents: Document[];
+}
+
 // Initialize localforage instance
 const store = localforage.createInstance({
   name: 'GuideEm',
@@ -53,6 +70,7 @@ const store = localforage.createInstance({
 });
 
 const DOCUMENTS_KEY = 'documents';
+const SNAPSHOT_LIMIT = 20;
 
 /**
  * Serialized write queue.
@@ -62,9 +80,9 @@ const DOCUMENTS_KEY = 'documents';
  * The chain always resolves (never rejects) so errors in one operation
  * cannot block future operations.
  */
-let _writeChain: Promise<void> = Promise.resolve();
+let _writeChain: Promise<unknown> = Promise.resolve();
 
-const queueWrite = (fn: () => Promise<void>): Promise<void> => {
+const queueWrite = <T>(fn: () => Promise<T>): Promise<T> => {
   // Append to the chain; ignore failures from previous operations so the
   // chain never stalls.
   const next = _writeChain.catch(() => {}).then(fn);
@@ -124,5 +142,78 @@ export const deleteDocument = (id: string): Promise<void> => {
   return queueWrite(async () => {
     const docs = (await store.getItem<Document[]>(DOCUMENTS_KEY)) ?? [];
     await store.setItem(DOCUMENTS_KEY, docs.filter(d => d.id !== id));
+    await store.removeItem(`snapshots_${id}`);
+  });
+};
+
+export const loadSnapshots = async (docId: string): Promise<DocumentSnapshot[]> => {
+  const snaps = await store.getItem<DocumentSnapshot[]>(`snapshots_${docId}`);
+  return snaps || [];
+};
+
+export const createSnapshot = (
+  doc: Document,
+  label?: string,
+  minIntervalMs = 0
+): Promise<DocumentSnapshot | null> => {
+  return queueWrite(async () => {
+    const key = `snapshots_${doc.id}`;
+    const existing = (await store.getItem<DocumentSnapshot[]>(key)) ?? [];
+    if (!label && existing.length > 0) {
+      if (existing[0].htmlContent === doc.htmlContent && existing[0].title === doc.title) {
+        return null;
+      }
+      if (minIntervalMs > 0 && Date.now() - existing[0].timestamp < minIntervalMs) {
+        return null;
+      }
+    }
+    const snap: DocumentSnapshot = {
+      id: crypto.randomUUID(),
+      docId: doc.id,
+      title: doc.title,
+      content: doc.content,
+      htmlContent: doc.htmlContent,
+      timestamp: Date.now(),
+      label,
+    };
+    await store.setItem(key, [snap, ...existing].slice(0, SNAPSHOT_LIMIT));
+    return snap;
+  });
+};
+
+export const deleteSnapshot = (docId: string, snapshotId: string): Promise<void> => {
+  return queueWrite(async () => {
+    const key = `snapshots_${docId}`;
+    const existing = (await store.getItem<DocumentSnapshot[]>(key)) ?? [];
+    await store.setItem(key, existing.filter(s => s.id !== snapshotId));
+  });
+};
+
+export const exportWorkspaceBundle = async (): Promise<WorkspaceBackupBundle> => {
+  const documents = await loadDocuments();
+  return {
+    version: 1,
+    exportedAt: Date.now(),
+    documents,
+  };
+};
+
+export const importWorkspaceBundle = (raw: any): Promise<Document[]> => {
+  if (!Array.isArray(raw?.documents)) {
+    return Promise.reject(new Error('Invalid backup bundle: missing documents array'));
+  }
+  return queueWrite(async () => {
+    const existing = (await store.getItem<Document[]>(DOCUMENTS_KEY)) ?? [];
+    const byId = new Map<string, Document>(existing.map(d => [d.id, d]));
+    for (const item of raw.documents) {
+      if (!item || typeof item.id !== 'string' || typeof item.title !== 'string') continue;
+      byId.set(item.id, {
+        ...item,
+        lastEdited: typeof item.lastEdited === 'number' ? item.lastEdited : Date.now(),
+      });
+    }
+    const merged = Array.from(byId.values()).sort((a, b) => b.lastEdited - a.lastEdited);
+    await store.setItem(DOCUMENTS_KEY, merged);
+    return merged;
   });
 };

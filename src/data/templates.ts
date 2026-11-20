@@ -13,11 +13,11 @@ export const TEMPLATES: TemplateDefinition[] = [
     name: 'Blank',
     description: 'Empty document — start from scratch',
     emoji: '📄',
-    defaultTitle: 'Untitled Guide',
+    defaultTitle: '',
     content: {
       type: 'doc',
       content: [
-        { type: 'paragraph', content: [{ type: 'text', text: 'Start writing here…' }] },
+        { type: 'paragraph' },
       ],
     },
   },

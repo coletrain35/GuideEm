@@ -205,7 +205,7 @@ npm run export -- --output ./dist/runbook.html</code></pre>
 <div data-type="section-divider" data-style="dots" class="section-divider"></div>
 
 <h2>15. Testimonial Cards</h2>
-<p>Embed social proof directly in your documentation. Each card renders a quote, author name, role, and a colored avatar initial — no images needed, and no external services required.</p>
+<p>Embed quotes and feedback directly in your documentation. Each card renders a quote, author name, role, and a colored avatar initial — no external services or images required. (Sample demo cards shown below):</p>
 
 <div data-type="testimonial" data-scroll-reveal="slide-left" data-quote="GuideEm replaced three different tools in our workflow. We now hand off design specs, onboarding flows, and release notes as single HTML files that work everywhere — no Notion, no Confluence, no Figma links that expire." data-author-name="Sarah Chen" data-author-role="Head of Product, Veritas Labs" data-avatar-color="#6366f1"></div>
 
@@ -275,10 +275,10 @@ setUsers(users);"></div>
 <p>Inline code now carries an optional language label that applies a distinct background tint — making it immediately clear which runtime a snippet belongs to without adding visual noise.</p>
 
 <p>
-  In the new API, call <code class="inline-code lang-js" data-language="js">exportGuide(title, content)</code> to generate the file, or use the lower-level <code class="inline-code lang-ts" data-language="ts">Compiler.build&lt;GuideOutput&gt;(opts)</code> type-safe overload.
-  The Python SDK exposes <code class="inline-code lang-py" data-language="py">guide_em.export(title, content)</code> with identical behaviour.
-  Template authors can override the default layout via the <code class="inline-code lang-html" data-language="html">&lt;guide-slot&gt;</code> custom element or tweak spacing with a <code class="inline-code lang-css" data-language="css">--guide-gap</code> variable.
-  The CLI accepts <code class="inline-code lang-bash" data-language="bash">--output ./dist/guide.html</code> for scripted pipelines.
+  Highlight inline code with runtime badges: JavaScript <code class="inline-code lang-js" data-language="js">const doc = loadDocument()</code>, TypeScript <code class="inline-code lang-ts" data-language="ts">interface GuideOutput</code>, Python <code class="inline-code lang-py" data-language="py">guide.export()</code>, HTML <code class="inline-code lang-html" data-language="html">&lt;div class=&quot;guide&quot;&gt;</code>, CSS <code class="inline-code lang-css" data-language="css">--brand-primary</code>, and shell commands like <code class="inline-code lang-bash" data-language="bash">npm run build</code>.
+
+
+
 </p>
 
 <h3>Image Effects</h3>
@@ -495,14 +495,14 @@ $ npm run export -- --output ./dist/guide.html
 <h2>31. Sticky Scroll Sections</h2>
 <p>A Stripe-style two-panel layout with a sticky navigation on the left and content panels on the right. Perfect for step-by-step guides, onboarding flows, and API walkthroughs. Click the steps on the left to switch panels.</p>
 
-<div data-type="sticky-scroll" data-sticky-title="Getting Started" data-sticky-description="Go from zero to a published document in three steps." data-accent-color="#6366f1" data-steps='[{"title":"Install the package","description":"Get started by installing the package with your preferred package manager.","code":"npm install @guideem/core"},{"title":"Create your first document","description":"Open the editor, pick a theme, and start dropping blocks with the slash menu.","code":"const editor = createEditor()"},{"title":"Export and share","description":"Click Export to generate a single HTML file. Email it, host it, or open it offline.","code":"guideem export --output guide.html"}]'></div>
+<div data-type="sticky-scroll" data-sticky-title="Getting Started" data-sticky-description="Go from zero to a published document in three steps." data-accent-color="#6366f1" data-steps='[{"title":"Start in your browser","description":"Launch GuideEm locally or open the web app to start creating documents immediately.","code":"npm run dev"},{"title":"Compose with rich blocks","description":"Pick a template or start blank, then drop in blocks using the slash command or block palette.","code":"// Press / or click + to insert blocks"},{"title":"Export standalone HTML","description":"Click Export to generate a self-contained file with inlined styles and scripts.","code":"// Ready to host, email, or view offline"}]'></div>
 
 <div data-type="section-divider" data-style="gradient" class="section-divider"></div>
 
 <h2>32. Code Window</h2>
 <p>A macOS-style code block with traffic light dots, editable title bar, line numbers, and four color themes — dark, light, nord, and dracula. The code is always editable in the editor; in the exported file it renders as a styled <code>&lt;pre&gt;</code> block.</p>
 
-<div data-type="code-window" data-code="import { exportGuide } from '@guideem/core';
+<div data-type="code-window" data-code="// GuideEm Document Schema
 
 const doc = await loadDocument('my-guide');
 const html = exportGuide(doc, {
@@ -514,7 +514,7 @@ const html = exportGuide(doc, {
 await writeFile('./dist/guide.html', html);
 console.log('Exported successfully!');" data-language="typescript" data-title="export.ts" data-theme="dark"></div>
 
-<div data-type="code-window" data-code="from guideem import export_guide, load_doc
+<div data-type="code-window" data-code="# Standalone HTML Exporter
 
 doc = load_doc('onboarding-flow')
 html = export_guide(doc, theme='editorial')
@@ -576,7 +576,7 @@ print(f'Done — {len(html) / 1024:.0f} KB')" data-language="python" data-title=
 <h2>38. Glow Cards</h2>
 <p>Feature cards with a cursor-tracking spotlight glow. Hover each card to see the radial gradient follow your mouse — the glow color is set per card and renders in both light and dark variants. A glass option adds a frosted backdrop for use over dark or image backgrounds.</p>
 
-<div data-type="glow-cards" data-cols="3" data-card-bg="white" data-text-color="light" data-cards='[{"emoji":"⚡","title":"Lightning Fast","description":"Optimized for performance with sub-millisecond response times and zero server round-trips.","glowColor":"#facc15"},{"emoji":"🔒","title":"Secure by Default","description":"End-to-end encryption, SOC 2 certified, and zero-knowledge architecture keeps your data safe.","glowColor":"#6366f1"},{"emoji":"🚀","title":"Ship Faster","description":"From idea to production in minutes. One file, zero build steps, no deployment pipeline required.","glowColor":"#f43f5e"}]'></div>
+<div data-type="glow-cards" data-cols="3" data-card-bg="white" data-text-color="light" data-cards='[{"emoji":"⚡","title":"Lightning Fast","description":"Optimized for performance with sub-millisecond response times and zero server round-trips.","glowColor":"#facc15"},{"emoji":"🔒","title":"Local-First Privacy","description":"Your documents stay in your browser with zero tracking, no accounts, and zero server round-trips.","glowColor":"#6366f1"},{"emoji":"🚀","title":"Ship Faster","description":"From idea to production in minutes. One file, zero build steps, no deployment pipeline required.","glowColor":"#f43f5e"}]'></div>
 
 <div data-type="glow-cards" data-cols="3" data-card-bg="dark" data-text-color="dark" data-cards='[{"emoji":"🧩","title":"Composable Blocks","description":"Mix and match 30+ block types in any order. Drag to reorder, configure inline, export with fidelity.","glowColor":"#8b5cf6"},{"emoji":"🎨","title":"Live Theming","description":"Change your brand color once — it propagates through the entire exported document instantly.","glowColor":"#ec4899"},{"emoji":"🌐","title":"Works Anywhere","description":"Email it, host it on S3, open it from a USB drive. If a browser can open it, it works.","glowColor":"#10b981"}]'></div>
 
@@ -586,7 +586,7 @@ print(f'Done — {len(html) / 1024:.0f} KB')" data-language="python" data-title=
 <p>Cards with a hidden back side revealed on hover. Two animation modes: <strong>flip</strong> (3D card rotation) and <strong>slide</strong> (panel slides up to reveal the back). Great for feature previews, FAQ teasers, or any content where progressive disclosure improves the reading experience.</p>
 
 <h3>Flip style</h3>
-<div data-type="hover-reveal" data-cols="3" data-reveal-style="flip" data-cards='[{"emoji":"🚀","frontTitle":"Ship Faster","backDescription":"Deploy to production in seconds with our automated CI/CD pipeline and one-click rollbacks.","accentColor":"#6366f1"},{"emoji":"🔒","frontTitle":"Stay Secure","backDescription":"End-to-end encryption, SOC 2 certified, and zero-knowledge architecture keeps your data safe.","accentColor":"#10b981"},{"emoji":"📊","frontTitle":"Deep Analytics","backDescription":"Real-time dashboards with custom metrics, funnels, and cohort analysis for data-driven decisions.","accentColor":"#f59e0b"}]'></div>
+<div data-type="hover-reveal" data-cols="3" data-reveal-style="flip" data-cards='[{"emoji":"🚀","frontTitle":"Zero Build Steps","backDescription":"Export as a single standalone HTML file. Email it, put it on an intranet, or open it offline.","accentColor":"#6366f1"},{"emoji":"🔒","frontTitle":"Private by Design","backDescription":"All documents live in your local browser storage. No server database, no telemetry, no tracking.","accentColor":"#10b981"},{"emoji":"📊","frontTitle":"Interactive Blocks","backDescription":"Mermaid diagrams, before/after sliders, code diffs, and tabs embedded directly in your exported guide.","accentColor":"#f59e0b"}]'></div>
 
 <h3>Slide style</h3>
 <div data-type="hover-reveal" data-cols="3" data-reveal-style="slide" data-cards='[{"emoji":"📦","frontTitle":"Self-Contained","backDescription":"Every exported file includes all CSS, JS, and images — no CDN, no external fonts, no runtime required.","accentColor":"#0ea5e9"},{"emoji":"🎯","frontTitle":"Precision Export","backDescription":"What you see in the editor is exactly what your readers get. No layout drift, no missing styles.","accentColor":"#8b5cf6"},{"emoji":"✈️","frontTitle":"Works Offline","backDescription":"Open the file on a plane, in a meeting room, or on a corporate intranet with no internet access.","accentColor":"#f43f5e"}]'></div>

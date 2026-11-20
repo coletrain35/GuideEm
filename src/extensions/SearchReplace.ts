@@ -59,12 +59,16 @@ export const SearchReplace = Extension.create({
           init(_config, _state) {
             return DecorationSet.empty;
           },
-          apply(_tr, _old, _oldState, newState) {
+          apply(tr, old, _oldState, newState) {
             const { searchTerm, caseSensitive, currentMatchIndex } = storage;
 
             if (!searchTerm.trim()) {
               storage.matches = [];
               return DecorationSet.empty;
+            }
+
+            if (!tr.docChanged && !tr.getMeta(searchReplaceKey)) {
+              return old.map(tr.mapping, tr.doc);
             }
 
             const matches = findMatches(newState.doc, searchTerm, caseSensitive);

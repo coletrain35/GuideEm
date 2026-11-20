@@ -208,7 +208,7 @@ const DiagramNodeView = (props: any) => {
         const mermaid = m.default;
         mermaid.initialize({
           startOnLoad: false,
-          securityLevel: 'loose',
+          securityLevel: 'antiscript',
           theme: th,
           flowchart: { curve: 'basis', padding: 16 },
         });

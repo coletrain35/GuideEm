@@ -15,19 +15,31 @@ export const SlashCommand = Extension.create({
     return {
       suggestion: {
         char: '/',
+        allowSpaces: true,
         pluginKey: SlashCommandPluginKey,
-        allow({ editor }: { editor: any }) {
-          const { $from } = editor.state.selection;
-          return editor.state.selection.empty && $from.parent.content.size === 0;
+        allow({ state, range }: { state: any; range: any }) {
+          const $from = state.doc.resolve(range.from);
+          if ($from.parent.type.name !== 'paragraph' || $from.parentOffset !== 0) {
+            return false;
+          }
+          const text = state.doc.textBetween(range.from, range.to, '\n', '\0');
+          if (/^\/\s/.test(text)) return false;
+          return true;
         },
         items({ query }: { query: string }): BlockItem[] {
-          const q = query.toLowerCase();
+          const q = query.trim().toLowerCase();
           if (!q) return BLOCK_ITEMS;
-          return BLOCK_ITEMS.filter(
-            (item) =>
-              item.label.toLowerCase().includes(q) ||
-              item.keywords.some((kw) => kw.includes(q))
-          );
+          const qCompact = q.replace(/\s+/g, '');
+          return BLOCK_ITEMS.filter((item) => {
+            const label = item.label.toLowerCase();
+            const desc = item.description.toLowerCase();
+            return (
+              label.includes(q) ||
+              label.replace(/\s+/g, '').includes(qCompact) ||
+              desc.includes(q) ||
+              item.keywords.some((kw) => kw.toLowerCase().includes(q) || kw.toLowerCase().replace(/\s+/g, '').includes(qCompact))
+            );
+          });
         },
         command({ editor, range, props }: { editor: any; range: any; props: BlockItem }) {
           editor.chain().focus().deleteRange(range).run();

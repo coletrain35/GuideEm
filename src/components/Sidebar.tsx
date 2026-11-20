@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Document } from '../utils/storage';
-import { Plus, FileText, Trash2, X, Copy, Search, Tag, Hash, MoreVertical } from 'lucide-react';
+import { Plus, FileText, Trash2, X, Copy, Search, Tag, Hash, MoreVertical, Download, Upload } from 'lucide-react';
 
 interface SidebarProps {
   documents: Document[];
@@ -11,6 +11,8 @@ interface SidebarProps {
   onDuplicateDoc: (id: string, e: React.MouseEvent) => void;
   onTagsChange?: (id: string, tags: string[]) => void;
   onRenameDoc?: (id: string, newTitle: string) => void;
+  onBackupWorkspace?: () => void;
+  onRestoreWorkspace?: () => void;
   onClose?: () => void;
 }
 
@@ -31,7 +33,7 @@ function tagColor(label: string) {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
-  documents, currentDocId, onSelectDoc, onCreateDoc, onDeleteDoc, onDuplicateDoc, onTagsChange, onRenameDoc, onClose
+  documents, currentDocId, onSelectDoc, onCreateDoc, onDeleteDoc, onDuplicateDoc, onTagsChange, onRenameDoc, onBackupWorkspace, onRestoreWorkspace, onClose
 }) => {
   const [query, setQuery] = useState('');
   const [activeTag, setActiveTag] = useState<string | null>(null);
@@ -391,6 +393,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })
         )}
       </div>
+
+      {/* Workspace Backup / Restore */}
+      {(onBackupWorkspace || onRestoreWorkspace) && (
+        <div className="p-3 border-t border-slate-800 flex items-center gap-2 bg-slate-900/90">
+          {onBackupWorkspace && (
+            <button
+              id="backup-workspace-btn"
+              type="button"
+              onClick={onBackupWorkspace}
+              className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
+              title="Download full workspace backup (.guideem.json)"
+            >
+              <Download size={13} aria-hidden />
+              Backup
+            </button>
+          )}
+          {onRestoreWorkspace && (
+            <button
+              id="restore-workspace-btn"
+              type="button"
+              onClick={onRestoreWorkspace}
+              className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
+              title="Restore workspace from backup (.guideem.json)"
+            >
+              <Upload size={13} aria-hidden />
+              Restore
+            </button>
+          )}
+        </div>
+      )}
     </aside>
   );
 };

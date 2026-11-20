@@ -13,18 +13,35 @@ export const escapeHtml = (str: string): string =>
 
 const DANGEROUS_PROTOCOL_RE = /^\s*(javascript|vbscript|data)\s*:/i;
 const SAFE_DATA_IMAGE_RE = /^\s*data:image\//i;
+const CONTROL_CHARS_RE = /[\u0000-\u001F\u007F]+/g;
+
+function escapeUrlDelimiters(str: string): string {
+  return str
+    .replace(/"/g, '%22')
+    .replace(/'/g, '%27')
+    .replace(/</g, '%3C')
+    .replace(/>/g, '%3E');
+}
+
+function escapeDataAttrDelimiters(str: string): string {
+  return str
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
 
 /**
  * Sanitizes a URL for use in href attributes.
  * Allows http, https, mailto, tel, and relative URLs.
- * Rejects javascript:, vbscript:, and data: protocols.
+ * Rejects javascript:, vbscript:, and data: protocols (even with control chars).
  */
 export function sanitizeUrl(url: string | undefined | null): string {
   if (!url) return '';
-  const trimmed = url.trim();
-  if (!trimmed) return '';
-  if (DANGEROUS_PROTOCOL_RE.test(trimmed)) return '';
-  return trimmed;
+  const cleaned = url.replace(CONTROL_CHARS_RE, '').trim();
+  if (!cleaned) return '';
+  if (DANGEROUS_PROTOCOL_RE.test(cleaned)) return '';
+  return escapeUrlDelimiters(cleaned);
 }
 
 /**
@@ -33,11 +50,11 @@ export function sanitizeUrl(url: string | undefined | null): string {
  */
 export function sanitizeImageSrc(src: string | undefined | null): string {
   if (!src) return '';
-  const trimmed = src.trim();
-  if (!trimmed) return '';
-  if (SAFE_DATA_IMAGE_RE.test(trimmed)) return trimmed;
-  if (DANGEROUS_PROTOCOL_RE.test(trimmed)) return '';
-  return trimmed;
+  const cleaned = src.replace(CONTROL_CHARS_RE, '').trim();
+  if (!cleaned) return '';
+  if (SAFE_DATA_IMAGE_RE.test(cleaned)) return escapeDataAttrDelimiters(cleaned);
+  if (DANGEROUS_PROTOCOL_RE.test(cleaned)) return '';
+  return escapeUrlDelimiters(cleaned);
 }
 
 const HEX_COLOR_RE = /^#([0-9a-fA-F]{3,8})$/;
@@ -78,7 +95,7 @@ const ALLOWED_TAGS = [
   'blockquote', 'pre', 'code',
   'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'colgroup', 'col',
   // Inline formatting
-  'strong', 'em', 'b', 'i', 'u', 's', 'sub', 'sup', 'mark', 'small',
+  'strong', 'em', 'b', 'i', 'u', 's', 'sub', 'sup', 'mark', 'small', 'kbd',
   // Media
   'img', 'figure', 'figcaption', 'picture', 'source', 'video', 'audio',
   // Links & interactive
@@ -109,6 +126,7 @@ const ALLOWED_ATTR = [
 export const SANITIZE_CONFIG = {
   ALLOWED_TAGS,
   ALLOWED_ATTR,
+  FORBID_ATTR: ['srcdoc'],
   ALLOW_DATA_ATTR: true,
   ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel|blob):|data:image\/|#)/i,
   ADD_ATTR: ['target'],
@@ -119,5 +137,18 @@ export const SANITIZE_CONFIG = {
  * Removes all script tags, event handlers, and dangerous content.
  */
 export function sanitizeHtml(html: string): string {
-  return DOMPurify.sanitize(html, SANITIZE_CONFIG);
+  if (typeof DOMPurify?.sanitize === 'function') {
+    return DOMPurify.sanitize(html, SANITIZE_CONFIG);
+  }
+  // Fallback for headless Node CLI environments where window is not mounted
+  return html
+    .replace(/<script\b[\s\S]*?<\/script>/gi, '')
+    .replace(/<script\b[^>]*>/gi, '')
+    .replace(/<(object|embed|applet|base|meta|form)\b[\s\S]*?(?:<\/\1>|\/?>)/gi, '')
+    .replace(/\s+on[a-zA-Z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/\s+srcdoc\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(
+      /\s+(href|src|xlink:href|action)\s*=\s*(?:"\s*(?:javascript|vbscript|data:text\/html)[^"]*"|'\s*(?:javascript|vbscript|data:text\/html)[^']*'|\s*(?:javascript|vbscript|data:text\/html)[^\s>]+)/gi,
+      ''
+    );
 }

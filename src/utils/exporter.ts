@@ -1,11 +1,21 @@
 import { ThemeConfig } from './storage';
 import { getSectionBgPreset } from './backgroundPresets';
-import { escapeHtml, sanitizeUrl, sanitizeImageSrc, sanitizeHtml, sanitizeColor } from './sanitize';
+import { escapeHtml, sanitizeUrl, sanitizeImageSrc, sanitizeHtml, sanitizeColor, sanitizeCssNumber } from './sanitize';
 
 export interface ExportOptions {
   mode?: 'standalone' | 'rise';
   includeToc?: boolean;   // default: auto (true for standalone, false for rise)
   includeHero?: boolean;  // default: auto
+  extraCss?: string;      // optional precompiled stylesheet for headless/CLI exports
+}
+
+export interface CollectionDocItem {
+  id: string;
+  slug?: string;
+  title: string;
+  htmlContent: string;
+  theme?: ThemeConfig;
+  tags?: string[];
 }
 
 // SVG icon map for workflow export (Lucide icons, stroke="currentColor")
@@ -122,7 +132,7 @@ const getCodeThemeCSS = (codeTheme?: string): string => {
   }
 };
 
-const getFontStack = (fontFamily?: string) => {
+export const getFontStack = (fontFamily?: string) => {
   switch (fontFamily) {
     case 'editorial':
       return 'Georgia, Cambria, "Times New Roman", Times, serif';
@@ -134,6 +144,143 @@ const getFontStack = (fontFamily?: string) => {
   }
 };
 
+
+const buildDarkModeRules = (prefix: string): string => `
+      ${prefix} body { background-color: #0f172a; color: #f1f5f9; }
+      ${prefix} body::before { opacity: 0.1; }
+      ${prefix} .sticky-header { background: rgba(15, 23, 42, 0.9) !important; border-bottom-color: #1e293b !important; color: #f1f5f9 !important; }
+      ${prefix} .theme-toggle-btn { background: rgba(15, 23, 42, 0.9); border-color: #334155; color: #cbd5e1; }
+      ${prefix} .guide-search-trigger { background: rgba(15, 23, 42, 0.9); border-color: #334155; color: #94a3b8; }
+      ${prefix} .guide-search-trigger:hover { border-color: #475569; color: #f1f5f9; }
+      ${prefix} .guide-search-trigger kbd { background: #1e293b; border-color: #334155; color: #cbd5e1; }
+      ${prefix} .guide-search-dialog { background: #1e293b; border-color: #334155; color: #f1f5f9; }
+      ${prefix} .guide-search-input-wrap { border-bottom-color: #334155; }
+      ${prefix} #guide-search-input { color: #f1f5f9; }
+      ${prefix} .guide-search-esc { background: #0f172a; border-color: #334155; color: #94a3b8; }
+      ${prefix} .guide-search-item:hover { background: #0f172a; }
+      ${prefix} .guide-search-item-meta { color: var(--brand-primary); }
+      ${prefix} .guide-search-item-text { color: #e2e8f0; }
+      ${prefix} .guide-search-empty { color: #94a3b8; }
+      ${prefix} .toc-sidebar { border-left-color: #1e293b; }
+      ${prefix} .toc-sidebar h3 { color: #f8fafc; }
+      ${prefix} .toc-link { color: #94a3b8; border-left-color: #334155; }
+      ${prefix} .toc-link:hover { color: #e2e8f0; border-left-color: #cbd5e1; }
+      ${prefix} table th { background-color: #1e293b; color: #f8fafc; border-bottom-color: #334155; }
+      ${prefix} table td { border-bottom-color: #1e293b; color: #cbd5e1; }
+      ${prefix} table tr:hover td { background-color: rgba(30, 41, 59, 0.5); }
+      ${prefix} .tableWrapper { background: none !important; }
+      ${prefix} .guide-container :not(pre) > code { background: #1e293b !important; color: #e2e8f0 !important; border: 1px solid #334155; }
+      ${prefix} .grid-column { background-color: #1e293b; border-color: #334155; }
+      @media (max-width: 800px) { ${prefix} .toc-sidebar { border-bottom-color: #1e293b; } }
+      ${prefix} .accordion-header { background: #1e293b; border-color: #334155; color: #f1f5f9; }
+      ${prefix} .accordion-header:hover { background: #253347; }
+      ${prefix} .accordion-header.open { border-bottom-color: transparent; }
+      ${prefix} .accordion-body-inner { border-color: #334155; }
+      ${prefix} .tab-buttons { border-bottom-color: #334155; }
+      ${prefix} .tab-btn { color: #94a3b8; }
+      ${prefix} .tab-btn:hover { color: #f1f5f9; }
+      ${prefix} .tab-panels { border-color: #334155; }
+      ${prefix} .section-divider[data-style="solid"] { background: #334155; }
+      ${prefix} .callout[data-type="info"] { background-color: rgba(37, 99, 235, 0.1); border-color: rgba(37, 99, 235, 0.2); color: #60a5fa; }
+      ${prefix} .callout[data-type="warning"] { background-color: rgba(217, 119, 6, 0.1); border-color: rgba(217, 119, 6, 0.2); color: #fbbf24; }
+      ${prefix} .callout[data-type="success"] { background-color: rgba(5, 150, 105, 0.1); border-color: rgba(5, 150, 105, 0.2); color: #34d399; }
+      ${prefix} .callout[data-type="danger"] { background-color: rgba(220, 38, 38, 0.1); border-color: rgba(220, 38, 38, 0.2); color: #fca5a5; }
+      ${prefix} .callout[data-type="glass-info"] { background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.3); color: #93c5fd; }
+      ${prefix} .callout[data-type="glass-warning"] { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.3); color: #fcd34d; }
+      ${prefix} .callout[data-type="glass-success"] { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.3); color: #6ee7b7; }
+      ${prefix} .inline-code { background-color: rgba(148,163,184,0.15); color: #cbd5e1; }
+      ${prefix} .lang-js { background-color: rgba(234,179,8,0.2) !important; color: #fcd34d !important; }
+      ${prefix} .lang-ts { background-color: rgba(59,130,246,0.2) !important; color: #93c5fd !important; }
+      ${prefix} .lang-py { background-color: rgba(34,197,94,0.2) !important; color: #86efac !important; }
+      ${prefix} .lang-html { background-color: rgba(239,68,68,0.2) !important; color: #fca5a5 !important; }
+      ${prefix} .lang-css { background-color: rgba(168,85,247,0.2) !important; color: #d8b4fe !important; }
+      ${prefix} .lang-bash { background-color: rgba(100,116,139,0.2) !important; color: #94a3b8 !important; }
+      ${prefix} .image-effect-polaroid { background: #1e293b; }
+      ${prefix} pre { background-color: #020617; }
+      ${prefix} .guide-container { color: #e2e8f0; }
+      ${prefix} .guide-container h1, ${prefix} .guide-container h2, ${prefix} .guide-container h3,
+      ${prefix} .guide-container h4, ${prefix} .guide-container h5, ${prefix} .guide-container h6 { color: #f8fafc; }
+      ${prefix} .guide-container p, ${prefix} .guide-container li { color: #cbd5e1; }
+      ${prefix} .guide-container a { color: #93c5fd; }
+      ${prefix} .guide-container strong { color: #f1f5f9; }
+      ${prefix} .guide-container blockquote { color: #94a3b8; border-left-color: #334155; }
+      ${prefix} .export-layout { background-color: #0f172a; }
+      ${prefix} mark { background-color: #713f12; color: #fef3c7; }
+      ${prefix} .timeline-step::after { background: linear-gradient(to bottom, var(--tl-accent, var(--brand-primary)), #334155); }
+      ${prefix} .timeline-step-title { color: #f1f5f9; }
+      ${prefix} .timeline-step-date { color: #64748b; }
+      ${prefix} .workflow-card:not([data-dark]) { border-color: #334155 !important; color: #cbd5e1; }
+      ${prefix} .workflow-card[data-bg-preset="white"], ${prefix} .workflow-card[data-bg-preset="light-gray"] { background-color: #1e293b !important; background-image: none !important; }
+      ${prefix} .workflow-card[data-bg-preset="warm-cream"] { background-color: transparent !important; background-image: linear-gradient(135deg, #2a1a00 0%, #1e1200 100%) !important; }
+      ${prefix} .workflow-card[data-bg-preset="frost"] { background-color: transparent !important; background-image: linear-gradient(135deg, #0f2d47 0%, #0a2035 100%) !important; }
+      ${prefix} .workflow-card[data-bg-preset="dusk"] { background-color: transparent !important; background-image: linear-gradient(135deg, #1f0e40 0%, #33102e 100%) !important; }
+      ${prefix} .workflow-card[data-bg-preset="mint"] { background-color: transparent !important; background-image: linear-gradient(135deg, #0a3d28 0%, #07291b 100%) !important; }
+      ${prefix} .workflow-card[data-bg-preset="shimmer"], ${prefix} .workflow-card[data-bg-preset="pulse-glow"] { background-color: #1e293b !important; background-image: none !important; }
+      ${prefix} .workflow-card:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
+      ${prefix} .workflow-step-title { color: #f1f5f9 !important; }
+      ${prefix} .workflow-step-body { color: #cbd5e1; }
+      ${prefix} .workflow-arrow { color: #475569; }
+      ${prefix} .card { background-color: #1e293b; border-color: #334155; }
+      ${prefix} .card:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
+      ${prefix} .card-title { color: #f1f5f9; }
+      ${prefix} .card-body { color: #94a3b8; }
+      ${prefix} .counter-block { background-color: #1e293b; border-color: #334155; }
+      ${prefix} .counter-label { color: #94a3b8; }
+      ${prefix} .testimonial-card { background-color: #1e293b; border-color: #334155; }
+      ${prefix} .testimonial-quote { color: #cbd5e1; }
+      ${prefix} .testimonial-author-name { color: #f1f5f9; }
+      ${prefix} .testimonial-author-role { color: #94a3b8; }
+      ${prefix} .stat-item { background: #1e293b; border-color: #334155; }
+      ${prefix} .stat-label { color: #94a3b8; }
+      ${prefix} .code-diff { border-color: #334155; }
+      ${prefix} .code-diff-pre { background: #0f172a; color: #e2e8f0; }
+      ${prefix} .diff-removed { background: rgba(190,18,60,0.2); color: #fda4af; }
+      ${prefix} .diff-added { background: rgba(21,128,61,0.2); color: #86efac; }
+      ${prefix} .diff-label-before { background: rgba(190,18,60,0.15); border-color: #334155; }
+      ${prefix} .diff-label-after { background: rgba(21,128,61,0.15); }
+      ${prefix} .share-btn { background: rgba(15, 23, 42, 0.9); border-color: #334155; color: #94a3b8; }
+      ${prefix} .share-btn:hover { background: rgba(30, 41, 59, 1); color: var(--brand-primary); }
+      ${prefix} .confetti-block { background: linear-gradient(to bottom, #1e293b, #0f172a); border-color: #334155; }
+      ${prefix} .confetti-message { color: #f1f5f9; }
+      ${prefix} .hero-plain h1 { color: #f8fafc !important; }
+      ${prefix} .site-footer { background-color: #0f172a; border-top-color: #1e293b; }
+      ${prefix} .site-footer-links a { color: #94a3b8; }
+      ${prefix} .site-footer-text { color: #94a3b8; }
+      ${prefix} .site-footer-branding, ${prefix} .site-footer-branding a { color: #475569; }
+      ${prefix} .project-card { background: #1e293b; border-color: #334155; }
+      ${prefix} .about-me { background: #1e293b; border-color: #334155; }
+      ${prefix} .about-me-role { color: #94a3b8; }
+      ${prefix} .bento-variant-default { background: #1e293b; border-color: #334155; }
+      ${prefix} .bento-variant-default .bento-title { color: #f1f5f9; }
+      ${prefix} .bento-variant-default .bento-desc { color: #94a3b8; }
+      ${prefix} kbd, ${prefix} .guide-kbd { color: #e2e8f0; background: #1e293b; border-color: #475569; }
+      ${prefix} .math-block-export { background: #1e293b; border-color: #334155; color: #f8fafc; }
+      ${prefix} .math-block-caption { color: #94a3b8; }
+      ${prefix} .api-endpoint-export { background: #1e293b; border-color: #334155; }
+      ${prefix} .api-endpoint-header { background: #0f172a; border-bottom-color: #334155; }
+      ${prefix} .api-path { color: #f8fafc; }
+      ${prefix} .api-summary { color: #cbd5e1; }
+      ${prefix} .sticky-scroll { border-color: #334155; }
+      ${prefix} .sticky-scroll-left { background: #1e293b; }
+      ${prefix} .sticky-scroll-step-num { background: rgba(255,255,255,0.1); color: #f1f5f9; }
+      ${prefix} .sticky-scroll-step-label { color: #94a3b8; }
+      ${prefix} .sticky-scroll-right { background: #0f172a; border-left-color: #334155; }
+      ${prefix} .tech-item-label { color: #e2e8f0; }
+      ${prefix} .changelog-timeline::before { background: #334155; }
+      ${prefix} .marquee-fade-left { background: linear-gradient(to right, #0f172a, transparent); }
+      ${prefix} .marquee-fade-right { background: linear-gradient(to left, #0f172a, transparent); }
+      ${prefix} .gradient-border-block > div > div { background: #1e293b !important; }
+      ${prefix} .gradient-border-block p { color: #f1f5f9 !important; }
+      ${prefix} .hr-card span[style*="color:#1e293b"] { color: #f1f5f9 !important; }
+      ${prefix} .background-section:not([data-text-color]) { background-color: #1e293b; }
+      ${prefix} .background-section:not([data-text-color]) .background-section-bg { opacity: 0.25 !important; }
+      ${prefix} .noise-overlay-block > div[style*="background:#ffffff"],
+      ${prefix} .noise-overlay-block > div[style*="background:#f8fafc"],
+      ${prefix} .noise-overlay-block > div[style*="background:#fefce8"] { background: #0f172a !important; }
+      ${prefix} .noise-overlay-block > div[style*="background:#ffffff"] p,
+      ${prefix} .noise-overlay-block > div[style*="background:#f8fafc"] p,
+      ${prefix} .noise-overlay-block > div[style*="background:#fefce8"] p { color: #f1f5f9 !important; }
+`;
 
 const darkenHexExport = (hex: string, amount: number): string => {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -231,6 +378,7 @@ function renderHeroCover(title: string, theme?: ThemeConfig): string {
  * @returns A string containing all CSS rules.
  */
 const extractInlineCSS = (): string => {
+  if (typeof document === 'undefined' || !document.styleSheets) return '';
   let cssString = '';
   for (let i = 0; i < document.styleSheets.length; i++) {
     const sheet = document.styleSheets[i];
@@ -256,43 +404,30 @@ const extractInlineCSS = (): string => {
  * @param htmlContent - The raw HTML content from the editor.
  * @param theme - The document theme.
  */
-export const generateHTML = (title: string, htmlContent: string, theme?: ThemeConfig, options?: ExportOptions): string => {
-  const isRise = options?.mode === 'rise';
-  const includeToc = options?.includeToc ?? !isRise;
-  const includeHero = options?.includeHero ?? true;
-
-  // Include the Tailwind dump for Rise mode as well, otherwise all component formatting breaks
-  const inlineCSS = extractInlineCSS();
-
+function transformGuideBody(htmlContent: string, idPrefix = ''): {
+  processedHTML: string;
+  headingsMeta: Array<{ id: string; level: number; text: string }>;
+} {
   // Parse HTML to generate ToC and add IDs
   // Note: we do NOT run DOMPurify on the full HTML here — the content comes
   // from Tiptap's controlled serialization, and each user-supplied value
   // (titles, URLs, colors) is individually sanitized with escapeHtml /
   // sanitizeUrl / sanitizeImageSrc / sanitizeColor in the block transforms.
   const parser = new DOMParser();
-  const doc = parser.parseFromString(htmlContent, 'text/html');
+  const doc = parser.parseFromString(sanitizeHtml(htmlContent), 'text/html');
   const headings = doc.querySelectorAll('h1, h2');
-  let tocHTML = '';
-  
-  // Always add heading IDs (needed for anchor links), but only build ToC HTML if requested
-  headings.forEach((heading, index) => {
-    const id = `heading-${index}`;
-    heading.setAttribute('id', id);
-  });
+  const headingsMeta: Array<{ id: string; level: number; text: string }> = [];
 
-  if (includeToc && headings.length > 0) {
-    tocHTML = `<aside class="toc-sidebar">
-      <h3 class="font-semibold text-slate-900 mb-4 text-sm uppercase tracking-wider">On this page</h3>
-      <nav class="flex flex-col">`;
-    
-    headings.forEach((heading, index) => {
-      const id = `heading-${index}`;
-      const level = heading.tagName.toLowerCase() === 'h1' ? 1 : 2;
-      tocHTML += `<a class="toc-link level-${level}" href="#${id}">${heading.textContent}</a>`;
+  // Always add heading IDs (needed for anchor links)
+  headings.forEach((heading, index) => {
+    const id = `${idPrefix}heading-${index}`;
+    heading.setAttribute('id', id);
+    headingsMeta.push({
+      id,
+      level: heading.tagName.toLowerCase() === 'h1' ? 1 : 2,
+      text: heading.textContent || '',
     });
-    
-    tocHTML += `</nav></aside>`;
-  }
+  });
 
   // Wrap all tables in a tableWrapper div so they can scroll horizontally
   doc.querySelectorAll('table').forEach((table) => {
@@ -303,6 +438,23 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       table.parentNode?.insertBefore(wrapper, table);
       wrapper.appendChild(table);
     }
+  });
+
+  // Normalize Task Lists so exported HTML renders aligned checkboxes without Tailwind prose bullet/padding overrides
+  doc.querySelectorAll('ul[data-type="taskList"]').forEach((ul) => {
+    ul.classList.add('not-prose');
+    ul.querySelectorAll('li').forEach((li) => {
+      const checkbox = li.querySelector('input');
+      if (checkbox) {
+        checkbox.setAttribute('type', 'checkbox');
+        checkbox.removeAttribute('disabled');
+        if (li.getAttribute('data-checked') === 'true') {
+          checkbox.setAttribute('checked', 'checked');
+        } else {
+          checkbox.removeAttribute('checked');
+        }
+      }
+    });
   });
 
   // Transform accordion blocks into export-ready HTML
@@ -318,7 +470,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       item.innerHTML = `
         <button class="accordion-header">
           <svg class="accordion-chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-          <span>${title}</span>
+          <span>${escapeHtml(title)}</span>
         </button>
         <div class="accordion-body"><div class="accordion-body-inner">${bodyHTML}</div></div>
       `;
@@ -332,7 +484,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     const panelContents: string[] = [];
     panels.forEach((panel) => {
       const label = panel.getAttribute('data-label') || 'Tab';
-      buttonsHTML += `<button class="tab-btn">${label}</button>`;
+      buttonsHTML += `<button class="tab-btn">${escapeHtml(label)}</button>`;
       panelContents.push(panel.innerHTML);
     });
     buttonsHTML += '</div>';
@@ -350,7 +502,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
   doc.querySelectorAll('div[data-type="section-divider"]').forEach((divider) => {
     const style = divider.getAttribute('data-style') || 'gradient';
     divider.className = `section-divider`;
-    divider.setAttribute('data-style', style);
+    divider.setAttribute('data-style', escapeHtml(style));
     divider.removeAttribute('data-type');
     if (style === 'wave') {
       divider.innerHTML = `<svg viewBox="0 0 1200 40" preserveAspectRatio="none" style="width:100%;height:40px;display:block;"><path d="M0,20 C300,40 600,0 900,20 C1050,30 1150,10 1200,20" fill="none" stroke="#cbd5e1" stroke-width="2"/></svg>`;
@@ -506,7 +658,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
           <div class="workflow-step-header">
             <div class="workflow-step-icon" style="background:linear-gradient(to bottom right,${accent[50]},${accent[100]});color:${accent[600]}">${iconSvg}</div>
             <span class="workflow-step-badge" style="background-color:${accent[50]};color:${accent[600]}">STEP ${stepIndex}</span>
-            ${title ? `<h4 class="workflow-step-title" style="${titleColor}">${title}</h4>` : ''}
+            ${title ? `<h4 class="workflow-step-title" style="${titleColor}">${escapeHtml(title)}</h4>` : ''}
           </div>
           ${imageHTML}
           <div class="workflow-step-body${bodyTextClass}">${bodyHTML}</div>
@@ -518,7 +670,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
 
   // Transform card grids
   doc.querySelectorAll('div[data-type="card-grid"]').forEach((grid) => {
-    const cols = grid.getAttribute('data-cols') || '3';
+    const cols = String(Math.min(4, Math.max(1, parseInt(grid.getAttribute('data-cols') || '3', 10) || 3)));
     grid.className = 'card-grid';
     grid.setAttribute('data-cols', cols);
     grid.removeAttribute('data-type');
@@ -532,8 +684,8 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       card.removeAttribute('data-title');
       card.innerHTML = `
         <div class="card-header">
-          ${emoji ? `<span class="card-emoji">${emoji}</span>` : ''}
-          ${title ? `<h4 class="card-title">${title}</h4>` : ''}
+          ${emoji ? `<span class="card-emoji">${escapeHtml(emoji)}</span>` : ''}
+          ${title ? `<h4 class="card-title">${escapeHtml(title)}</h4>` : ''}
         </div>
         <div class="card-body">${bodyHTML}</div>
       `;
@@ -555,11 +707,11 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     el.setAttribute('data-target', String(value));
     el.innerHTML = `
       <div class="counter-number">
-        ${prefix ? `<span class="counter-prefix">${prefix}</span>` : ''}
-        <span class="counter-value">0</span>
-        ${suffix ? `<span class="counter-suffix">${suffix}</span>` : ''}
+        ${prefix ? `<span class="counter-prefix">${escapeHtml(prefix)}</span>` : ''}
+        <span class="counter-value">${escapeHtml(String(value))}</span>
+        ${suffix ? `<span class="counter-suffix">${escapeHtml(suffix)}</span>` : ''}
       </div>
-      ${label ? `<div class="counter-label">${label}</div>` : ''}
+      ${label ? `<div class="counter-label">${escapeHtml(label)}</div>` : ''}
     `;
   });
 
@@ -568,7 +720,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     const quote = el.getAttribute('data-quote') || 'Your testimonial goes here.';
     const authorName = el.getAttribute('data-author-name') || 'Author Name';
     const authorRole = el.getAttribute('data-author-role') || 'Title, Company';
-    const avatarColor = el.getAttribute('data-avatar-color') || '#6366f1';
+    const avatarColor = sanitizeColor(el.getAttribute('data-avatar-color'), '#6366f1');
     const initial = authorName[0]?.toUpperCase() || '?';
     el.className = 'testimonial-card';
     el.removeAttribute('data-type');
@@ -580,7 +732,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       <div class="testimonial-quote-mark">❝</div>
       <p class="testimonial-quote">${escapeHtml(quote)}</p>
       <div class="testimonial-author">
-        <div class="testimonial-avatar" style="background-color: ${avatarColor};">${initial}</div>
+        <div class="testimonial-avatar" style="background-color: ${avatarColor};">${escapeHtml(initial)}</div>
         <div>
           <div class="testimonial-author-name">${escapeHtml(authorName)}</div>
           <div class="testimonial-author-role">${escapeHtml(authorRole)}</div>
@@ -597,14 +749,14 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     const subtitle = el.getAttribute('data-subtitle') || '';
     const ctaText = el.getAttribute('data-cta-text') || '';
     const ctaUrl = el.getAttribute('data-cta-url') || '';
-    el.className = 'hero-banner';
+    el.className = 'hero-banner not-prose';
     el.removeAttribute('data-type');
     ['data-gradient-from', 'data-gradient-to', 'data-title', 'data-subtitle', 'data-cta-text', 'data-cta-url'].forEach((a) => el.removeAttribute(a));
     el.innerHTML = `
-      <div class="hero-banner-inner" style="background: linear-gradient(135deg, ${gradFrom}, ${gradTo});">
-        <h2 class="hero-banner-title">${escapeHtml(title)}</h2>
-        ${subtitle ? `<p class="hero-banner-subtitle">${escapeHtml(subtitle)}</p>` : ''}
-        ${ctaText && ctaUrl ? `<a href="${sanitizeUrl(ctaUrl)}" class="hero-banner-cta">${escapeHtml(ctaText)}</a>` : ''}
+      <div class="hero-banner-inner" style="background: linear-gradient(135deg, ${gradFrom}, ${gradTo}); padding: 4rem 3rem; text-align: center;">
+        <h2 class="hero-banner-title" style="color:#ffffff;text-align:center;margin:0 0 1rem;">${escapeHtml(title)}</h2>
+        ${subtitle ? `<p class="hero-banner-subtitle" style="color:rgba(255,255,255,0.92);text-align:center;margin:0 auto 2rem;">${escapeHtml(subtitle)}</p>` : ''}
+        ${ctaText ? `<a href="${sanitizeUrl(ctaUrl || '#')}" class="hero-banner-cta" style="color:#ffffff;text-decoration:none;">${escapeHtml(ctaText)}</a>` : ''}
       </div>
     `;
   });
@@ -831,10 +983,10 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     el.removeAttribute('data-stats');
     el.innerHTML = stats.map((s: any) => `
       <div class="stat-item" data-target="${parseFloat(s.value) || 0}">
-        ${s.icon ? `<div class="stat-icon">${s.icon}</div>` : ''}
+        ${s.icon ? `<div class="stat-icon">${escapeHtml(String(s.icon))}</div>` : ''}
         <div class="stat-number">
           ${s.prefix ? `<span class="stat-prefix">${escapeHtml(s.prefix)}</span>` : ''}
-          <span class="stat-value">0</span>
+          <span class="stat-value">${escapeHtml(String(s.value ?? '0'))}</span>
           ${s.suffix ? `<span class="stat-suffix">${escapeHtml(s.suffix)}</span>` : ''}
         </div>
         <div class="stat-label">${escapeHtml(s.label || '')}</div>
@@ -866,15 +1018,16 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     el.className = 'code-diff';
     el.removeAttribute('data-type');
     ['data-code-before', 'data-code-after', 'data-language'].forEach((a) => el.removeAttribute(a));
+    const safeLangClass = escapeHtml(language);
     el.innerHTML = `
       <div class="code-diff-inner">
         <div class="code-diff-panel">
           <div class="code-diff-label diff-label-before">Before</div>
-          <pre class="code-diff-pre lang-${language}">${beforeHTML}</pre>
+          <pre class="code-diff-pre lang-${safeLangClass}">${beforeHTML}</pre>
         </div>
         <div class="code-diff-panel">
           <div class="code-diff-label diff-label-after">After</div>
-          <pre class="code-diff-pre lang-${language}">${afterHTML}</pre>
+          <pre class="code-diff-pre lang-${safeLangClass}">${afterHTML}</pre>
         </div>
       </div>
     `;
@@ -885,7 +1038,12 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     const message = el.getAttribute('data-message') || 'Congratulations!';
     const emoji = el.getAttribute('data-emoji') || '🎉';
     let colors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'];
-    try { colors = JSON.parse(el.getAttribute('data-colors') || '[]'); } catch { /* use defaults */ }
+    try {
+      const parsedColors = JSON.parse(el.getAttribute('data-colors') || '[]');
+      if (Array.isArray(parsedColors) && parsedColors.length > 0) {
+        colors = parsedColors.map(c => sanitizeColor(c, '#6366f1'));
+      }
+    } catch { /* use defaults */ }
 
     el.className = 'confetti-block';
     el.removeAttribute('data-type');
@@ -893,9 +1051,9 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     el.removeAttribute('data-emoji');
     el.removeAttribute('data-colors');
     el.innerHTML = `
-      <div class="confetti-canvas" data-colors='${JSON.stringify(colors)}'></div>
+      <div class="confetti-canvas" data-colors="${escapeHtml(JSON.stringify(colors))}"></div>
       <div class="confetti-content">
-        <div class="confetti-emoji">${emoji}</div>
+        <div class="confetti-emoji">${escapeHtml(emoji)}</div>
         <div class="confetti-message">${escapeHtml(message)}</div>
       </div>
     `;
@@ -914,7 +1072,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
 
     el.className = 'background-section';
     el.removeAttribute('data-type');
-    el.removeAttribute('data-bg-preset');
+    el.setAttribute('data-bg-preset', presetId);
     el.removeAttribute('data-padding');
     el.removeAttribute('data-border-radius');
 
@@ -934,7 +1092,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
   doc.querySelectorAll('div[data-type="before-after"]').forEach((el) => {
     const beforeImage = el.getAttribute('data-before-image') || '';
     const afterImage = el.getAttribute('data-after-image') || '';
-    const sliderPos = el.getAttribute('data-slider-position') || '50';
+    const safeSlider = sanitizeCssNumber(el.getAttribute('data-slider-position'), 0, 100, 50);
     const beforeLabel = el.getAttribute('data-before-label') || 'Before';
     const afterLabel = el.getAttribute('data-after-label') || 'After';
 
@@ -948,12 +1106,12 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     }
 
     el.innerHTML = `
-      <div class="before-after-container" data-slider="${sliderPos}">
+      <div class="before-after-container" data-slider="${safeSlider}">
         <img class="before-after-after-img" src="${sanitizeImageSrc(afterImage)}" alt="${escapeHtml(afterLabel)}" />
-        <div class="before-after-before-clip" style="clip-path: inset(0 ${100 - parseFloat(sliderPos)}% 0 0);">
+        <div class="before-after-before-clip" style="clip-path: inset(0 ${100 - safeSlider}% 0 0);">
           <img src="${sanitizeImageSrc(beforeImage)}" alt="${escapeHtml(beforeLabel)}" />
         </div>
-        <div class="before-after-divider" style="left: ${sliderPos}%;"></div>
+        <div class="before-after-divider" style="left: ${safeSlider}%;"></div>
         <span class="before-after-label before-after-label-left">${escapeHtml(beforeLabel)}</span>
         <span class="before-after-label before-after-label-right">${escapeHtml(afterLabel)}</span>
       </div>
@@ -981,21 +1139,26 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     const framesHtml = frames.map((frame: any, fi: number) => {
       const frameHotspots = hotspots.filter((h: any) => h.frameId === frame.id);
       const hotspotsHtml = frameHotspots.map((h: any) => {
-        const targetAttr = h.targetFrameId ? ` data-target="${escapeHtml(h.targetFrameId)}"` : '';
-        const tooltipAttr = h.tooltip ? ` title="${escapeHtml(h.tooltip)}"` : ' title="Click to continue"';
-        const transitionAttr = h.transition ? ` data-transition="${escapeHtml(h.transition)}"` : '';
-        return `<div class="id-hotspot"${targetAttr}${tooltipAttr}${transitionAttr} style="left:${h.x}%;top:${h.y}%;width:${h.width}%;height:${h.height}%;"></div>`;
+        const targetAttr = h.targetFrameId ? ` data-target="${escapeHtml(String(h.targetFrameId))}"` : '';
+        const tooltipAttr = h.tooltip ? ` title="${escapeHtml(String(h.tooltip))}"` : ' title="Click to continue"';
+        const transitionAttr = h.transition ? ` data-transition="${escapeHtml(String(h.transition))}"` : '';
+        const sx = sanitizeCssNumber(h.x, 0, 100, 0);
+        const sy = sanitizeCssNumber(h.y, 0, 100, 0);
+        const sw = sanitizeCssNumber(h.width, 0, 100, 10);
+        const sh = sanitizeCssNumber(h.height, 0, 100, 10);
+        return `<div class="id-hotspot"${targetAttr}${tooltipAttr}${transitionAttr} style="left:${sx}%;top:${sy}%;width:${sw}%;height:${sh}%;"></div>`;
       }).join('');
-      return `<div class="id-frame${fi === 0 ? ' active' : ''}" data-frame-id="${escapeHtml(frame.id)}">${frame.image ? `<img src="${sanitizeImageSrc(frame.image)}" alt="${escapeHtml(frame.label || '')}" />` : ''}${hotspotsHtml}</div>`;
+      return `<div class="id-frame${fi === 0 ? ' active' : ''}" data-frame-id="${escapeHtml(String(frame.id))}">${frame.image ? `<img src="${sanitizeImageSrc(frame.image)}" alt="${escapeHtml(frame.label || '')}" />` : ''}${hotspotsHtml}</div>`;
     }).join('');
 
-    const navHtml = showNav ? `<div class="id-nav">${frames.map((f: any, i: number) => `<button class="id-nav-dot${i === 0 ? ' active' : ''}" data-frame-id="${escapeHtml(f.id)}" title="${escapeHtml(f.label || 'Frame ' + (i + 1))}"></button>`).join('')}<button class="id-back-btn" disabled>&#8592; Back</button></div>` : '';
+    const navHtml = showNav ? `<div class="id-nav">${frames.map((f: any, i: number) => `<button class="id-nav-dot${i === 0 ? ' active' : ''}" data-frame-id="${escapeHtml(String(f.id))}" title="${escapeHtml(f.label || 'Frame ' + (i + 1))}"></button>`).join('')}<button class="id-back-btn" disabled>&#8592; Back</button></div>` : '';
 
     // Use first frame image as a hidden sizer to establish viewport height
     const sizerSrc = frames[0]?.image ? sanitizeImageSrc(frames[0].image) : '';
     const sizerHtml = sizerSrc ? `<img class="id-sizer" src="${sizerSrc}" alt="" />` : '';
 
     el.setAttribute('data-transition', transition);
+    el.setAttribute('data-show-nav', String(showNav));
     el.innerHTML = `<div class="id-viewport">${sizerHtml}${framesHtml}</div>${navHtml}`;
   });
 
@@ -1014,11 +1177,18 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     el.setAttribute('data-definition', definition);
     el.setAttribute('data-theme', theme);
     if (cachedSvg) {
-      el.innerHTML = cachedSvg;
+      const safeSvg = cachedSvg
+        .replace(/<script\b[\s\S]*?<\/script>/gi, '')
+        .replace(/<script\b[^>]*>/gi, '')
+        .replace(/\s+on[a-zA-Z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+      el.innerHTML = safeSvg;
       const svg = el.querySelector('svg');
       if (svg) { svg.style.maxWidth = '100%'; svg.style.height = 'auto'; }
     } else {
-      el.innerHTML = `<pre style="color:#94a3b8;text-align:center;padding:2rem;font-size:0.875rem;white-space:pre-wrap;">${escapeHtml(definition || '# Empty diagram')}</pre>`;
+      if (definition.trim()) {
+        el.className = 'mermaid-block mermaid-unrendered';
+      }
+      el.innerHTML = `<pre class="mermaid-source" style="color:#94a3b8;text-align:center;padding:2rem;font-size:0.875rem;white-space:pre-wrap;">${escapeHtml(definition || '# Empty diagram')}</pre>`;
     }
   });
 
@@ -1030,10 +1200,12 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     el.removeAttribute('data-type');
     el.removeAttribute('data-cells');
     el.innerHTML = cells.map((cell: any) => {
-      const variant = cell.variant || 'default';
+      const variant = ['default', 'dark', 'accent', 'glass'].includes(cell.variant) ? cell.variant : 'default';
+      const colSpan = sanitizeCssNumber(cell.colSpan, 1, 3, 1);
+      const rowSpan = sanitizeCssNumber(cell.rowSpan, 1, 4, 1);
       return `
-        <div class="bento-cell bento-variant-${variant}" style="grid-column: span ${Math.min(cell.colSpan || 1, 3)}; grid-row: span ${cell.rowSpan || 1};">
-          ${cell.icon ? `<div class="bento-icon">${cell.icon}</div>` : ''}
+        <div class="bento-cell bento-variant-${variant}" style="grid-column: span ${colSpan}; grid-row: span ${rowSpan};">
+          ${cell.icon ? `<div class="bento-icon">${escapeHtml(String(cell.icon))}</div>` : ''}
           <h3 class="bento-title">${escapeHtml(cell.title || '')}</h3>
           <p class="bento-desc">${escapeHtml(cell.description || '')}</p>
         </div>
@@ -1061,7 +1233,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
 
     const visualHtml = `
       <div class="feature-spotlight-visual" style="background:${gradient};">
-        ${image ? `<img src="${sanitizeImageSrc(image)}" alt="${escapeHtml(title)}" class="feature-spotlight-img" />` : (icon ? `<span class="feature-spotlight-icon">${icon}</span>` : '')}
+        ${image ? `<img src="${sanitizeImageSrc(image)}" alt="${escapeHtml(title)}" class="feature-spotlight-img" />` : (icon ? `<span class="feature-spotlight-icon">${escapeHtml(icon)}</span>` : '')}
       </div>
     `;
     const bulletsHtml = bullets.length > 0
@@ -1178,7 +1350,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
         const s = typeStyles[type] || { label: type, color: '#64748b', bg: '#f1f5f9' };
         return `
           <div class="changelog-type-group">
-            <span class="changelog-type-badge" style="background:${s.bg};color:${s.color};">${s.label}</span>
+            <span class="changelog-type-badge" style="background:${s.bg};color:${s.color};">${escapeHtml(String(s.label))}</span>
             <ul class="changelog-items">${(texts as string[]).map((t) => `<li style="--dot:${s.color};">${escapeHtml(t)}</li>`).join('')}</ul>
           </div>
         `;
@@ -1301,7 +1473,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
         <div class="marquee-track" style="animation-duration:${dur}s;animation-direction:${animDir};">
           ${doubled.map((item: any) => `
             <span class="marquee-item" style="border-color:${accentColor}33;background:${accentColor}0d;">
-              ${item.emoji ? `<span>${item.emoji}</span>` : ''}
+              ${item.emoji ? `<span>${escapeHtml(String(item.emoji))}</span>` : ''}
               <span>${escapeHtml(item.text || '')}</span>
               ${sepChar ? `<span class="marquee-sep" style="color:${accentColor};">${sepChar}</span>` : ''}
             </span>
@@ -1332,10 +1504,10 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     el.innerHTML = cards.map((card: any) => {
       const safeGlow = sanitizeColor(card.glowColor, '#6366f1');
       return `
-      <div class="glow-card" style="background:${bgColor};border:${border};border-radius:1rem;padding:1.5rem;position:relative;overflow:hidden;transition:transform 0.2s,box-shadow 0.3s;--glow-color:${safeGlow};">
+      <div class="glow-card" data-glow-color="${safeGlow}" style="background:${bgColor};border:${border};border-radius:1rem;padding:1.5rem;position:relative;overflow:hidden;transition:transform 0.2s,box-shadow 0.3s;--glow-color:${safeGlow};">
         <div class="glow-overlay" style="position:absolute;inset:0;opacity:0;transition:opacity 0.3s;pointer-events:none;border-radius:1rem;background:radial-gradient(300px circle at 50% 50%,${safeGlow}22,transparent 70%);"></div>
         <div style="position:relative;z-index:1;">
-          <div style="font-size:2rem;margin-bottom:0.75rem;">${card.emoji || ''}</div>
+          <div style="font-size:2rem;margin-bottom:0.75rem;">${escapeHtml(String(card.emoji || ''))}</div>
           <h3 style="font-weight:600;font-size:1rem;margin:0 0 0.5rem;color:${titleClr};">${escapeHtml(card.title || '')}</h3>
           <p style="font-size:0.875rem;line-height:1.6;margin:0;color:${descClr};">${escapeHtml(card.description || '')}</p>
         </div>
@@ -1392,15 +1564,16 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     ['data-cards','data-cols','data-reveal-style'].forEach(a => el.removeAttribute(a));
 
     el.innerHTML = cards.map((card: any) => {
+      const safeAccent = sanitizeColor(card.accentColor, '#6366f1');
       if (revealStyle === 'flip') {
         return `
           <div class="hr-card hr-flip" style="height:192px;border-radius:1rem;overflow:hidden;perspective:800px;cursor:pointer;">
             <div class="hr-inner" style="width:100%;height:100%;transition:transform 0.5s;transform-style:preserve-3d;position:relative;">
-              <div style="position:absolute;inset:0;backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:1rem;background:${card.accentColor}12;border:1px solid ${card.accentColor}30;">
-                <span style="font-size:2.5rem;margin-bottom:0.75rem;">${card.emoji || ''}</span>
+              <div style="position:absolute;inset:0;backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:1rem;background:${safeAccent}12;border:1px solid ${safeAccent}30;">
+                <span style="font-size:2.5rem;margin-bottom:0.75rem;">${escapeHtml(String(card.emoji || ''))}</span>
                 <span style="font-weight:600;font-size:1.1rem;color:#1e293b;">${escapeHtml(card.frontTitle || '')}</span>
               </div>
-              <div style="position:absolute;inset:0;backface-visibility:hidden;transform:rotateY(180deg);display:flex;align-items:center;justify-content:center;border-radius:1rem;background:${card.accentColor};padding:1.5rem;text-align:center;">
+              <div style="position:absolute;inset:0;backface-visibility:hidden;transform:rotateY(180deg);display:flex;align-items:center;justify-content:center;border-radius:1rem;background:${safeAccent};padding:1.5rem;text-align:center;">
                 <p style="color:#fff;font-size:0.875rem;line-height:1.6;margin:0;">${escapeHtml(card.backDescription || '')}</p>
               </div>
             </div>
@@ -1409,11 +1582,11 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       }
       return `
         <div class="hr-card hr-slide" style="height:192px;border-radius:1rem;overflow:hidden;position:relative;cursor:pointer;">
-          <div class="hr-front" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:1rem;background:${card.accentColor}12;border:1px solid ${card.accentColor}30;transition:all 0.3s;">
-            <span style="font-size:2.5rem;margin-bottom:0.75rem;">${card.emoji || ''}</span>
+          <div class="hr-front" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:1rem;background:${safeAccent}12;border:1px solid ${safeAccent}30;transition:all 0.3s;">
+            <span style="font-size:2.5rem;margin-bottom:0.75rem;">${escapeHtml(String(card.emoji || ''))}</span>
             <span style="font-weight:600;font-size:1.1rem;color:#1e293b;">${escapeHtml(card.frontTitle || '')}</span>
           </div>
-          <div class="hr-back" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:1rem;background:${card.accentColor};padding:1.5rem;text-align:center;opacity:0;transform:translateY(100%);transition:all 0.3s;">
+          <div class="hr-back" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:1rem;background:${safeAccent};padding:1.5rem;text-align:center;opacity:0;transform:translateY(100%);transition:all 0.3s;">
             <p style="color:#fff;font-size:0.875rem;line-height:1.6;margin:0;">${escapeHtml(card.backDescription || '')}</p>
           </div>
         </div>
@@ -1512,13 +1685,19 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     ];
     const bg = BG_PRESETS[bgPreset] ?? BG_PRESETS[0];
     const minH = height === 'sm' ? '180px' : height === 'lg' ? '380px' : '280px';
-    // Generate canvas-based noise (SVG feTurbulence filters don't render in CSS background-image on Chrome)
+    // Generate canvas-based noise in browser; fall back to SVG fractalNoise in Node CLI
     const noiseDataUrl = (() => {
+      if (typeof document === 'undefined' || typeof document.createElement !== 'function') {
+        const freq = (0.4 + (noiseDensity / 100) * 0.6).toFixed(2);
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="${freq}" numOctaves="3" stitchTiles="stitch"/></filter><rect width="200" height="200" filter="url(#n)" opacity="${noiseOpacity}"/></svg>`;
+        return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+      }
       const size = 256;
       const canvas = document.createElement('canvas');
       canvas.width = size;
       canvas.height = size;
-      const ctx = canvas.getContext('2d')!;
+      const ctx = canvas.getContext?.('2d');
+      if (!ctx) return '';
       const imageData = ctx.createImageData(size, size);
       const px = imageData.data;
       const blockSize = Math.max(1, Math.round(8 - (noiseDensity / 100) * 7));
@@ -1540,7 +1719,9 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
 
     el.className = 'noise-overlay-block';
     el.removeAttribute('data-type');
-    ['data-bg-preset','data-noise-opacity','data-noise-density','data-title','data-subtitle','data-height'].forEach(a => el.removeAttribute(a));
+    ['data-bg-preset','data-title','data-subtitle','data-height'].forEach(a => el.removeAttribute(a));
+    el.setAttribute('data-noise-opacity', String(noiseOpacity));
+    el.setAttribute('data-noise-density', String(noiseDensity));
 
     el.innerHTML = `
       <div style="position:relative;border-radius:1rem;overflow:hidden;min-height:${minH};background:${bg.value};display:flex;align-items:center;justify-content:center;text-align:center;">
@@ -1553,6 +1734,63 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     `;
   });
 
+  // Transform Math (KaTeX) blocks
+  doc.querySelectorAll('div[data-type="math-block"]').forEach((el) => {
+    const latex = el.getAttribute('data-latex') || 'E = mc^2';
+    const caption = el.getAttribute('data-caption') || '';
+    const cachedHtml = el.getAttribute('data-cached-html') || '';
+    el.className = 'math-block-export';
+    el.removeAttribute('data-type');
+    el.removeAttribute('data-cached-html');
+    el.setAttribute('data-latex', latex);
+    if (caption) el.setAttribute('data-caption', caption);
+
+    const safeHtml = cachedHtml
+      ? cachedHtml
+          .replace(/<script\b[\s\S]*?<\/script>/gi, '')
+          .replace(/<script\b[^>]*>/gi, '')
+          .replace(/\s+on[a-zA-Z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+      : '';
+
+    el.innerHTML = (safeHtml || `<div class="math-fallback">$$${escapeHtml(latex)}$$</div>`)
+      + (caption ? `<p class="math-block-caption">${escapeHtml(caption)}</p>` : '');
+  });
+
+  // Transform API Endpoint blocks
+  doc.querySelectorAll('div[data-type="api-endpoint"]').forEach((el) => {
+    const method = (el.getAttribute('data-method') || 'GET').toUpperCase();
+    const path = el.getAttribute('data-path') || '/api/v1/resources';
+    const summary = el.getAttribute('data-summary') || '';
+    const responseCode = el.getAttribute('data-response-code') || '200 OK';
+    const responseBody = el.getAttribute('data-response-body') || '';
+    const safeMethod = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method) ? method : 'GET';
+
+    el.className = 'api-endpoint-export';
+    el.removeAttribute('data-type');
+    el.setAttribute('data-method', safeMethod);
+    el.setAttribute('data-path', path);
+    el.setAttribute('data-summary', summary);
+    el.setAttribute('data-response-code', responseCode);
+    el.setAttribute('data-response-body', responseBody);
+
+    el.innerHTML = `
+      <div class="api-endpoint-header">
+        <span class="api-method-badge api-method-${safeMethod.toLowerCase()}">${escapeHtml(safeMethod)}</span>
+        <code class="api-path">${escapeHtml(path)}</code>
+      </div>
+      <div class="api-endpoint-body">
+        ${summary ? `<p class="api-summary">${escapeHtml(summary)}</p>` : ''}
+        ${responseBody ? `
+          <div class="api-response-head">
+            <span>Sample Response</span>
+            <span class="api-status-badge">${escapeHtml(responseCode)}</span>
+          </div>
+          <pre class="api-response-pre"><code>${escapeHtml(responseBody)}</code></pre>
+        ` : ''}
+      </div>
+    `;
+  });
+
   // Transform Parallax Section blocks
 
   // processedHTML now contains the headings with their newly injected IDs
@@ -1560,6 +1798,27 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
   // We do NOT sanitize again here — the transforms produce trusted template HTML
   // (buttons, SVGs, iframes, etc.) that must be preserved.
   const processedHTML = doc.body.innerHTML;
+  return { processedHTML, headingsMeta };
+}
+
+export const generateHTML = (title: string, htmlContent: string, theme?: ThemeConfig, options?: ExportOptions): string => {
+  const isRise = options?.mode === 'rise';
+  const includeToc = options?.includeToc ?? !isRise;
+  const includeHero = options?.includeHero ?? true;
+  const hasSearchBar = !isRise && (theme?.features?.searchBar ?? true);
+
+  // Include the Tailwind dump for Rise mode as well, otherwise all component formatting breaks
+  const inlineCSS = extractInlineCSS() || options?.extraCss || '';
+
+  const { processedHTML, headingsMeta } = transformGuideBody(htmlContent);
+  let tocHTML = '';
+  if (includeToc && headingsMeta.length > 0) {
+    tocHTML = `<aside class="toc-sidebar">
+      <h3 class="font-semibold text-slate-900 mb-4 text-sm uppercase tracking-wider">On this page</h3>
+      <nav class="flex flex-col">`
+      + headingsMeta.map(h => `<a class="toc-link level-${h.level}" href="#${h.id}">${escapeHtml(h.text)}</a>`).join('')
+      + `</nav></aside>`;
+  }
 
   const primaryColor = sanitizeColor(theme?.primaryColor, '#2563eb');
   const primaryColorRgb = hexToRgb(primaryColor);
@@ -1650,23 +1909,88 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       });
 
       // Copy to Clipboard for Code Blocks
-      document.querySelectorAll('pre').forEach(pre => {
+      document.querySelectorAll('pre:not(.mermaid-source)').forEach(pre => {
         const btn = document.createElement('button');
         btn.className = 'copy-btn';
         btn.innerText = 'Copy';
         btn.onclick = () => {
-          navigator.clipboard.writeText(pre.innerText.replace(/^Copy\\n/, ''));
-          btn.innerText = 'Copied!';
-          setTimeout(() => btn.innerText = 'Copy', 2000);
+          const clone = pre.cloneNode(true);
+          clone.querySelectorAll('.copy-btn').forEach(b => b.remove());
+          const text = (clone.innerText || clone.textContent || '').trim();
+          const markCopied = () => {
+            btn.innerText = 'Copied!';
+            setTimeout(() => btn.innerText = 'Copy', 2000);
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(markCopied).catch(() => {
+              const ta = document.createElement('textarea');
+              ta.value = text;
+              ta.style.position = 'fixed';
+              ta.style.opacity = '0';
+              document.body.appendChild(ta);
+              ta.select();
+              document.execCommand('copy');
+              document.body.removeChild(ta);
+              markCopied();
+            });
+          } else {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            markCopied();
+          }
         };
         pre.style.position = 'relative';
         pre.appendChild(btn);
       });
 
+      // Hydrate any Mermaid diagrams rendered without pre-cached SVGs (e.g. CLI exports)
+      const unrenderedMermaid = document.querySelectorAll('.mermaid-unrendered');
+      if (unrenderedMermaid.length > 0 && navigator.onLine !== false) {
+        import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs')
+          .then(async (mod) => {
+            const m = mod.default;
+            let idx = 0;
+            for (const block of unrenderedMermaid) {
+              const def = block.getAttribute('data-definition') || '';
+              const th = block.getAttribute('data-theme') || 'default';
+              if (!def.trim()) continue;
+              try {
+                m.initialize({ startOnLoad: false, securityLevel: 'strict', theme: th });
+                const { svg } = await m.render('mmd-cli-' + (++idx), def);
+                block.innerHTML = svg;
+                block.classList.remove('mermaid-unrendered');
+                const svgEl = block.querySelector('svg');
+                if (svgEl) { svgEl.style.maxWidth = '100%'; svgEl.style.height = 'auto'; }
+              } catch (err) {
+                console.warn('Mermaid render failed:', err);
+              }
+            }
+          })
+          .catch(() => { /* offline fallback keeps pre.mermaid-source */ });
+      }
+
       // Image Lightbox
       const lightbox = document.createElement('div');
       lightbox.className = 'lightbox';
-      lightbox.onclick = () => lightbox.classList.remove('active');
+      lightbox.setAttribute('role', 'dialog');
+      lightbox.setAttribute('aria-modal', 'true');
+      lightbox.setAttribute('aria-label', 'Image preview');
+      const closeLightbox = () => {
+        lightbox.classList.remove('active');
+        img.src = '';
+      };
+      lightbox.onclick = closeLightbox;
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && lightbox.classList.contains('active')) {
+          closeLightbox();
+        }
+      });
       const img = document.createElement('img');
       lightbox.appendChild(img);
       document.body.appendChild(lightbox);
@@ -1676,6 +2000,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
         image.onclick = (e) => {
           e.stopPropagation();
           img.src = image.src;
+          img.alt = image.alt || 'Full size preview';
           lightbox.classList.add('active');
         };
       });
@@ -2090,6 +2415,31 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
         if (panels[0]) { panels[0].classList.add('active'); panels[0].hidden = false; }
       });
 
+      // --- THEME TOGGLE ---
+      const themeToggleBtn = document.getElementById('theme-toggle-btn');
+      if (themeToggleBtn) {
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const isCurrentlyDark = () =>
+          document.documentElement.classList.contains('dark') ||
+          (!document.documentElement.classList.contains('light') && prefersDark);
+        const syncThemeBtn = () => {
+          const dark = isCurrentlyDark();
+          themeToggleBtn.setAttribute('aria-pressed', String(dark));
+          themeToggleBtn.textContent = dark ? '☀️ Light' : '🌙 Dark';
+        };
+        syncThemeBtn();
+        themeToggleBtn.addEventListener('click', () => {
+          if (isCurrentlyDark()) {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.classList.add('light');
+          } else {
+            document.documentElement.classList.remove('light');
+            document.documentElement.classList.add('dark');
+          }
+          syncThemeBtn();
+        });
+      }
+
       // --- SHARE BUTTONS ---
       const copyLinkBtn = document.getElementById('copy-link-btn');
       if (copyLinkBtn) {
@@ -2115,6 +2465,151 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
         });
       }
 
+      // --- READER SEARCH (Ctrl+K) ---
+      const searchModal = document.getElementById('guide-search-modal');
+      if (searchModal) {
+        const searchInput = document.getElementById('guide-search-input');
+        const searchResults = document.getElementById('guide-search-results');
+        const searchBtn = document.getElementById('guide-search-btn');
+        const searchClose = document.getElementById('guide-search-close');
+        const searchBackdrop = document.getElementById('guide-search-backdrop');
+        const container = document.querySelector('.guide-container');
+        const escSearchHtml = function(s) {
+          return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        };
+
+        const searchItems = [];
+        if (container) {
+          let currentSection = document.title || 'Guide';
+          container.querySelectorAll('h1, h2, h3, h4, p, li, pre:not(.mermaid-source), .callout, .accordion-header, .card-title, .workflow-step-title, .timeline-step-title').forEach(function(el) {
+            const tag = el.tagName;
+            if ((tag === 'P' || tag === 'PRE') && el.closest('.callout, li')) return;
+            const rawText = (el.textContent || '').replace(/\\s+/g, ' ').trim();
+            if (!rawText) return;
+            if (/^H[1-4]$/.test(tag)) {
+              currentSection = rawText;
+              searchItems.push({ el: el, section: currentSection, kind: tag, text: rawText });
+              return;
+            }
+            const kind = el.classList.contains('accordion-header') ? 'Accordion'
+              : el.classList.contains('callout') ? 'Callout'
+              : el.closest('.tab-panel') ? 'Tab'
+              : tag === 'PRE' ? 'Code'
+              : 'Text';
+            searchItems.push({ el: el, section: currentSection, kind: kind, text: rawText });
+          });
+        }
+
+        const revealAncestorsAndJump = function(targetEl) {
+          const collPage = targetEl.closest('.collection-page[data-collection-page]');
+          if (collPage && collPage.hidden && typeof window.__activateCollectionPage === 'function') {
+            window.__activateCollectionPage(collPage.getAttribute('data-collection-page'));
+          }
+          let acc = targetEl.closest('.accordion-item');
+          while (acc) {
+            const hdr = acc.querySelector(':scope > .accordion-header');
+            const body = acc.querySelector(':scope > .accordion-body');
+            if (hdr) hdr.classList.add('open');
+            if (body) body.classList.add('open');
+            acc = acc.parentElement ? acc.parentElement.closest('.accordion-item') : null;
+          }
+          let panel = targetEl.closest('.tab-panel');
+          while (panel) {
+            const group = panel.closest('.tab-group');
+            if (group) {
+              const panels = Array.from(group.querySelectorAll(':scope > .tab-panels > .tab-panel, .tab-panel'));
+              const buttons = Array.from(group.querySelectorAll(':scope > .tab-buttons > .tab-btn, .tab-btn'));
+              const pIdx = panels.indexOf(panel);
+              if (pIdx >= 0) {
+                buttons.forEach(function(b, i) { b.classList.toggle('active', i === pIdx); });
+                panels.forEach(function(p, i) { p.classList.toggle('active', i === pIdx); });
+              }
+            }
+            panel = group && group.parentElement ? group.parentElement.closest('.tab-panel') : null;
+          }
+          targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          targetEl.classList.remove('guide-search-hit-flash');
+          void targetEl.offsetWidth;
+          targetEl.classList.add('guide-search-hit-flash');
+        };
+
+        const renderSearchResults = function(query) {
+          if (!searchResults) return;
+          const q = (query || '').trim().toLowerCase();
+          const matches = q
+            ? searchItems.filter(function(item) {
+                return item.text.toLowerCase().indexOf(q) !== -1 || item.section.toLowerCase().indexOf(q) !== -1;
+              }).slice(0, 20)
+            : searchItems.filter(function(item) { return /^H[1-4]$/.test(item.kind); }).slice(0, 12);
+
+          if (!matches.length) {
+            searchResults.innerHTML = '<div class="guide-search-empty">No matching content found.</div>';
+            return;
+          }
+          searchResults.innerHTML = matches.map(function(item, idx) {
+            const snippet = item.text.length > 140 ? item.text.slice(0, 140) + '…' : item.text;
+            return '<button type="button" class="guide-search-item" data-search-idx="' + idx + '">'
+              + '<div class="guide-search-item-meta">' + escSearchHtml(item.section) + ' · ' + escSearchHtml(item.kind) + '</div>'
+              + '<div class="guide-search-item-text">' + escSearchHtml(snippet) + '</div>'
+              + '</button>';
+          }).join('');
+
+          searchResults.querySelectorAll('.guide-search-item').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+              const i = parseInt(btn.getAttribute('data-search-idx') || '0', 10);
+              const chosen = matches[i];
+              closeSearch();
+              if (chosen && chosen.el) revealAncestorsAndJump(chosen.el);
+            });
+          });
+        };
+
+        const openSearch = function() {
+          searchModal.hidden = false;
+          if (searchInput) {
+            searchInput.value = '';
+            renderSearchResults('');
+            setTimeout(function() { searchInput.focus(); }, 10);
+          }
+        };
+
+        const closeSearch = function() {
+          searchModal.hidden = true;
+          if (searchBtn) searchBtn.focus();
+        };
+
+        if (searchBtn) searchBtn.addEventListener('click', openSearch);
+        if (searchClose) searchClose.addEventListener('click', closeSearch);
+        if (searchBackdrop) searchBackdrop.addEventListener('click', closeSearch);
+        if (searchInput) {
+          searchInput.addEventListener('input', function() {
+            renderSearchResults(searchInput.value);
+          });
+          searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+              const first = searchResults ? searchResults.querySelector('.guide-search-item') : null;
+              if (first) { e.preventDefault(); first.click(); }
+            }
+          });
+        }
+
+        document.addEventListener('keydown', function(e) {
+          if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+            e.preventDefault();
+            if (searchModal.hidden) openSearch(); else closeSearch();
+          } else if (e.key === '/' && searchModal.hidden) {
+            const active = document.activeElement;
+            const inInput = active && (['INPUT', 'TEXTAREA', 'SELECT'].indexOf(active.tagName) !== -1 || active.isContentEditable);
+            if (!inInput) {
+              e.preventDefault();
+              openSearch();
+            }
+          } else if (e.key === 'Escape' && !searchModal.hidden) {
+            closeSearch();
+          }
+        });
+      }
+
     });
   `;
 
@@ -2126,7 +2621,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title || 'Untitled Guide'}</title>
+  <title>${escapeHtml(title || 'Untitled Guide')}</title>
   ${!isRise && theme?.hero?.style === 'editorial' ? `
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&display=swap">` : ''}
@@ -2457,8 +2952,8 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
       display: flex;
       gap: 1.25rem;
       position: relative;
-      opacity: 0;
-      transform: translateY(16px);
+      opacity: 1;
+      transform: translateY(0);
       transition: opacity 0.45s ease, transform 0.45s ease;
     }
     .timeline-step.visible {
@@ -2869,10 +3364,10 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     /* Hero Banner */
     .hero-banner { margin: 2rem 0; border-radius: 1rem; overflow: hidden; }
     .hero-banner-inner { padding: 4rem 3rem; text-align: center; }
-    .hero-banner-title { font-size: 2.5rem; font-weight: 800; color: white; margin: 0 0 1rem; line-height: 1.2; }
-    .hero-banner-subtitle { font-size: 1.125rem; color: rgba(255,255,255,0.9); margin: 0 0 2rem; max-width: 600px; margin-left: auto; margin-right: auto; }
-    .hero-banner-cta { display: inline-block; padding: 0.75rem 2rem; background: rgba(255,255,255,0.2); color: white; border-radius: 9999px; text-decoration: none; font-weight: 600; border: 2px solid rgba(255,255,255,0.5); transition: background 0.2s; }
-    .hero-banner-cta:hover { background: rgba(255,255,255,0.3); }
+    .hero-banner-title, .guide-container .hero-banner-title { font-size: 2.5rem; font-weight: 800; color: #ffffff !important; text-align: center !important; margin: 0 0 1rem; line-height: 1.2; }
+    .hero-banner-subtitle, .guide-container .hero-banner-subtitle { font-size: 1.125rem; color: rgba(255,255,255,0.92) !important; text-align: center !important; margin: 0 auto 2rem; max-width: 600px; }
+    .hero-banner-cta, .guide-container a.hero-banner-cta { display: inline-block; padding: 0.75rem 2rem; background: rgba(255,255,255,0.22); color: #ffffff !important; border-radius: 9999px; text-decoration: none !important; font-weight: 600; border: 2px solid rgba(255,255,255,0.65); transition: background 0.2s; }
+    .hero-banner-cta:hover, .guide-container a.hero-banner-cta:hover { background: rgba(255,255,255,0.34); }
 
     /* Project Card */
     .project-card { margin: 1.5rem 0; border-radius: 1rem; overflow: hidden; border: 1px solid #e2e8f0; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.06); max-width: 400px; }
@@ -3234,29 +3729,51 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     }
 
     /* Injected CSS from the editor environment */
+    .guide-container { font-size: 1.0625rem; line-height: 1.75; color: #334155; }
+    .guide-container h1 { font-size: 2.25rem; font-weight: 800; letter-spacing: -0.025em; color: #0f172a; margin: 2rem 0 1rem; line-height: 1.2; }
+    .guide-container h2 { font-size: 1.625rem; font-weight: 700; letter-spacing: -0.02em; color: #0f172a; margin: 2rem 0 0.75rem; line-height: 1.3; }
+    .guide-container h3 { font-size: 1.25rem; font-weight: 600; color: #0f172a; margin: 1.5rem 0 0.5rem; line-height: 1.4; }
+    .guide-container h4 { font-size: 1.125rem; font-weight: 600; color: #0f172a; margin: 1.25rem 0 0.5rem; }
+    .guide-container p { margin: 1rem 0; }
+    .guide-container ul, .guide-container ol { margin: 1rem 0; padding-left: 1.625rem; }
+    .guide-container ul { list-style-type: disc; }
+    .guide-container ol { list-style-type: decimal; }
+    .guide-container li { margin: 0.375rem 0; }
+    .guide-container blockquote { border-left: 4px solid #e2e8f0; padding-left: 1rem; margin: 1.5rem 0; color: #475569; font-style: italic; }
+    .guide-container hr { border: none; border-top: 1px solid #e2e8f0; margin: 2.5rem 0; }
+    .guide-container :not(pre) > code { background: #f1f5f9; color: #0f172a; padding: 0.15rem 0.4rem; border-radius: 0.375rem; font-size: 0.875em; font-weight: 500; }
+    .toc-sidebar { width: 15rem; flex-shrink: 0; position: sticky; top: 5rem; border-left: 1px solid #e2e8f0; padding-left: 1rem; }
+    .toc-link { display: block; font-size: 0.8125rem; color: #64748b; text-decoration: none; padding: 0.25rem 0 0.25rem 0.75rem; border-left: 2px solid transparent; margin-left: -1px; transition: color 0.15s, border-color 0.15s; }
+    .toc-link.level-2 { padding-left: 1.5rem; }
+    .toc-link.active, .toc-link:hover { color: var(--brand-primary); border-left-color: var(--brand-primary); font-weight: 600; }
+    @media (max-width: 900px) { .export-layout { flex-direction: column-reverse; } .toc-sidebar { position: static; width: 100%; border-left: none; border-bottom: 1px solid #e2e8f0; padding: 0 0 1rem 0; } }
     ${inlineCSS}
 
     /* Specific overrides for the exported view to ensure it looks like a document */
     .ProseMirror {
       outline: none !important;
     }
+    .guide-container :not(pre) > code { background: #f1f5f9; color: #0f172a; padding: 0.15rem 0.4rem; border-radius: 0.375rem; font-size: 0.875em; font-weight: 500; }
+    .guide-container :not(pre) > code::before, .guide-container :not(pre) > code::after { content: none !important; }
     
     /* Callout Panels */
     .callout {
-      display: flex;
-      gap: 1rem;
-      padding: 1.25rem;
+      position: relative;
+      padding: 1.25rem 1.25rem 1.25rem 3.5rem;
       margin: 1.5rem 0;
       border-radius: 0.75rem;
       border: 1px solid transparent;
       line-height: 1.625;
     }
+    .callout > p:first-child { margin-top: 0; }
+    .callout > p:last-child { margin-bottom: 0; }
     .callout::before {
       content: '';
-      flex-shrink: 0;
+      position: absolute;
+      left: 1.25rem;
+      top: 1.375rem;
       width: 1.5rem;
       height: 1.5rem;
-      margin-top: 0.125rem;
       background-repeat: no-repeat;
       background-position: center;
       background-size: contain;
@@ -3331,10 +3848,12 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     table {
       border-collapse: collapse;
       table-layout: auto;
-      width: max-content;
-      min-width: 100%;
-      margin: 2rem 0;
+      width: 100%;
+      margin: 1.5rem 0;
       text-align: left;
+    }
+    table td:first-child code {
+      white-space: nowrap;
     }
     
     table td,
@@ -3478,23 +3997,57 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     }
 
     /* Task Lists */
-    ul[data-type="taskList"] {
-      list-style: none;
-      padding: 0;
+    .guide-container ul[data-type="taskList"] {
+      list-style: none !important;
+      padding-left: 0 !important;
+      margin-top: 0.75rem;
+      margin-bottom: 1.25rem;
     }
-    
-    ul[data-type="taskList"] li {
-      display: flex;
-      align-items: flex-start;
+
+    .guide-container ul[data-type="taskList"] li {
+      display: flex !important;
+      align-items: flex-start !important;
+      gap: 0.5rem;
+      padding-left: 0 !important;
+      text-align: left !important;
       margin-bottom: 0.5rem;
     }
-    
-    ul[data-type="taskList"] li > label {
-      margin-right: 0.5rem;
-      user-select: none;
+
+    .guide-container ul[data-type="taskList"] li::before,
+    .guide-container ul[data-type="taskList"] li::marker {
+      content: none !important;
     }
-    
-    ul[data-type="taskList"] li[data-checked="true"] > div {
+
+    .guide-container ul[data-type="taskList"] li > label {
+      display: inline-flex !important;
+      align-items: center;
+      flex: 0 0 auto;
+      margin: 0.25rem 0 0 0 !important;
+      user-select: none;
+      cursor: pointer;
+    }
+
+    .guide-container ul[data-type="taskList"] li > label input[type="checkbox"] {
+      appearance: auto !important;
+      -webkit-appearance: checkbox !important;
+      width: 1rem;
+      height: 1rem;
+      margin: 0 !important;
+      accent-color: var(--brand-primary, #2563eb);
+      cursor: pointer;
+    }
+
+    .guide-container ul[data-type="taskList"] li > div {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .guide-container ul[data-type="taskList"] li > div > p {
+      margin: 0 !important;
+    }
+
+    .guide-container ul[data-type="taskList"] li[data-checked="true"]:not(:has(> label input[type="checkbox"])) > div,
+    .guide-container ul[data-type="taskList"] li:has(> label input[type="checkbox"]:checked) > div {
       text-decoration: line-through;
       color: #6b7280;
     }
@@ -3810,256 +4363,29 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     ${getCodeThemeCSS(theme?.codeTheme)}
 
     ${theme?.features?.darkModeSupport ? `
-    @media (prefers-color-scheme: dark) {
-      body { background-color: #0f172a; color: #f1f5f9; }
-      .toc-sidebar { border-left-color: #1e293b; }
-      .toc-sidebar h3 { color: #f8fafc; }
-      .toc-link { color: #94a3b8; border-left-color: #334155; }
-      .toc-link:hover { color: #e2e8f0; border-left-color: #cbd5e1; }
-      table th { background-color: #1e293b; color: #f8fafc; border-bottom-color: #334155; }
-      table td { border-bottom-color: #1e293b; color: #cbd5e1; }
-      table tr:hover td { background-color: rgba(30, 41, 59, 0.5); }
-      .grid-column { background-color: #1e293b; border-color: #334155; }
-      @media (max-width: 800px) { .toc-sidebar { border-bottom-color: #1e293b; } }
-      .accordion-header { background: #1e293b; border-color: #334155; color: #f1f5f9; }
-      .accordion-header:hover { background: #253347; }
-      .accordion-body-inner { border-color: #334155; }
-      .tab-buttons { border-bottom-color: #334155; }
-      .tab-btn { color: #94a3b8; }
-      .tab-btn:hover { color: #f1f5f9; }
-      .tab-panels { border-color: #334155; }
-      .section-divider[data-style="solid"] { background: #334155; }
-      .callout[data-type="info"] { background-color: rgba(37, 99, 235, 0.1); border-color: rgba(37, 99, 235, 0.2); color: #60a5fa; }
-      .callout[data-type="warning"] { background-color: rgba(217, 119, 6, 0.1); border-color: rgba(217, 119, 6, 0.2); color: #fbbf24; }
-      .callout[data-type="success"] { background-color: rgba(5, 150, 105, 0.1); border-color: rgba(5, 150, 105, 0.2); color: #34d399; }
-      .callout[data-type="danger"] { background-color: rgba(220, 38, 38, 0.1); border-color: rgba(220, 38, 38, 0.2); color: #fca5a5; }
-      .callout[data-type="glass-info"] { background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.3); color: #93c5fd; }
-      .callout[data-type="glass-warning"] { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.3); color: #fcd34d; }
-      .callout[data-type="glass-success"] { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.3); color: #6ee7b7; }
-      .inline-code { background-color: rgba(148,163,184,0.15); color: #cbd5e1; }
-      .lang-js { background-color: rgba(234,179,8,0.2) !important; color: #fcd34d !important; }
-      .lang-ts { background-color: rgba(59,130,246,0.2) !important; color: #93c5fd !important; }
-      .lang-py { background-color: rgba(34,197,94,0.2) !important; color: #86efac !important; }
-      .lang-html { background-color: rgba(239,68,68,0.2) !important; color: #fca5a5 !important; }
-      .lang-css { background-color: rgba(168,85,247,0.2) !important; color: #d8b4fe !important; }
-      .lang-bash { background-color: rgba(100,116,139,0.2) !important; color: #94a3b8 !important; }
-      .image-effect-polaroid { background: #1e293b; }
-      pre { background-color: #020617; }
-      .guide-container { color: #e2e8f0; }
-      .guide-container h1, .guide-container h2, .guide-container h3,
-      .guide-container h4, .guide-container h5, .guide-container h6 { color: #f8fafc; }
-      .guide-container p, .guide-container li { color: #cbd5e1; }
-      .guide-container a { color: #93c5fd; }
-      .guide-container strong { color: #f1f5f9; }
-      .guide-container blockquote { color: #94a3b8; border-left-color: #334155; }
-      .export-layout { background-color: #0f172a; }
-      mark { background-color: #713f12; color: #fef3c7; }
-      .timeline-step::after { background: linear-gradient(to bottom, var(--tl-accent, var(--brand-primary)), #334155); }
-      .timeline-step-title { color: #f1f5f9; }
-      .timeline-step-date { color: #64748b; }
-      .workflow-card:not([data-dark]) { border-color: #334155 !important; color: #cbd5e1; }
-      .workflow-card[data-bg-preset="white"], .workflow-card[data-bg-preset="light-gray"] { background-color: #1e293b !important; background-image: none !important; }
-      .workflow-card[data-bg-preset="warm-cream"] { background-color: transparent !important; background-image: linear-gradient(135deg, #2a1a00 0%, #1e1200 100%) !important; }
-      .workflow-card[data-bg-preset="frost"] { background-color: transparent !important; background-image: linear-gradient(135deg, #0f2d47 0%, #0a2035 100%) !important; }
-      .workflow-card[data-bg-preset="dusk"] { background-color: transparent !important; background-image: linear-gradient(135deg, #1f0e40 0%, #33102e 100%) !important; }
-      .workflow-card[data-bg-preset="mint"] { background-color: transparent !important; background-image: linear-gradient(135deg, #0a3d28 0%, #07291b 100%) !important; }
-      .workflow-card[data-bg-preset="shimmer"], .workflow-card[data-bg-preset="pulse-glow"] { background-color: #1e293b !important; background-image: none !important; }
-      .workflow-card:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
-      .workflow-step-title { color: #f1f5f9 !important; }
-      .workflow-step-body { color: #cbd5e1; }
-      .workflow-arrow { color: #475569; }
-      .card { background-color: #1e293b; border-color: #334155; }
-      .card:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
-      .card-title { color: #f1f5f9; }
-      .card-body { color: #94a3b8; }
-      .counter-block { background-color: #1e293b; border-color: #334155; }
-      .counter-label { color: #94a3b8; }
-      .testimonial-card { background-color: #1e293b; border-color: #334155; }
-      .testimonial-quote { color: #cbd5e1; }
-      .testimonial-author-name { color: #f1f5f9; }
-      .testimonial-author-role { color: #94a3b8; }
-      .stat-item { background: #1e293b; border-color: #334155; }
-      .stat-label { color: #94a3b8; }
-      .code-diff { border-color: #334155; }
-      .code-diff-pre { background: #0f172a; color: #e2e8f0; }
-      .diff-removed { background: rgba(190,18,60,0.2); color: #fda4af; }
-      .diff-added { background: rgba(21,128,61,0.2); color: #86efac; }
-      .diff-label-before { background: rgba(190,18,60,0.15); border-color: #334155; }
-      .diff-label-after { background: rgba(21,128,61,0.15); }
-      .share-btn { background: rgba(15, 23, 42, 0.9); border-color: #334155; color: #94a3b8; }
-      .share-btn:hover { background: rgba(30, 41, 59, 1); color: var(--brand-primary); }
-      .confetti-block { background: linear-gradient(to bottom, #1e293b, #0f172a); border-color: #334155; }
-      .confetti-message { color: #f1f5f9; }
-      .hero-plain h1 { color: #f8fafc !important; }
-      body::before { opacity: 0.1; }
-      /* Project Card */
-      .project-card { background: #1e293b; border-color: #334155; }
-      /* About Me */
-      .about-me { background: #1e293b; border-color: #334155; }
-      .about-me-role { color: #94a3b8; }
-      /* Bento Grid */
-      .bento-variant-default { background: #1e293b; border-color: #334155; }
-      .bento-variant-default .bento-title { color: #f1f5f9; }
-      .bento-variant-default .bento-desc { color: #94a3b8; }
-      /* Sticky Scroll */
-      .sticky-scroll { border-color: #334155; }
-      .sticky-scroll-left { background: #1e293b; }
-      .sticky-scroll-step-num { background: rgba(255,255,255,0.1); color: #f1f5f9; }
-      .sticky-scroll-step-label { color: #94a3b8; }
-      .sticky-scroll-right { background: #0f172a; border-left-color: #334155; }
-      /* Tech Stack */
-      .tech-item-label { color: #e2e8f0; }
-      /* Changelog */
-      .changelog-timeline::before { background: #334155; }
-      /* Marquee fades */
-      .marquee-fade-left { background: linear-gradient(to right, #0f172a, transparent); }
-      .marquee-fade-right { background: linear-gradient(to left, #0f172a, transparent); }
-      /* Gradient Border */
-      .gradient-border-block > div > div { background: #1e293b !important; }
-      .gradient-border-block p { color: #f1f5f9 !important; }
-      /* Hover Reveal */
-      .hr-card span[style*="color:#1e293b"] { color: #f1f5f9 !important; }
-      /* Background Section — light presets (dots, grid, diagonal, etc.) */
-      .background-section:not([data-text-color]) { background-color: #1e293b; }
-      .background-section:not([data-text-color]) .background-section-bg { opacity: 0.25 !important; }
-      /* Noise Overlay — light presets */
-      .noise-overlay-block > div[style*="background:#ffffff"],
-      .noise-overlay-block > div[style*="background:#f8fafc"],
-      .noise-overlay-block > div[style*="background:#fefce8"] { background: #0f172a !important; }
-      .noise-overlay-block > div[style*="background:#ffffff"] p,
-      .noise-overlay-block > div[style*="background:#f8fafc"] p,
-      .noise-overlay-block > div[style*="background:#fefce8"] p { color: #f1f5f9 !important; }
+    .theme-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 9999px;
+      border: 1px solid #e2e8f0;
+      background: rgba(255, 255, 255, 0.9);
+      color: #475569;
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
     }
-
-    html.dark body { background-color: #0f172a; color: #f1f5f9; }
-    html.dark body::before { opacity: 0.1; }
-    html.dark .toc-sidebar { border-left-color: #1e293b; }
-    html.dark .toc-sidebar h3 { color: #f8fafc; }
-    html.dark .toc-link { color: #94a3b8; border-left-color: #334155; }
-    html.dark .toc-link:hover { color: #e2e8f0; border-left-color: #cbd5e1; }
-    html.dark table th { background-color: #1e293b; color: #f8fafc; border-bottom-color: #334155; }
-    html.dark table td { border-bottom-color: #1e293b; color: #cbd5e1; }
-    html.dark table tr:hover td { background-color: rgba(30, 41, 59, 0.5); }
-    html.dark .grid-column { background-color: #1e293b; border-color: #334155; }
-    @media (max-width: 800px) { html.dark .toc-sidebar { border-bottom-color: #1e293b; } }
-    html.dark .accordion-header { background: #1e293b; border-color: #334155; color: #f1f5f9; }
-    html.dark .accordion-header:hover { background: #253347; }
-    html.dark .accordion-header.open { border-bottom-color: transparent; }
-    html.dark .accordion-body-inner { border-color: #334155; }
-    html.dark .tab-buttons { border-bottom-color: #334155; }
-    html.dark .tab-btn { color: #94a3b8; }
-    html.dark .tab-btn:hover { color: #f1f5f9; }
-    html.dark .tab-panels { border-color: #334155; }
-    html.dark .section-divider[data-style="solid"] { background: #334155; }
-    html.dark .callout[data-type="info"] { background-color: rgba(37, 99, 235, 0.1); border-color: rgba(37, 99, 235, 0.2); color: #60a5fa; }
-    html.dark .callout[data-type="warning"] { background-color: rgba(217, 119, 6, 0.1); border-color: rgba(217, 119, 6, 0.2); color: #fbbf24; }
-    html.dark .callout[data-type="success"] { background-color: rgba(5, 150, 105, 0.1); border-color: rgba(5, 150, 105, 0.2); color: #34d399; }
-    html.dark .callout[data-type="danger"] { background-color: rgba(220, 38, 38, 0.1); border-color: rgba(220, 38, 38, 0.2); color: #fca5a5; }
-    html.dark .callout[data-type="glass-info"] { background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.3); color: #93c5fd; }
-    html.dark .callout[data-type="glass-warning"] { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.3); color: #fcd34d; }
-    html.dark .callout[data-type="glass-success"] { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.3); color: #6ee7b7; }
-    html.dark .inline-code { background-color: rgba(148,163,184,0.15); color: #cbd5e1; }
-    html.dark .lang-js { background-color: rgba(234,179,8,0.2) !important; color: #fcd34d !important; }
-    html.dark .lang-ts { background-color: rgba(59,130,246,0.2) !important; color: #93c5fd !important; }
-    html.dark .lang-py { background-color: rgba(34,197,94,0.2) !important; color: #86efac !important; }
-    html.dark .lang-html { background-color: rgba(239,68,68,0.2) !important; color: #fca5a5 !important; }
-    html.dark .lang-css { background-color: rgba(168,85,247,0.2) !important; color: #d8b4fe !important; }
-    html.dark .lang-bash { background-color: rgba(100,116,139,0.2) !important; color: #94a3b8 !important; }
-    html.dark .image-effect-polaroid { background: #1e293b; }
-    html.dark pre { background-color: #020617; }
-    html.dark .guide-container { color: #e2e8f0; }
-    html.dark .guide-container h1, html.dark .guide-container h2, html.dark .guide-container h3,
-    html.dark .guide-container h4, html.dark .guide-container h5, html.dark .guide-container h6 { color: #f8fafc; }
-    html.dark .guide-container p, html.dark .guide-container li { color: #cbd5e1; }
-    html.dark .guide-container a { color: #93c5fd; }
-    html.dark .guide-container strong { color: #f1f5f9; }
-    html.dark .guide-container blockquote { color: #94a3b8; border-left-color: #334155; }
-    html.dark .export-layout { background-color: #0f172a; }
-    html.dark mark { background-color: #713f12; color: #fef3c7; }
-    html.dark .timeline-step::after { background: linear-gradient(to bottom, var(--tl-accent, var(--brand-primary)), #334155); }
-    html.dark .timeline-step-title { color: #f1f5f9; }
-    html.dark .timeline-step-date { color: #64748b; }
-    html.dark .workflow-card:not([data-dark]) { border-color: #334155 !important; color: #cbd5e1; }
-    html.dark .workflow-card[data-bg-preset="white"], html.dark .workflow-card[data-bg-preset="light-gray"] { background-color: #1e293b !important; background-image: none !important; }
-    html.dark .workflow-card[data-bg-preset="warm-cream"] { background-color: transparent !important; background-image: linear-gradient(135deg, #2a1a00 0%, #1e1200 100%) !important; }
-    html.dark .workflow-card[data-bg-preset="frost"] { background-color: transparent !important; background-image: linear-gradient(135deg, #0f2d47 0%, #0a2035 100%) !important; }
-    html.dark .workflow-card[data-bg-preset="dusk"] { background-color: transparent !important; background-image: linear-gradient(135deg, #1f0e40 0%, #33102e 100%) !important; }
-    html.dark .workflow-card[data-bg-preset="mint"] { background-color: transparent !important; background-image: linear-gradient(135deg, #0a3d28 0%, #07291b 100%) !important; }
-    html.dark .workflow-card[data-bg-preset="shimmer"], html.dark .workflow-card[data-bg-preset="pulse-glow"] { background-color: #1e293b !important; background-image: none !important; }
-    html.dark .workflow-card:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
-    html.dark .workflow-step-title { color: #f1f5f9 !important; }
-    html.dark .workflow-step-body { color: #cbd5e1; }
-    html.dark .workflow-arrow { color: #475569; }
-    html.dark .card { background-color: #1e293b; border-color: #334155; }
-    html.dark .card:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
-    html.dark .card-title { color: #f1f5f9; }
-    html.dark .card-body { color: #94a3b8; }
-    html.dark .counter-block { background-color: #1e293b; border-color: #334155; }
-    html.dark .counter-label { color: #94a3b8; }
-    html.dark .testimonial-card { background-color: #1e293b; border-color: #334155; }
-    html.dark .testimonial-quote { color: #cbd5e1; }
-    html.dark .testimonial-author-name { color: #f1f5f9; }
-    html.dark .testimonial-author-role { color: #94a3b8; }
-    html.dark .stat-item { background: #1e293b; border-color: #334155; }
-    html.dark .stat-label { color: #94a3b8; }
-    html.dark .code-diff { border-color: #334155; }
-    html.dark .code-diff-pre { background: #0f172a; color: #e2e8f0; }
-    html.dark .diff-removed { background: rgba(190,18,60,0.2); color: #fda4af; }
-    html.dark .diff-added { background: rgba(21,128,61,0.2); color: #86efac; }
-    html.dark .diff-label-before { background: rgba(190,18,60,0.15); border-color: #334155; }
-    html.dark .diff-label-after { background: rgba(21,128,61,0.15); }
-    html.dark .share-btn { background: rgba(15, 23, 42, 0.9); border-color: #334155; color: #94a3b8; }
-    html.dark .share-btn:hover { background: rgba(30, 41, 59, 1); color: var(--brand-primary); }
-    html.dark .confetti-block { background: linear-gradient(to bottom, #1e293b, #0f172a); border-color: #334155; }
-    html.dark .confetti-message { color: #f1f5f9; }
-    html.dark .hero-plain h1 { color: #f8fafc !important; }
-    html.dark .site-footer { background-color: #0f172a; border-top-color: #1e293b; }
-    html.dark .site-footer-links a { color: #94a3b8; }
-    html.dark .site-footer-text { color: #94a3b8; }
-    html.dark .site-footer-branding, html.dark .site-footer-branding a { color: #475569; }
-    /* Project Card */
-    html.dark .project-card { background: #1e293b; border-color: #334155; }
-    /* About Me */
-    html.dark .about-me { background: #1e293b; border-color: #334155; }
-    html.dark .about-me-role { color: #94a3b8; }
-    /* Bento Grid */
-    html.dark .bento-variant-default { background: #1e293b; border-color: #334155; }
-    html.dark .bento-variant-default .bento-title { color: #f1f5f9; }
-    html.dark .bento-variant-default .bento-desc { color: #94a3b8; }
-    /* Sticky Scroll */
-    html.dark .sticky-scroll { border-color: #334155; }
-    html.dark .sticky-scroll-left { background: #1e293b; }
-    html.dark .sticky-scroll-step-num { background: rgba(255,255,255,0.1); color: #f1f5f9; }
-    html.dark .sticky-scroll-step-label { color: #94a3b8; }
-    html.dark .sticky-scroll-right { background: #0f172a; border-left-color: #334155; }
-    /* Tech Stack */
-    html.dark .tech-item-label { color: #e2e8f0; }
-    /* Changelog */
-    html.dark .changelog-timeline::before { background: #334155; }
-    /* Marquee fades */
-    html.dark .marquee-fade-left { background: linear-gradient(to right, #0f172a, transparent); }
-    html.dark .marquee-fade-right { background: linear-gradient(to left, #0f172a, transparent); }
-    /* Gradient Border */
-    html.dark .gradient-border-block > div > div { background: #1e293b !important; }
-    html.dark .gradient-border-block p { color: #f1f5f9 !important; }
-    /* Hover Reveal */
-    html.dark .hr-card span[style*="color:#1e293b"] { color: #f1f5f9 !important; }
-    /* Background Section — light presets (dots, grid, diagonal, etc.) */
-    html.dark .background-section:not([data-text-color]) { background-color: #1e293b; }
-    html.dark .background-section:not([data-text-color]) .background-section-bg { opacity: 0.25 !important; }
-    /* Noise Overlay — light presets */
-    html.dark .noise-overlay-block > div[style*="background:#ffffff"],
-    html.dark .noise-overlay-block > div[style*="background:#f8fafc"],
-    html.dark .noise-overlay-block > div[style*="background:#fefce8"] { background: #0f172a !important; }
-    html.dark .noise-overlay-block > div[style*="background:#ffffff"] p,
-    html.dark .noise-overlay-block > div[style*="background:#f8fafc"] p,
-    html.dark .noise-overlay-block > div[style*="background:#fefce8"] p { color: #f1f5f9 !important; }
+    .theme-toggle-btn:hover { border-color: #cbd5e1; color: var(--brand-primary); }
+    html.light body { background-color: #ffffff !important; color: #111827 !important; }
+    html.light .export-layout { background-color: #ffffff !important; }
+    html.light .sticky-header { background: rgba(255, 255, 255, 0.9) !important; border-bottom-color: #f1f5f9 !important; color: #111827 !important; }
     @media (prefers-color-scheme: dark) {
-      .site-footer { background-color: #0f172a; border-top-color: #1e293b; }
-      .site-footer-links a { color: #94a3b8; }
-      .site-footer-text { color: #94a3b8; }
-      .site-footer-branding, .site-footer-branding a { color: #475569; }
+      ${buildDarkModeRules('html:not(.light)')}
     }
+    ${buildDarkModeRules('html.dark')}
     ` : ''}
 
     ${theme?.features?.scrollReveal ? `
@@ -4111,11 +4437,218 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     }
     ` : ''}
 
+    /* Custom Callout Titles */
+    .callout[data-title]:not([data-title=""]) {
+      padding-top: 2.5rem;
+    }
+    .callout[data-title]:not([data-title=""])::after {
+      content: attr(data-title);
+      position: absolute;
+      top: 0.8rem;
+      left: 3.5rem;
+      font-weight: 700;
+      font-size: 0.875rem;
+      line-height: 1.25;
+    }
+
+    kbd, .guide-kbd {
+      display: inline-block;
+      padding: 0.15rem 0.45rem;
+      font-size: 0.78em;
+      font-weight: 600;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: #1e293b;
+      background-color: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-bottom-width: 2px;
+      border-radius: 0.375rem;
+      box-shadow: 0 1px 0 rgba(15, 23, 42, 0.08);
+      vertical-align: middle;
+    }
+
+    /* KaTeX Math Block */
+    .math-block-export {
+      margin: 1.75rem 0;
+      padding: 1.5rem;
+      border-radius: 0.75rem;
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      text-align: center;
+      overflow-x: auto;
+    }
+    .math-fallback { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1rem; color: #334155; }
+    .math-block-caption { margin: 0.75rem 0 0; font-size: 0.8125rem; color: #64748b; text-align: center; }
+
+    /* API Endpoint Block */
+    .api-endpoint-export {
+      margin: 1.75rem 0;
+      border: 1px solid #e2e8f0;
+      border-radius: 0.75rem;
+      overflow: hidden;
+      background: #ffffff;
+    }
+    .api-endpoint-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      flex-wrap: wrap;
+    }
+    .api-method-badge {
+      padding: 0.2rem 0.55rem;
+      border-radius: 0.375rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .api-method-get { background: #d1fae5; color: #065f46; }
+    .api-method-post { background: #dbeafe; color: #1e40af; }
+    .api-method-put { background: #fef3c7; color: #92400e; }
+    .api-method-patch { background: #ede9fe; color: #5b21b6; }
+    .api-method-delete { background: #ffe4e6; color: #9f1239; }
+    .api-path { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9rem; font-weight: 600; color: #0f172a; background: transparent !important; border: none !important; padding: 0 !important; }
+    .api-endpoint-body { padding: 1rem; }
+    .api-summary { margin: 0 0 0.75rem; color: #475569; font-size: 0.9375rem; }
+    .api-response-head { display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .api-status-badge { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; padding: 0.15rem 0.5rem; border-radius: 0.25rem; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+    .api-response-pre { margin: 0 !important; font-size: 0.8125rem; border-radius: 0.5rem; }
+
+    ${hasSearchBar ? `
+    .guide-search-trigger {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 9999px;
+      border: 1px solid #e2e8f0;
+      background: rgba(255, 255, 255, 0.9);
+      color: #64748b;
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .guide-search-trigger:hover { border-color: #cbd5e1; color: var(--brand-primary); }
+    .guide-search-trigger kbd {
+      font-size: 0.65rem;
+      padding: 0.1rem 0.35rem;
+      border-radius: 0.25rem;
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      color: #64748b;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .guide-search-modal[hidden] { display: none; }
+    .guide-search-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 4.5rem 1rem 1rem;
+    }
+    .guide-search-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(4px);
+    }
+    .guide-search-dialog {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 560px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 0.875rem;
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.22);
+      overflow: hidden;
+    }
+    .guide-search-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .guide-search-icon { font-size: 0.9rem; opacity: 0.7; }
+    #guide-search-input {
+      flex: 1;
+      border: none;
+      outline: none;
+      background: transparent;
+      font-size: 0.9375rem;
+      color: #0f172a;
+      font-family: inherit;
+    }
+    .guide-search-esc {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      padding: 0.2rem 0.45rem;
+      border-radius: 0.375rem;
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      color: #64748b;
+      cursor: pointer;
+    }
+    .guide-search-results {
+      max-height: 360px;
+      overflow-y: auto;
+      padding: 0.375rem;
+    }
+    .guide-search-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 0.625rem 0.75rem;
+      border: none;
+      background: transparent;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .guide-search-item:hover { background: #f1f5f9; }
+    .guide-search-item-meta {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: var(--brand-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.2rem;
+    }
+    .guide-search-item-text {
+      font-size: 0.875rem;
+      color: #334155;
+      line-height: 1.4;
+    }
+    .guide-search-empty {
+      padding: 2rem 1rem;
+      text-align: center;
+      font-size: 0.875rem;
+      color: #64748b;
+    }
+    @keyframes guideSearchFlash {
+      0% { outline: 2px solid var(--brand-primary); background-color: color-mix(in srgb, var(--brand-primary) 16%, transparent); }
+      100% { outline: 2px solid transparent; background-color: transparent; }
+    }
+    .guide-search-hit-flash {
+      animation: guideSearchFlash 1.5s ease-out;
+      border-radius: 0.375rem;
+    }
+    ` : ''}
+
     ${theme?.features?.printStylesheet ? `
     @media print {
       #reading-progress,
       #back-to-top,
       #share-bar,
+      #guide-search-btn,
+      #guide-search-modal,
       .sticky-header,
       .toc-sidebar,
       .copy-btn,
@@ -4178,7 +4711,7 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     }
     ` : ''}
   </style>
-  ${theme?.customCSS ? `<style>${theme.customCSS}</style>` : ''}
+  ${theme?.customCSS ? `<style>${theme.customCSS.replace(/<\/style/gi, '<\\/style')}</style>` : ''}
 </head>
 <body>
   ${theme?.features?.readingProgressBar && !isRise ? `<div id="reading-progress"></div>` : ''}
@@ -4186,8 +4719,11 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
   <button id="back-to-top" aria-label="Back to top">
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
   </button>` : ''}
-  ${theme?.features?.shareButtons && !isRise ? `
+  ${!isRise && (theme?.features?.shareButtons || (theme?.features?.darkModeSupport && !theme?.features?.stickyHeader) || (hasSearchBar && !theme?.features?.stickyHeader)) ? `
   <div id="share-bar">
+    ${hasSearchBar && !theme?.features?.stickyHeader ? `<button type="button" class="share-btn guide-search-trigger" id="guide-search-btn" aria-label="Search guide (Ctrl+K)">🔍 Search <kbd>Ctrl+K</kbd></button>` : ''}
+    ${theme?.features?.darkModeSupport && !theme?.features?.stickyHeader ? `<button class="share-btn theme-toggle-btn" id="theme-toggle-btn" aria-label="Toggle dark mode" aria-pressed="false">🌙 Dark</button>` : ''}
+    ${theme?.features?.shareButtons ? `
     <button class="share-btn" id="copy-link-btn" aria-label="Copy link">
       <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
       Copy Link
@@ -4195,22 +4731,24 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     <button class="share-btn" onclick="window.print()" aria-label="Print">
       <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
       Print
-    </button>
+    </button>` : ''}
   </div>` : ''}
-  ${!isRise ? (() => {
+  ${!isRise && includeHero ? (() => {
     const isLegacyFullBleed = !!(theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none'));
     return isLegacyFullBleed ? renderHeroCover(title, theme) : '';
   })() : ''}
-  ${!isRise && theme?.features?.stickyHeader && theme?.logoBase64 ? `
-    <div class="sticky-header" style="position: sticky; top: 0; z-index: 100; background: ${theme?.features?.darkModeSupport ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.9)'}; backdrop-filter: blur(8px); border-bottom: 1px solid ${theme?.features?.darkModeSupport ? '#1e293b' : '#f1f5f9'}; padding: 1rem 2rem; display: flex; align-items: center;">
-      <img src="${sanitizeImageSrc(theme.logoBase64)}" alt="Brand Logo" style="max-height: 32px; object-fit: contain;" />
-      ${theme?.hero?.enabled || (theme?.hero?.style && theme?.hero?.style !== 'none') ? '' : `<span style="margin-left: 1rem; font-weight: 600;">${title || 'Untitled Guide'}</span>`}
+  ${!isRise && theme?.features?.stickyHeader ? `
+    <div class="sticky-header" style="position: sticky; top: 0; z-index: 100; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(8px); border-bottom: 1px solid #f1f5f9; padding: 1rem 2rem; display: flex; align-items: center; gap: 0.75rem;">
+      ${theme?.logoBase64 ? `<img src="${sanitizeImageSrc(theme.logoBase64)}" alt="Brand Logo" style="max-height: 32px; object-fit: contain;" />` : ''}
+      <span style="font-weight: 600;">${escapeHtml(title || 'Untitled Guide')}</span>
+      ${hasSearchBar ? `<button type="button" class="guide-search-trigger" id="guide-search-btn" style="margin-left: auto;" aria-label="Search guide (Ctrl+K)">🔍 <span>Search…</span> <kbd>Ctrl+K</kbd></button>` : ''}
+      ${theme?.features?.darkModeSupport ? `<button class="theme-toggle-btn" id="theme-toggle-btn" style="margin-left: ${hasSearchBar ? '0.25rem' : 'auto'};" aria-label="Toggle dark mode" aria-pressed="false">🌙 Dark</button>` : ''}
     </div>
   ` : ''}
   <div class="export-layout">
     <div class="guide-container prose prose-slate prose-lg max-w-none prose-h1:text-4xl prose-h2:text-2xl prose-h3:text-xl prose-h4:text-lg prose-headings:font-bold prose-headings:tracking-tight">
       ${theme?.logoBase64 && !theme?.features?.stickyHeader && !theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none') ? `<div class="brand-header"><img src="${sanitizeImageSrc(theme.logoBase64)}" alt="Brand Logo" class="brand-logo" /></div>` : ''}
-      ${!(theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none')) ? renderHeroCover(title, theme) : ''}
+      ${includeHero && !(theme?.hero?.enabled && (!theme?.hero?.style || theme?.hero?.style === 'none')) ? renderHeroCover(title, theme) : ''}
       ${processedHTML}
     </div>
     ${!isRise ? tocHTML : ''}
@@ -4220,12 +4758,24 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
     <div class="site-footer-inner">
       ${(theme.footer.links ?? []).length > 0 ? `
       <nav class="site-footer-links">
-        ${theme.footer.links.map(l => `<a href="${sanitizeUrl(l.url)}" target="_blank" rel="noopener noreferrer">${l.label}</a>`).join('')}
+        ${theme.footer.links.map(l => `<a href="${sanitizeUrl(l.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(l.label)}</a>`).join('')}
       </nav>` : ''}
-      ${theme.footer.text ? `<p class="site-footer-text">${theme.footer.text}</p>` : ''}
+      ${theme.footer.text ? `<p class="site-footer-text">${escapeHtml(theme.footer.text)}</p>` : ''}
       ${theme.footer.showBranding ? `<p class="site-footer-branding">Made with <a href="https://github.com/coletrain35/GuideEm" target="_blank" rel="noopener noreferrer">GuideEm</a></p>` : ''}
     </div>
   </footer>` : ''}
+  ${hasSearchBar ? `
+  <div id="guide-search-modal" class="guide-search-modal" hidden role="dialog" aria-modal="true" aria-label="Search guide">
+    <div class="guide-search-backdrop" id="guide-search-backdrop"></div>
+    <div class="guide-search-dialog">
+      <div class="guide-search-input-wrap">
+        <span class="guide-search-icon" aria-hidden="true">🔍</span>
+        <input type="search" id="guide-search-input" placeholder="Search headings, content, code…" autocomplete="off" />
+        <button type="button" id="guide-search-close" class="guide-search-esc" aria-label="Close search">ESC</button>
+      </div>
+      <div id="guide-search-results" class="guide-search-results"></div>
+    </div>
+  </div>` : ''}
   <script>
     // Script-scope so both DOMContentLoaded blocks can call it
     function initRevealObserver() {
@@ -4255,4 +4805,185 @@ export const generateHTML = (title: string, htmlContent: string, theme?: ThemeCo
 </html>`;
 
   return fullHTML;
+};
+
+/**
+ * Generates a single self-contained HTML documentation portal bundling multiple guides
+ * with left sidebar navigation, `#doc:<slug>` cross-guide links, and unified Ctrl+K search.
+ */
+export const generateCollectionHTML = (
+  docs: CollectionDocItem[],
+  collectionTitle: string,
+  baseTheme?: ThemeConfig,
+  options?: ExportOptions
+): string => {
+  if (!docs || docs.length === 0) {
+    return generateHTML(collectionTitle || 'Documentation Portal', '<p>No guides selected.</p>', baseTheme, options);
+  }
+
+  const baseShell = generateHTML(
+    collectionTitle || 'Documentation Portal',
+    '<div id="__COLL_PLACEHOLDER__"></div>',
+    baseTheme,
+    { ...options, includeHero: false, includeToc: false }
+  );
+
+  const navItems: string[] = [];
+  const pageArticles: string[] = [];
+
+  docs.forEach((doc, idx) => {
+    const docTheme = doc.theme || baseTheme;
+    const slug = doc.slug || (doc.id.startsWith('file:')
+      ? doc.id.slice(5)
+      : (doc.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `doc-${idx}`);
+    const { processedHTML, headingsMeta } = transformGuideBody(doc.htmlContent || '', `doc-${idx}-`);
+    const heroHtml = (options?.includeHero ?? true) ? renderHeroCover(doc.title, docTheme) : '';
+    const subToc = headingsMeta.length > 0
+      ? `<div class="collection-subtoc">${headingsMeta.filter(h => h.level === 1 || h.level === 2).map(h =>
+          `<a class="collection-subtoc-link level-${h.level}" href="#${h.id}" data-collection-target="${idx}">${escapeHtml(h.text)}</a>`
+        ).join('')}</div>`
+      : '';
+
+    navItems.push(
+      `<button type="button" class="collection-nav-btn${idx === 0 ? ' active' : ''}" data-collection-idx="${idx}" data-doc-id="${escapeHtml(doc.id)}" data-doc-slug="${escapeHtml(slug)}" data-doc-title="${escapeHtml(doc.title)}">${escapeHtml(doc.title || 'Untitled Guide')}</button>`
+      + subToc
+    );
+
+    pageArticles.push(
+      `<article class="collection-page${idx === 0 ? ' active' : ''}" data-collection-page="${idx}" data-doc-id="${escapeHtml(doc.id)}" data-doc-slug="${escapeHtml(slug)}" data-doc-title="${escapeHtml(doc.title)}"${idx > 0 ? ' hidden' : ''}>${heroHtml}${processedHTML}</article>`
+    );
+  });
+
+  const portalHtml = `
+    <div class="collection-portal">
+      <nav class="collection-sidebar" id="collection-sidebar" aria-label="Guide navigation">
+        <div class="collection-sidebar-title">${escapeHtml(collectionTitle || 'Documentation Portal')}</div>
+        <div class="collection-nav-list">${navItems.join('')}</div>
+      </nav>
+      <div class="collection-pages">
+        ${pageArticles.join('\n')}
+      </div>
+    </div>
+  `;
+
+  const collectionCSS = `<style>
+    .collection-portal { display: flex; align-items: flex-start; gap: 2.5rem; width: 100%; }
+    .collection-sidebar {
+      width: 240px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 5.5rem;
+      max-height: calc(100vh - 7rem);
+      overflow-y: auto;
+      padding-right: 1rem;
+      border-right: 1px solid #e2e8f0;
+    }
+    .collection-sidebar-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #64748b;
+      margin-bottom: 0.75rem;
+    }
+    .collection-nav-list { display: flex; flex-direction: column; gap: 0.25rem; }
+    .collection-nav-btn {
+      width: 100%;
+      text-align: left;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      border: none;
+      background: transparent;
+      color: #334155;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.15s, color 0.15s;
+    }
+    .collection-nav-btn:hover { background: #f1f5f9; color: #0f172a; }
+    .collection-nav-btn.active {
+      background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+      color: var(--brand-primary);
+    }
+    .collection-subtoc {
+      display: flex;
+      flex-direction: column;
+      padding-left: 0.75rem;
+      margin-bottom: 0.35rem;
+      border-left: 1px solid #e2e8f0;
+      margin-left: 0.65rem;
+    }
+    .collection-subtoc-link {
+      font-size: 0.75rem;
+      color: #64748b;
+      text-decoration: none;
+      padding: 0.2rem 0.5rem;
+      border-radius: 0.25rem;
+    }
+    .collection-subtoc-link:hover { color: var(--brand-primary); }
+    .collection-subtoc-link.level-2 { padding-left: 1rem; }
+    .collection-pages { flex: 1; min-width: 0; }
+    .collection-page[hidden] { display: none; }
+    @media (max-width: 860px) {
+      .collection-portal { flex-direction: column; }
+      .collection-sidebar { width: 100%; position: static; max-height: none; border-right: none; border-bottom: 1px solid #e2e8f0; padding-right: 0; padding-bottom: 1rem; }
+    }
+    html.dark .collection-sidebar { border-color: #334155; }
+    html.dark .collection-nav-btn { color: #cbd5e1; }
+    html.dark .collection-nav-btn:hover { background: #1e293b; color: #f8fafc; }
+    html.dark .collection-subtoc { border-left-color: #334155; }
+    html.dark .collection-subtoc-link { color: #94a3b8; }
+    @media print { .collection-sidebar { display: none !important; } .collection-page[hidden] { display: block !important; margin-top: 2rem; page-break-before: always; } }
+  </style>`;
+
+  const collectionJS = `<script>
+    (function() {
+      var pages = Array.from(document.querySelectorAll('.collection-page[data-collection-page]'));
+      var navBtns = Array.from(document.querySelectorAll('.collection-nav-btn[data-collection-idx]'));
+      function activateCollectionPage(idxStr) {
+        var idx = String(idxStr);
+        pages.forEach(function(p) {
+          var match = p.getAttribute('data-collection-page') === idx;
+          p.hidden = !match;
+          p.classList.toggle('active', match);
+        });
+        navBtns.forEach(function(b) {
+          b.classList.toggle('active', b.getAttribute('data-collection-idx') === idx);
+        });
+      }
+      window.__activateCollectionPage = activateCollectionPage;
+      navBtns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          activateCollectionPage(btn.getAttribute('data-collection-idx'));
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+      });
+      document.querySelectorAll('.collection-subtoc-link[data-collection-target]').forEach(function(link) {
+        link.addEventListener('click', function() {
+          activateCollectionPage(link.getAttribute('data-collection-target'));
+        });
+      });
+      document.addEventListener('click', function(e) {
+        var a = e.target && e.target.closest ? e.target.closest('a[href^="#doc:"]') : null;
+        if (!a) return;
+        e.preventDefault();
+        var rawTarget = decodeURIComponent((a.getAttribute('href') || '').slice(5)).trim().toLowerCase();
+        var targetPage = pages.find(function(p) {
+          var id = (p.getAttribute('data-doc-id') || '').toLowerCase();
+          var slug = (p.getAttribute('data-doc-slug') || '').toLowerCase();
+          var title = (p.getAttribute('data-doc-title') || '').toLowerCase();
+          return id === rawTarget || slug === rawTarget || id === ('file:' + rawTarget) || title === rawTarget;
+        });
+        if (targetPage) {
+          activateCollectionPage(targetPage.getAttribute('data-collection-page'));
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      });
+    })();
+  </script>`;
+
+  let result = baseShell.replace('<div id="__COLL_PLACEHOLDER__"></div>', portalHtml);
+  result = result.replace('</head>', `${collectionCSS}\n</head>`);
+  result = result.replace('</body>', `${collectionJS}\n</body>`);
+  return result;
 };

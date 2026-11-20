@@ -27,6 +27,7 @@
     h5,
     h6 {
       line-height: 1.1;
+      scroll-margin-top: 5.5rem;
     }
 
     code {
@@ -92,7 +93,7 @@
     }
 
     .callout::before {
-      content: '';
+      content: '' !important;
       @apply absolute left-5 top-5 w-6 h-6 bg-no-repeat bg-center bg-contain;
     }
 
@@ -126,6 +127,34 @@
     }
     .callout[data-type="danger"]::before {
       background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>');
+    }
+    .callout[data-title]:not([data-title=""]) {
+      padding-top: 2.5rem;
+    }
+    .callout[data-title]:not([data-title=""])::after {
+      content: attr(data-title);
+      position: absolute;
+      top: 0.8rem;
+      left: 3.5rem;
+      font-weight: 700;
+      font-size: 0.875rem;
+      line-height: 1.25;
+    }
+
+    kbd,
+    .guide-kbd {
+      display: inline-block;
+      padding: 0.15rem 0.45rem;
+      font-size: 0.78em;
+      font-weight: 600;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: #1e293b;
+      background-color: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-bottom-width: 2px;
+      border-radius: 0.375rem;
+      box-shadow: 0 1px 0 rgba(15, 23, 42, 0.08);
+      vertical-align: middle;
     }
 
     /* Tables */
@@ -389,12 +418,26 @@
 
 
   /* Placeholder styling */
-  .ProseMirror p.is-editor-empty:first-child::before {
-    color: #adb5bd;
+  .ProseMirror p.is-editor-empty:first-child::before,
+  .ProseMirror p.is-empty::before,
+  .ProseMirror h1.is-empty::before,
+  .ProseMirror h2.is-empty::before,
+  .ProseMirror h3.is-empty::before,
+  .ProseMirror h4.is-empty::before,
+  .ProseMirror blockquote.is-empty::before {
+    color: #94a3b8;
     content: attr(data-placeholder);
     float: left;
     height: 0;
     pointer-events: none;
+  }
+
+  /* Callout placeholder: use ::after so ::before remains dedicated to the SVG icon */
+  .ProseMirror .callout.is-empty::after {
+    color: #94a3b8;
+    content: attr(data-placeholder);
+    pointer-events: none;
+    display: inline-block;
   }
 
   /* Page background drift animation */

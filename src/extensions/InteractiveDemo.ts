@@ -32,7 +32,13 @@ export const InteractiveDemo = Node.create<InteractiveDemoOptions>({
         default: [],
         parseHTML: element => {
           const raw = element.getAttribute('data-frames');
-          return raw ? JSON.parse(raw) : [];
+          if (!raw) return [];
+          try {
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            return [];
+          }
         },
         renderHTML: attributes => {
           const frames = Array.isArray(attributes) ? attributes : (attributes.frames ?? []);
@@ -44,7 +50,13 @@ export const InteractiveDemo = Node.create<InteractiveDemoOptions>({
         default: [],
         parseHTML: element => {
           const raw = element.getAttribute('data-hotspots');
-          return raw ? JSON.parse(raw) : [];
+          if (!raw) return [];
+          try {
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            return [];
+          }
         },
         renderHTML: attributes => {
           const hotspots = Array.isArray(attributes) ? attributes : (attributes.hotspots ?? []);

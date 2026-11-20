@@ -8,6 +8,7 @@ interface DocumentCoverProps {
   onTitleChange: (title: string) => void;
   theme?: ThemeConfig;
   onThemeChange?: (updates: Partial<ThemeConfig>) => void;
+  onEnterTitle?: () => void;
 }
 
 type CoverStyle = 'none' | 'gradient' | 'dark' | 'mesh' | 'editorial';
@@ -29,7 +30,7 @@ function darkenHex(hex: string, amount: number): string {
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
-export function DocumentCover({ title, onTitleChange, theme, onThemeChange }: DocumentCoverProps) {
+export function DocumentCover({ title, onTitleChange, theme, onThemeChange, onEnterTitle }: DocumentCoverProps) {
   const currentStyle: CoverStyle = theme?.hero?.style ?? 'none';
   const subtitle = theme?.hero?.subtitle ?? '';
   const primaryColor = theme?.primaryColor ?? '#2563eb';
@@ -155,15 +156,19 @@ export function DocumentCover({ title, onTitleChange, theme, onThemeChange }: Do
   };
 
   const preventEnter = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') e.preventDefault();
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      onEnterTitle?.();
+    }
   };
 
   // Style picker toolbar — hidden until parent is hovered
   const makeStylePicker = (position: 'bottom' | 'below') => (
-    <div className={`absolute left-1/2 -translate-x-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/75 backdrop-blur-sm px-2.5 py-1.5 rounded-full z-20 whitespace-nowrap pointer-events-auto ${position === 'below' ? 'top-full mt-2' : 'bottom-3'}`}>
+    <div className={`absolute left-1/2 -translate-x-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/75 backdrop-blur-sm px-2.5 py-1.5 rounded-full z-20 whitespace-nowrap pointer-events-none group-hover:pointer-events-auto ${position === 'below' ? 'top-full mt-2' : 'bottom-3'}`}>
       {COVER_STYLES.map(({ key, label }) => (
         <button
           key={key}
+          tabIndex={-1}
           onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setStyle(key); }}
           className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${
             currentStyle === key
@@ -177,6 +182,7 @@ export function DocumentCover({ title, onTitleChange, theme, onThemeChange }: Do
       <span className="w-px h-4 bg-white/20 mx-0.5" aria-hidden />
       <button
         type="button"
+        tabIndex={-1}
         onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); coverImageInputRef.current?.click(); }}
         disabled={coverImageBusy}
         className="text-xs px-2.5 py-1 rounded-full font-medium text-white/70 hover:text-white hover:bg-white/15 transition-colors flex items-center gap-1 disabled:opacity-50"
@@ -189,6 +195,7 @@ export function DocumentCover({ title, onTitleChange, theme, onThemeChange }: Do
       {coverImageBase64 && (
         <button
           type="button"
+          tabIndex={-1}
           onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleRemoveCoverImage(); }}
           className="text-xs px-2 py-1 rounded-full font-medium text-white/70 hover:text-white hover:bg-rose-500/30 transition-colors flex items-center gap-1"
           title="Remove cover image"

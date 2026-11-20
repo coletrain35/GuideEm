@@ -5,16 +5,28 @@ import { Sidebar } from './components/Sidebar';
 import { ExportModal } from './components/ExportModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { TemplatePickerModal } from './components/TemplatePickerModal';
-import { loadDocuments, saveDocument, deleteDocument, Document, ThemeConfig } from './utils/storage';
-import { generateHTML } from './utils/exporter';
+import {
+  loadDocuments,
+  saveDocument,
+  deleteDocument,
+  createSnapshot,
+  exportWorkspaceBundle,
+  importWorkspaceBundle,
+  Document,
+  DocumentSnapshot,
+  ThemeConfig,
+} from './utils/storage';
+import { VersionHistoryDrawer } from './components/VersionHistoryDrawer';
+import { generateHTML, generateCollectionHTML } from './utils/exporter';
 import type { ExportOptions } from './utils/exporter';
 import { tiptapJsonToMarkdown } from './utils/markdownExporter';
 import { exportToPDF } from './utils/pdfExporter';
 import { LandingPage } from './components/LandingPage';
-import { markdownToHtml } from './utils/markdownImporter';
+import { markdownToHtml, parseGuideMarkdown, parseGuideInput } from './utils/markdownImporter';
+import { GuideEmWindowAPI, mergeThemeConfig, fetchDiskGuides, pushGuideToDisk, executeEditorBlockInsert, AGENT_BLOCK_CATALOG } from './utils/agentController';
 import { importGuideHTML } from './utils/htmlImporter';
 import type { TemplateDefinition } from './data/templates';
-import { FileDown, FileText, Loader2, Keyboard, HelpCircle, X, CheckCircle, AlertTriangle, Info, Menu, Plus, Upload, Palette, ArrowLeft, Eye, Maximize2, Minimize2, LayoutGrid, ChevronDown } from 'lucide-react';
+import { FileDown, FileText, Loader2, Keyboard, HelpCircle, X, CheckCircle, AlertTriangle, Info, Menu, Plus, Upload, Palette, ArrowLeft, Eye, Maximize2, Minimize2, LayoutGrid, ChevronDown, HardDrive, FolderOpen, History } from 'lucide-react';
 import { BlockPalette } from './components/BlockPalette';
 import { ToastProvider, useToast } from './components/Toast';
 
@@ -36,6 +48,7 @@ export const DEFAULT_THEME: ThemeConfig = {
     backToTop: false,
     printStylesheet: true,
     shareButtons: false,
+    searchBar: true,
   },
   footer: {
     enabled: false,
@@ -89,6 +102,7 @@ function MainApp() {
   const [showHelp, setShowHelp] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
   const [isThemeDrawerOpen, setIsThemeDrawerOpen] = useState(false);
+  const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
@@ -101,6 +115,11 @@ function MainApp() {
   const [editorInstance, setEditorInstance] = useState<import('@tiptap/core').Editor | null>(null);
   const markdownImportRef = useRef<HTMLInputElement>(null);
   const htmlImportRef = useRef<HTMLInputElement>(null);
+  const jsonImportRef = useRef<HTMLInputElement>(null);
+  const workspaceRestoreInputRef = useRef<HTMLInputElement>(null);
+  const [docRevision, setDocRevision] = useState(0);
+  const editorInstanceRef = useRef<import('@tiptap/core').Editor | null>(null);
+  useEffect(() => { editorInstanceRef.current = editorInstance; }, [editorInstance]);
   const [showImportMenu, setShowImportMenu] = useState(false);
   
   const documentsRef = useRef<Document[]>([]);
@@ -112,6 +131,7 @@ function MainApp() {
   // Multi-document pending save map to avoid clobbering saves on document switch
   const pendingSavesMapRef = useRef<Map<string, Document>>(new Map());
   const deletedDocIdsRef = useRef<Set<string>>(new Set());
+  const fileHandlesRef = useRef<Map<string, any>>(new Map());
   const saveDebounceTimerRef = useRef<number | null>(null);
   const SAVE_DEBOUNCE_MS = 500;
 
@@ -146,6 +166,37 @@ function MainApp() {
       }
       try {
         await saveDocument(doc);
+        void createSnapshot(doc, undefined, 120_000);
+        if (doc.id.startsWith('file:') && doc.content && typeof doc.content === 'object') {
+          const md = tiptapJsonToMarkdown(doc.content, {
+            title: doc.title,
+            tags: doc.tags,
+            theme: doc.theme,
+            includeFrontmatter: true,
+          });
+          void pushGuideToDisk({
+            id: doc.id,
+            slug: doc.id.slice(5),
+            title: doc.title,
+            tags: doc.tags,
+            theme: doc.theme,
+            markdown: md,
+          });
+        } else if (fileHandlesRef.current.has(doc.id) && doc.content && typeof doc.content === 'object') {
+          const handle = fileHandlesRef.current.get(doc.id);
+          const md = tiptapJsonToMarkdown(doc.content, {
+            title: doc.title,
+            tags: doc.tags,
+            theme: doc.theme,
+            includeFrontmatter: true,
+          });
+          void handle.createWritable().then(async (w: any) => {
+            await w.write(md);
+            await w.close();
+          }).catch(() => {
+            // Permission may have been revoked; ignore during background autosave
+          });
+        }
         if (lastFailedSaveRef.current?.id === docId) {
           lastFailedSaveRef.current = null;
         }
@@ -186,6 +237,7 @@ function MainApp() {
   const handleEditorPendingChange = useCallback((pending: boolean) => {
     if (pending) {
       hasPendingSaveRef.current = true;
+      setSaveStatus('saving');
     } else if (!lastFailedSaveRef.current && pendingSavesMapRef.current.size === 0) {
       hasPendingSaveRef.current = false;
     }
@@ -253,7 +305,29 @@ function MainApp() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const docs = await loadDocuments();
+      let docs = await loadDocuments();
+      const diskDocs = await fetchDiskGuides(DEFAULT_THEME);
+      if (diskDocs.length > 0) {
+        const byId = new Map(docs.map(d => [d.id, d]));
+        for (const diskDoc of diskDocs) {
+          const existing = byId.get(diskDoc.id);
+          if (!existing || diskDoc.lastEdited > existing.lastEdited) {
+            byId.set(diskDoc.id, diskDoc);
+            await saveDocument(diskDoc);
+          }
+        }
+        docs = Array.from(byId.values()).sort((a, b) => b.lastEdited - a.lastEdited);
+      }
+      const urlDocParam = new URLSearchParams(window.location.search).get('doc');
+      if (urlDocParam) {
+        const matched = docs.find(d => d.id === urlDocParam || d.title.toLowerCase() === urlDocParam.toLowerCase());
+        if (matched) {
+          setDocuments(docs);
+          setCurrentDocId(matched.id);
+          setCurrentView('editor');
+          return;
+        }
+      }
       setDocuments(docs);
       setCurrentDocId(prev => {
         if (prev && docs.some(d => d.id === prev)) return prev;
@@ -271,11 +345,68 @@ function MainApp() {
     loadWorkspace();
   }, [loadWorkspace]);
 
+  // Subscribe to Vite dev-bridge SSE events when external edits modify ./guides/
+  useEffect(() => {
+    if (typeof EventSource === 'undefined') return;
+    const es = new EventSource('/api/agent/events');
+    es.onmessage = async (event) => {
+      if (hasPendingSaveRef.current || pendingSavesMapRef.current.size > 0) return;
+      let changedSlug: string | null = null;
+      try {
+        const msg = JSON.parse(event.data || '{}');
+        if (typeof msg.fileName === 'string') {
+          changedSlug = msg.fileName.replace(/\.(guide\.json|json|md)$/i, '');
+        }
+      } catch {
+        // Ignore malformed SSE payload
+      }
+      try {
+        const diskDocs = await fetchDiskGuides(DEFAULT_THEME);
+        if (!diskDocs.length) return;
+        const diskById = new Map(diskDocs.map(d => [d.id, d]));
+        let activeUpdated = false;
+        let changed = false;
+
+        const nextDocs = documentsRef.current.map(existing => {
+          const updated = diskById.get(existing.id);
+          if (!updated) return existing;
+          diskById.delete(existing.id);
+          const matchesTarget = changedSlug ? existing.id === `file:${changedSlug}` : true;
+          if (matchesTarget && updated.lastEdited > existing.lastEdited && (updated.htmlContent !== existing.htmlContent || updated.title !== existing.title)) {
+            changed = true;
+            if (existing.id === currentDocIdRef.current) activeUpdated = true;
+            void saveDocument(updated);
+            return updated;
+          }
+          return existing;
+        });
+
+        for (const newDiskDoc of diskById.values()) {
+          changed = true;
+          void saveDocument(newDiskDoc);
+          nextDocs.unshift(newDiskDoc);
+        }
+
+        if (changed) {
+          setDocuments(nextDocs.sort((a, b) => b.lastEdited - a.lastEdited));
+          if (activeUpdated) {
+            setDocRevision(r => r + 1);
+          }
+        }
+      } catch {
+        // Ignore transient errors during dev server reloads
+      }
+    };
+    return () => {
+      es.close();
+    };
+  }, []);
+
   const createNewDocument = (template?: TemplateDefinition) => {
     setShowTemplatePicker(false);
     const tpl = template ?? {
-      defaultTitle: 'Untitled Guide',
-      content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Start writing here…' }] }] },
+      defaultTitle: '',
+      content: { type: 'doc', content: [{ type: 'paragraph' }] },
     };
     const newDoc: Document = {
       id: crypto.randomUUID(),
@@ -297,15 +428,17 @@ function MainApp() {
     if (!file) return;
     try {
       const text = await file.text();
-      const html = markdownToHtml(text);
-      const title = file.name.replace(/\.md$/i, '').trim() || 'Imported Document';
+      const parsed = parseGuideMarkdown(text);
+      const html = parsed.html;
+      const title = parsed.title || file.name.replace(/\.md$/i, '').trim() || 'Imported Document';
       const newDoc: Document = {
         id: crypto.randomUUID(),
         title,
         content: html,
         htmlContent: html,
         lastEdited: Date.now(),
-        theme: cloneTheme(DEFAULT_THEME),
+        theme: mergeThemeConfig(cloneTheme(DEFAULT_THEME), parsed.theme),
+        tags: parsed.tags,
       };
       setDocuments(prev => [newDoc, ...prev]);
       setCurrentDocId(newDoc.id);
@@ -332,7 +465,7 @@ function MainApp() {
         content,
         htmlContent: content,
         lastEdited: Date.now(),
-        theme: { ...cloneTheme(DEFAULT_THEME), ...importedTheme } as ThemeConfig,
+        theme: mergeThemeConfig(cloneTheme(DEFAULT_THEME), importedTheme),
       };
       setDocuments(prev => [newDoc, ...prev]);
       setCurrentDocId(newDoc.id);
@@ -346,7 +479,35 @@ function MainApp() {
     }
   };
 
-  const handleUpdate = useCallback((html: string, json: any, newTitle: string) => {
+  const handleJsonImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = parseGuideInput(text);
+      const docTitle = parsed.title || file.name.replace(/(\.guide)?\.json$/i, '').trim() || 'Imported JSON Guide';
+      const newDoc: Document = {
+        id: crypto.randomUUID(),
+        title: docTitle,
+        content: parsed.content,
+        htmlContent: parsed.htmlContent,
+        lastEdited: Date.now(),
+        theme: mergeThemeConfig(cloneTheme(DEFAULT_THEME), parsed.theme),
+        tags: parsed.tags,
+      };
+      setDocuments(prev => [newDoc, ...prev]);
+      setCurrentDocId(newDoc.id);
+      setCurrentView('editor');
+      await saveDocument(newDoc);
+      toast.success(`Imported guide "${docTitle}"`);
+    } catch {
+      toast.error('JSON guide import failed');
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+  const handleUpdate = useCallback((html: string, json: any, newTitle: string, options?: { silent?: boolean }) => {
     if (!currentDocId || deletedDocIdsRef.current.has(currentDocId)) return;
 
     const existing = documentsRef.current.find(d => d.id === currentDocId);
@@ -357,11 +518,15 @@ function MainApp() {
       content: json,
       htmlContent: html,
       title: newTitle,
-      lastEdited: Date.now(),
+      lastEdited: options?.silent ? existing.lastEdited : Date.now(),
     };
 
     setDocuments(prev => prev.map(d => d.id === currentDocId ? updatedDoc : d));
-    persistDoc(updatedDoc);
+    if (options?.silent) {
+      void saveDocument(updatedDoc);
+    } else {
+      persistDoc(updatedDoc);
+    }
   }, [currentDocId, persistDoc]);
 
   const handleThemeChange = useCallback((themeUpdates: Partial<ThemeConfig>) => {
@@ -391,17 +556,27 @@ function MainApp() {
     persistDoc(updatedDoc);
   }, [currentDocId, persistDoc]);
 
+  const getLiveHtml = (doc: Document) =>
+    doc.id === currentDocIdRef.current && editorInstanceRef.current && !editorInstanceRef.current.isDestroyed
+      ? editorInstanceRef.current.getHTML()
+      : doc.htmlContent;
+
+  const getLiveJson = (doc: Document) =>
+    doc.id === currentDocIdRef.current && editorInstanceRef.current && !editorInstanceRef.current.isDestroyed
+      ? editorInstanceRef.current.getJSON()
+      : doc.content;
+
   const handleOpenPreview = () => {
     if (!currentDoc) return;
     const opts: ExportOptions = isRiseMode ? { mode: 'rise' } : undefined;
-    setPreviewHtml(generateHTML(currentDoc.title, currentDoc.htmlContent, currentDoc.theme || DEFAULT_THEME, opts));
+    setPreviewHtml(generateHTML(currentDoc.title, getLiveHtml(currentDoc), currentDoc.theme || DEFAULT_THEME, opts));
     setIsPreviewOpen(true);
   };
 
   const handleExportDownload = (userFileName: string) => {
     if (!currentDoc) return;
     const opts: ExportOptions = isRiseMode ? { mode: 'rise' } : undefined;
-    const finalHtmlString = generateHTML(currentDoc.title, currentDoc.htmlContent, currentDoc.theme || DEFAULT_THEME, opts);
+    const finalHtmlString = generateHTML(currentDoc.title, getLiveHtml(currentDoc), currentDoc.theme || DEFAULT_THEME, opts);
     const blob = new Blob([finalHtmlString], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -415,9 +590,44 @@ function MainApp() {
     toast.success(`Exported "${safeFileName}.html"`);
   };
 
+  const handleCollectionExport = (userFileName: string, docIds: string[]) => {
+    const idSet = new Set(docIds);
+    const chosen = documentsRef.current.filter(d => idSet.has(d.id));
+    if (chosen.length === 0) {
+      toast.error('Select at least one guide to export');
+      return;
+    }
+    const opts: ExportOptions = isRiseMode ? { mode: 'rise' } : undefined;
+    const items = chosen.map(d => ({
+      id: d.id,
+      slug: d.id.startsWith('file:') ? d.id.slice(5) : undefined,
+      title: d.title,
+      htmlContent: getLiveHtml(d),
+      theme: d.theme,
+      tags: d.tags,
+    }));
+    const safeFileName = userFileName.replace(/[/\\:*?"<>|]/g, '').trim() || 'Documentation Portal';
+    const portalHtml = generateCollectionHTML(items, safeFileName, currentDoc?.theme || DEFAULT_THEME, opts);
+    const blob = new Blob([portalHtml], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${safeFileName}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success(`Exported portal "${safeFileName}.html" (${items.length} guides)`);
+  };
+
   const handleMarkdownExport = (userFileName: string) => {
     if (!currentDoc) return;
-    const markdown = tiptapJsonToMarkdown(currentDoc.content);
+    const markdown = tiptapJsonToMarkdown(getLiveJson(currentDoc), {
+      title: currentDoc.title,
+      tags: currentDoc.tags,
+      theme: currentDoc.theme,
+      includeFrontmatter: true,
+    });
     const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -437,13 +647,221 @@ function MainApp() {
     try {
       await exportToPDF(
         currentDoc.title,
-        currentDoc.htmlContent,
+        getLiveHtml(currentDoc),
         currentDoc.theme || DEFAULT_THEME,
         safeFileName
       );
       toast.success(`Exported "${safeFileName}.pdf"`);
     } catch {
       toast.error('PDF export failed');
+    }
+  };
+
+  const handleSyncDocToDisk = useCallback(async (targetDocId?: string): Promise<Document | null> => {
+    const id = targetDocId || currentDocIdRef.current;
+    if (!id) return null;
+    const doc = documentsRef.current.find(d => d.id === id);
+    if (!doc) return null;
+
+    const liveJson = getLiveJson(doc);
+    const liveHtml = getLiveHtml(doc);
+    const md = typeof liveJson === 'object'
+      ? tiptapJsonToMarkdown(liveJson, {
+          title: doc.title,
+          tags: doc.tags,
+          theme: doc.theme,
+          includeFrontmatter: true,
+        })
+      : (typeof doc.htmlContent === 'string' ? doc.htmlContent : '');
+
+    const slug = doc.id.startsWith('file:')
+      ? doc.id.slice(5)
+      : (doc.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'guide');
+
+    const diskDoc = await pushGuideToDisk({
+      id: `file:${slug}`,
+      slug,
+      title: doc.title,
+      tags: doc.tags,
+      theme: doc.theme,
+      markdown: md,
+    });
+
+    if (diskDoc) {
+      const nextId = diskDoc.id || `file:${slug}`;
+      const promotedDoc: Document = {
+        ...doc,
+        id: nextId,
+        content: liveJson,
+        htmlContent: liveHtml,
+        lastEdited: Date.now(),
+      };
+      pendingSavesMapRef.current.delete(doc.id);
+      if (doc.id !== nextId) {
+        await deleteDocument(doc.id);
+      }
+      await saveDocument(promotedDoc);
+      setDocuments(prev => {
+        const filtered = prev.filter(d => d.id !== doc.id && d.id !== nextId);
+        return [promotedDoc, ...filtered];
+      });
+      if (currentDocIdRef.current === doc.id || currentDocIdRef.current === nextId) {
+        setCurrentDocId(nextId);
+      }
+      toast.success(`Synced to ./guides/${slug}.md`);
+      return promotedDoc;
+    }
+
+    const existingHandle = fileHandlesRef.current.get(doc.id);
+    if (existingHandle) {
+      try {
+        const writable = await existingHandle.createWritable();
+        await writable.write(md);
+        await writable.close();
+        toast.success(`Saved changes to ${existingHandle.name || `${slug}.md`}`);
+        return doc;
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return null;
+      }
+    }
+
+    const showSavePicker = (window as any).showSaveFilePicker;
+    if (typeof showSavePicker === 'function') {
+      try {
+        const handle = await showSavePicker({
+          suggestedName: `${slug}.md`,
+          types: [{ description: 'Markdown Guide', accept: { 'text/markdown': ['.md'] } }],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(md);
+        await writable.close();
+        fileHandlesRef.current.set(doc.id, handle);
+        toast.success(`Saved "${slug}.md" to disk`);
+        return doc;
+      } catch (err: any) {
+        if (err?.name !== 'AbortError') {
+          toast.error('Failed to save file to disk');
+        }
+        return null;
+      }
+    }
+
+    toast.error('Dev server bridge unavailable in static mode');
+    return null;
+  }, [toast]);
+
+  const handleRestoreSnapshot = useCallback(async (snap: DocumentSnapshot) => {
+    const existing = documentsRef.current.find(d => d.id === snap.docId);
+    if (!existing) return;
+    await createSnapshot(
+      { ...existing, content: getLiveJson(existing), htmlContent: getLiveHtml(existing) },
+      'Before restore',
+      0
+    );
+    const restoredDoc: Document = {
+      ...existing,
+      title: snap.title,
+      content: snap.content,
+      htmlContent: snap.htmlContent,
+      lastEdited: Date.now(),
+    };
+    setDocuments(prev => prev.map(d => d.id === restoredDoc.id ? restoredDoc : d));
+    persistDoc(restoredDoc);
+    setDocRevision(r => r + 1);
+    setIsHistoryDrawerOpen(false);
+    toast.success(`Restored snapshot "${snap.label || 'Auto-snapshot'}"`);
+  }, [persistDoc, toast]);
+
+  const handleBackupWorkspace = async () => {
+    try {
+      await flushPendingSaves();
+      const bundle = await exportWorkspaceBundle();
+      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'guideem-workspace-backup.guideem.json';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success(`Exported workspace backup (${bundle.documents.length} guides)`);
+    } catch {
+      toast.error('Failed to export workspace backup');
+    }
+  };
+
+  const handleRestoreWorkspace = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const merged = await importWorkspaceBundle(parsed);
+      setDocuments(merged);
+      if (merged.length > 0 && !merged.some(d => d.id === currentDocIdRef.current)) {
+        setCurrentDocId(merged[0].id);
+      }
+      setDocRevision(r => r + 1);
+      toast.success(`Restored workspace (${parsed.documents?.length || merged.length} guides)`);
+    } catch {
+      toast.error('Failed to restore workspace backup');
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+  const handleOpenLocalFile = async () => {
+    const showOpenPicker = (window as any).showOpenFilePicker;
+    if (typeof showOpenPicker !== 'function') {
+      markdownImportRef.current?.click();
+      return;
+    }
+    try {
+      const [handle] = await showOpenPicker({
+        types: [
+          { description: 'GuideEm Documents', accept: { 'text/markdown': ['.md'], 'application/json': ['.json'], 'text/html': ['.html'] } },
+        ],
+        multiple: false,
+      });
+      if (!handle) return;
+      const file: File = await handle.getFile();
+      const text = await file.text();
+      let newDoc: Document;
+      if (/\.html?$/i.test(file.name)) {
+        const { title: importedTitle, content, theme: importedTheme } = importGuideHTML(text);
+        const docTitle = importedTitle || file.name.replace(/\.html?$/i, '').trim() || 'Imported Guide';
+        newDoc = {
+          id: crypto.randomUUID(),
+          title: docTitle,
+          content,
+          htmlContent: content,
+          lastEdited: Date.now(),
+          theme: mergeThemeConfig(cloneTheme(DEFAULT_THEME), importedTheme),
+        };
+      } else {
+        const parsed = parseGuideInput(text);
+        const docTitle = parsed.title || file.name.replace(/\.(md|guide\.json|json)$/i, '').trim() || 'Imported Guide';
+        newDoc = {
+          id: crypto.randomUUID(),
+          title: docTitle,
+          content: parsed.content,
+          htmlContent: parsed.htmlContent,
+          lastEdited: Date.now(),
+          theme: mergeThemeConfig(cloneTheme(DEFAULT_THEME), parsed.theme),
+          tags: parsed.tags,
+        };
+      }
+      fileHandlesRef.current.set(newDoc.id, handle);
+      setDocuments(prev => [newDoc, ...prev]);
+      setCurrentDocId(newDoc.id);
+      setCurrentView('editor');
+      await saveDocument(newDoc);
+      toast.success(`Opened "${newDoc.title}"`);
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        toast.error('Failed to open local file');
+      }
     }
   };
 
@@ -482,10 +900,17 @@ function MainApp() {
 
     try {
       await deleteDocument(deletedId);
-      const docs = await loadDocuments();
-      setDocuments(docs);
+      if (deletedId.startsWith('file:')) {
+        try {
+          await fetch(`/api/agent/docs/${encodeURIComponent(deletedId)}`, { method: 'DELETE' });
+        } catch {
+          // Dev bridge may not be running in static production builds
+        }
+      }
+      const remainingDocs = await loadDocuments();
+      setDocuments(remainingDocs);
       if (currentDocId === deletedId) {
-        setCurrentDocId(docs.length > 0 ? docs[0].id : null);
+        setCurrentDocId(remainingDocs.length > 0 ? remainingDocs[0].id : null);
       }
 
       if (deletedDoc) {
@@ -497,6 +922,25 @@ function MainApp() {
             onClick: async () => {
               deletedDocIdsRef.current.delete(deletedId);
               await saveDocument(deletedDoc);
+              if (deletedDoc.id.startsWith('file:')) {
+                try {
+                  const md = tiptapJsonToMarkdown(deletedDoc.content, {
+                    title: deletedDoc.title,
+                    tags: deletedDoc.tags,
+                    theme: deletedDoc.theme,
+                    includeFrontmatter: true,
+                  });
+                  await pushGuideToDisk({
+                    id: deletedDoc.id,
+                    title: deletedDoc.title,
+                    tags: deletedDoc.tags,
+                    theme: deletedDoc.theme,
+                    markdown: md,
+                  });
+                } catch {
+                  // Dev bridge unavailable
+                }
+              }
               setDocuments(prev => [deletedDoc, ...prev]);
               setCurrentDocId(deletedDoc.id);
               toast.success(`Restored "${deletedDoc.title || 'Untitled Guide'}"`);
@@ -530,6 +974,196 @@ function MainApp() {
     await saveDocument(newDoc);
     toast.success(`Duplicated "${existing.title}"`);
   };
+
+  const currentDocIdRef = useRef<string | null>(currentDocId);
+  useEffect(() => { currentDocIdRef.current = currentDocId; }, [currentDocId]);
+
+  useEffect(() => {
+    const api: GuideEmWindowAPI = {
+      listDocs: () => documentsRef.current.map(d => ({
+        id: d.id,
+        title: d.title,
+        tags: d.tags,
+        lastEdited: d.lastEdited,
+        theme: d.theme,
+      })),
+      getDoc: (id?: string) => {
+        const targetId = id || currentDocIdRef.current;
+        if (!targetId) return null;
+        return documentsRef.current.find(d => d.id === targetId) || null;
+      },
+      openDoc: (id: string) => {
+        const found = documentsRef.current.find(d => d.id === id || d.title.toLowerCase() === id.toLowerCase());
+        if (!found) return false;
+        void flushPendingSaves();
+        setCurrentDocId(found.id);
+        setCurrentView('editor');
+        return true;
+      },
+      createDoc: async (input, options) => {
+        const parsed = parseGuideInput(input);
+        const docTitle = parsed.title || 'Untitled Guide';
+        const slug = docTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'guide';
+        const defaultId = options?.syncToDisk ? `file:${slug}` : crypto.randomUUID();
+        const newDoc: Document = {
+          id: parsed.id || defaultId,
+          title: docTitle,
+          content: parsed.content || { type: 'doc', content: [{ type: 'paragraph' }] },
+          htmlContent: parsed.htmlContent,
+          lastEdited: Date.now(),
+          theme: mergeThemeConfig(cloneTheme(DEFAULT_THEME), parsed.theme),
+          tags: parsed.tags || [],
+        };
+
+        await saveDocument(newDoc);
+        if (options?.syncToDisk) {
+          const md = typeof input === 'string'
+            ? input
+            : (input.markdown || tiptapJsonToMarkdown(newDoc.content, {
+                title: newDoc.title,
+                tags: newDoc.tags,
+                theme: newDoc.theme,
+                includeFrontmatter: true,
+              }));
+          await pushGuideToDisk({
+            id: newDoc.id,
+            title: newDoc.title,
+            tags: newDoc.tags,
+            theme: newDoc.theme,
+            markdown: md,
+          });
+        }
+
+        setDocuments(prev => [newDoc, ...prev.filter(d => d.id !== newDoc.id)]);
+        setCurrentDocId(newDoc.id);
+        setCurrentView('editor');
+        setDocRevision(r => r + 1);
+        return newDoc;
+      },
+      updateDoc: async (id, updates) => {
+        const targetId = id || currentDocIdRef.current;
+        if (!targetId) return null;
+
+        const existing = documentsRef.current.find(d => d.id === targetId);
+        if (!existing) return null;
+
+        let html = existing.htmlContent;
+        let content = existing.content;
+        let nextTitle = updates.title ?? existing.title;
+        let nextTags = updates.tags ?? existing.tags;
+        let nextTheme = existing.theme ? cloneTheme(existing.theme) : cloneTheme(DEFAULT_THEME);
+
+        if (updates.markdown !== undefined || (updates.blocks && updates.blocks.length > 0)) {
+          const parsed = parseGuideInput({
+            title: nextTitle,
+            tags: nextTags,
+            theme: updates.theme,
+            markdown: updates.markdown,
+            blocks: updates.blocks,
+          });
+          html = parsed.htmlContent;
+          content = parsed.content;
+          if (parsed.title && !updates.title) nextTitle = parsed.title;
+          if (parsed.tags && !updates.tags) nextTags = parsed.tags;
+          if (parsed.theme) nextTheme = mergeThemeConfig(nextTheme, parsed.theme);
+        }
+
+        if (updates.theme) {
+          nextTheme = mergeThemeConfig(nextTheme, updates.theme);
+        }
+
+        const updatedDoc: Document = {
+          ...existing,
+          title: nextTitle,
+          content,
+          htmlContent: html,
+          theme: nextTheme,
+          tags: nextTags,
+          lastEdited: Date.now(),
+        };
+
+        await saveDocument(updatedDoc);
+        setDocuments(prev => prev.map(d => d.id === targetId ? updatedDoc : d));
+        if (targetId === currentDocIdRef.current && (updates.markdown !== undefined || updates.blocks !== undefined)) {
+          setDocRevision(r => r + 1);
+        }
+        return updatedDoc;
+      },
+      deleteDoc: async (id: string) => {
+        deletedDocIdsRef.current.add(id);
+        pendingSavesMapRef.current.delete(id);
+        await deleteDocument(id);
+        if (id.startsWith('file:')) {
+          try {
+            await fetch(`/api/agent/docs/${encodeURIComponent(id)}`, { method: 'DELETE' });
+          } catch {
+            // Dev bridge unavailable
+          }
+        }
+        const remaining = await loadDocuments();
+        setDocuments(remaining);
+        if (currentDocIdRef.current === id) {
+          setCurrentDocId(remaining[0]?.id ?? null);
+        }
+        return true;
+      },
+      insertBlock: (blockSpec) => {
+        return executeEditorBlockInsert(editorInstanceRef.current, blockSpec);
+      },
+      setTheme: (themeUpdates) => {
+        handleThemeChange(themeUpdates);
+      },
+      exportHTML: (id?: string, options?: ExportOptions) => {
+        const targetId = id || currentDocIdRef.current;
+        const doc = documentsRef.current.find(d => d.id === targetId);
+        if (!doc) return '';
+        const liveHtml = (targetId === currentDocIdRef.current && editorInstanceRef.current)
+          ? editorInstanceRef.current.getHTML()
+          : doc.htmlContent;
+        return generateHTML(doc.title, liveHtml, doc.theme || DEFAULT_THEME, options);
+      },
+      exportCollectionHTML: (docIds?: string[], portalTitle = 'Documentation Portal') => {
+        const chosen = Array.isArray(docIds) && docIds.length > 0
+          ? documentsRef.current.filter(d => docIds.includes(d.id))
+          : documentsRef.current;
+        const items = chosen.map(d => ({
+          id: d.id,
+          slug: d.id.startsWith('file:') ? d.id.slice(5) : undefined,
+          title: d.title,
+          htmlContent: getLiveHtml(d),
+          theme: d.theme,
+          tags: d.tags,
+        }));
+        const activeTheme = documentsRef.current.find(d => d.id === currentDocIdRef.current)?.theme || DEFAULT_THEME;
+        return generateCollectionHTML(items, portalTitle, activeTheme);
+      },
+      exportMarkdown: (id?: string, includeFrontmatter = true) => {
+        const targetId = id || currentDocIdRef.current;
+        const doc = documentsRef.current.find(d => d.id === targetId);
+        if (!doc) return '';
+        const liveJson = (targetId === currentDocIdRef.current && editorInstanceRef.current)
+          ? editorInstanceRef.current.getJSON()
+          : doc.content;
+        return tiptapJsonToMarkdown(liveJson, {
+          title: doc.title,
+          tags: doc.tags,
+          theme: doc.theme,
+          includeFrontmatter,
+        });
+      },
+      syncFromDisk: async () => {
+        await loadWorkspace();
+        return documentsRef.current;
+      },
+      saveDocToDisk: (id?: string) => handleSyncDocToDisk(id),
+      getBlocksCatalog: () => AGENT_BLOCK_CATALOG,
+    };
+
+    window.guideEm = api;
+    return () => {
+      delete window.guideEm;
+    };
+  }, [flushPendingSaves, handleSyncDocToDisk, handleThemeChange, loadWorkspace]);
 
   if (isLoading) {
     return (
@@ -597,9 +1231,9 @@ function MainApp() {
         '--brand-primary': `#${brandHex}`,
         '--brand-primary-rgb': `${brandR}, ${brandG}, ${brandB}`,
         '--brand-text-color': brandLuminance > 0.179 ? '#111827' : '#f8fafc',
-        fontFamily: currentDoc?.theme?.fontFamily === 'editorial' ? 'Merriweather, serif' :
-                    currentDoc?.theme?.fontFamily === 'technical' ? '"Fira Code", monospace' :
-                    'Inter, system-ui, sans-serif',
+        fontFamily: 'Inter, system-ui, sans-serif',
+
+
       } as React.CSSProperties}
     >
       {/* Hidden file inputs for import (accessible in all states) */}
@@ -616,6 +1250,20 @@ function MainApp() {
         accept=".html,.htm"
         className="hidden"
         onChange={handleHtmlImport}
+      />
+      <input
+        ref={jsonImportRef}
+        type="file"
+        accept=".json,application/json"
+        className="hidden"
+        onChange={handleJsonImport}
+      />
+      <input
+        ref={workspaceRestoreInputRef}
+        type="file"
+        accept=".json,.guideem.json,application/json"
+        className="hidden"
+        onChange={handleRestoreWorkspace}
       />
 
       {/* Sidebar — hidden in zen mode */}
@@ -636,6 +1284,8 @@ function MainApp() {
               onDuplicateDoc={handleDuplicate}
               onTagsChange={handleTagsChange}
               onRenameDoc={handleSidebarRename}
+              onBackupWorkspace={() => void handleBackupWorkspace()}
+              onRestoreWorkspace={() => workspaceRestoreInputRef.current?.click()}
               onClose={() => setShowSidebar(false)}
             />
           </div>
@@ -719,6 +1369,16 @@ function MainApp() {
                     <span className="hidden sm:inline">Theme</span>
                   </button>
                   <button
+                    id="history-drawer-btn"
+                    onClick={() => setIsHistoryDrawerOpen(true)}
+                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                    title="Version History & Checkpoints"
+                    aria-label="Open version history"
+                  >
+                    <History size={18} aria-hidden />
+                    <span className="hidden sm:inline">History</span>
+                  </button>
+                  <button
                     onClick={() => setShowHelp(!showHelp)}
                     className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${showHelp ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}`}
                     title="Toggle Help & Shortcuts (Ctrl+/)"
@@ -736,6 +1396,30 @@ function MainApp() {
                   >
                     <Eye size={18} aria-hidden />
                     <span className="hidden sm:inline">Preview</span>
+                  </button>
+                  <button
+                    id="sync-to-disk-btn"
+                    onClick={() => void handleSyncDocToDisk()}
+                    className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      currentDoc.id.startsWith('file:')
+                        ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                    title={
+                      currentDoc.id.startsWith('file:')
+                        ? 'Sync latest changes to ./guides/'
+                        : 'Promote and save this guide as a Markdown file in ./guides/'
+                    }
+                    aria-label={
+                      currentDoc.id.startsWith('file:')
+                        ? 'Synced to ./guides'
+                        : 'Save to ./guides'
+                    }
+                  >
+                    <HardDrive size={18} aria-hidden />
+                    <span className="hidden sm:inline">
+                      {currentDoc.id.startsWith('file:') ? 'Synced to ./guides' : 'Save to ./guides'}
+                    </span>
                   </button>
 
                   <div className="relative">
@@ -766,6 +1450,16 @@ function MainApp() {
                             </div>
                           </button>
                           <button
+                            onClick={() => { setShowImportMenu(false); jsonImportRef.current?.click(); }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3"
+                          >
+                            <LayoutGrid size={16} className="text-slate-400" />
+                            <div>
+                              <div className="font-medium">JSON Guide Spec</div>
+                              <div className="text-xs text-slate-400">.guide.json / .json files</div>
+                            </div>
+                          </button>
+                          <button
                             onClick={() => { setShowImportMenu(false); htmlImportRef.current?.click(); }}
                             className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3"
                           >
@@ -775,6 +1469,18 @@ function MainApp() {
                               <div className="text-xs text-slate-400">.html exported guides</div>
                             </div>
                           </button>
+                          {typeof (window as any).showOpenFilePicker === 'function' && (
+                            <button
+                              onClick={() => { setShowImportMenu(false); void handleOpenLocalFile(); }}
+                              className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3 border-t border-slate-100"
+                            >
+                              <FolderOpen size={16} className="text-slate-400" />
+                              <div>
+                                <div className="font-medium">Open Local File…</div>
+                                <div className="text-xs text-slate-400">Direct disk read/write</div>
+                              </div>
+                            </button>
+                          )}
                         </div>
                       </>
                     )}
@@ -837,12 +1543,32 @@ function MainApp() {
             </div>
           </>
         )}
-        <main className="flex-1 overflow-y-auto relative flex flex-col md:flex-row gap-6 px-2 py-4 sm:px-4 sm:py-8">
+        <main
+          className="flex-1 overflow-y-auto relative flex flex-col md:flex-row gap-6 px-2 py-4 sm:px-4 sm:py-8"
+          onClickCapture={(e) => {
+            const anchor = (e.target as HTMLElement | null)?.closest?.('a[href^="#doc:"]');
+            if (!anchor) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const rawTarget = decodeURIComponent((anchor.getAttribute('href') || '').slice(5)).trim().toLowerCase();
+            const matched = documentsRef.current.find(d =>
+              d.id.toLowerCase() === rawTarget
+              || d.id.toLowerCase() === `file:${rawTarget}`
+              || (d.title || '').toLowerCase() === rawTarget
+            );
+            if (matched) {
+              handleSelectDoc(matched.id);
+              toast.info(`Switched to "${matched.title || 'Untitled Guide'}"`);
+            } else {
+              toast.error(`Linked guide "${rawTarget}" not found`);
+            }
+          }}
+        >
           {currentDoc ? (
             <>
               <div className={`transition-all duration-300 ease-in-out ${showHelp && !isZenMode ? 'md:w-2/3 lg:w-3/4' : 'w-full'}`}>
                 <Editor
-                  key={currentDoc.id}
+                  key={`${currentDoc.id}-${docRevision}`}
                   initialContent={currentDoc.content}
                   initialHtmlContent={currentDoc.htmlContent}
                   initialTitle={currentDoc.title}
@@ -984,6 +1710,16 @@ function MainApp() {
         />
       )}
 
+      {/* Version History Drawer */}
+      {currentDoc && (
+        <VersionHistoryDrawer
+          isOpen={isHistoryDrawerOpen}
+          onClose={() => setIsHistoryDrawerOpen(false)}
+          currentDoc={isHistoryDrawerOpen ? { ...currentDoc, content: getLiveJson(currentDoc), htmlContent: getLiveHtml(currentDoc) } : currentDoc}
+          onRestoreSnapshot={handleRestoreSnapshot}
+        />
+      )}
+
       {/* Preview Modal */}
       {isPreviewOpen && (
         <div
@@ -1003,10 +1739,10 @@ function MainApp() {
               >
                 <X size={18} aria-hidden />
               </button>
-              <span className="text-sm font-medium text-slate-300 truncate">{currentDoc?.title || 'Preview'}</span>
+              <span className="text-sm font-semibold text-slate-100 truncate">{currentDoc?.title || 'Preview'}</span>
             </div>
 
-            <span className="text-xs text-slate-500 font-mono hidden sm:block">
+            <span className="text-xs text-slate-200 bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-md font-mono hidden sm:block">
               {currentDoc?.title ? `${currentDoc.title}.html` : 'exported-guide.html'}
             </span>
 
@@ -1027,7 +1763,7 @@ function MainApp() {
               srcDoc={previewHtml}
               title="Document Preview"
               className="w-full h-full border-none"
-              sandbox="allow-scripts allow-same-origin allow-presentation"
+              sandbox="allow-scripts allow-presentation"
             />
           </div>
         </div>
@@ -1039,8 +1775,10 @@ function MainApp() {
           isOpen={isExportModalOpen}
           onClose={() => setIsExportModalOpen(false)}
           onExport={handleExportDownload}
+          onExportCollection={handleCollectionExport}
           onExportMarkdown={handleMarkdownExport}
           onExportPDF={handlePDFExport}
+          documents={documents}
           theme={currentDoc.theme || DEFAULT_THEME}
           setTheme={handleThemeChange}
           documentTitle={currentDoc.title}

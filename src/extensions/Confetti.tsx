@@ -57,6 +57,8 @@ const ConfettiNodeView = (props: any) => {
             value={emoji || ''}
             onChange={(e) => updateAttributes({ emoji: e.target.value })}
             placeholder="🎉"
+            maxLength={4}
+            aria-label="Celebration emoji"
             className="text-5xl text-center bg-transparent border-none outline-none w-20 py-1 cursor-text select-all"
           />
 

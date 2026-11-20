@@ -39,6 +39,15 @@ export const Callout = Node.create<CalloutOptions>({
           }
         },
       },
+      title: {
+        default: '',
+        parseHTML: element => element.getAttribute('data-title') || '',
+        renderHTML: attributes => {
+          const t = typeof attributes === 'string' ? attributes : attributes.title;
+          if (!t) return {};
+          return { 'data-title': t };
+        },
+      },
     }
   },
 
